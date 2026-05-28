@@ -6,7 +6,7 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /search?q=     reflected XSS                 /xml (POST)    XXE (in-band file read)
   /redirect?url= open redirect                 /graphql(POST) GraphQL introspection
   /render?name=  SSTI (evaluates a*b)          /profile?id=   IDOR / object enumeration
-  /sqli?id=      SQLi (MySQL error on quote)   <form>         CSRF (no token)
+  /sqli?id=      SQLi (MySQL error on quote)   /comment(POST) reflected XSS (body) + CSRF
   /ping?host=    OS command injection          cookies        missing flags / serialized / weak JWT
   /download?file=LFI (/etc/passwd, win.ini)    X-Forwarded-Host reflection -> cache poisoning
 
@@ -283,6 +283,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._headers(0, status=302, location="/dashboard")
             else:
                 self._html("<html><body>Invalid credentials</body></html>")
+        elif parts.path == "/comment":
+            text = parse_qs(body).get("text", [""])[0]  # reflected unencoded -> XSS (POST body)
+            self._html(f"<html><body>Thanks. You said: {text}</body></html>")
         else:
             self.do_GET()
 

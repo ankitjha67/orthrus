@@ -17,7 +17,11 @@ hydra_report*
 scan_data/
 evidence/
 screenshots/
+reports/
 *.har
+
+# Local agent config
+.claude/settings.local.json
 
 # Secrets / config
 .env

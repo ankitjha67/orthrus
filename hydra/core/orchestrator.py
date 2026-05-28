@@ -64,6 +64,13 @@ class Orchestrator:
         load_plugins(self.settings.plugins_dir)
         await self.store.init()
 
+        # Avoid a primary-key collision if the operator reuses an existing --scan-id
+        # (previously this aborted the scan silently). Uniquify and warn instead.
+        if await self.store.get_scan(self.scan_id) is not None:
+            new_id = f"{self.scan_id}-{uuid4().hex[:6]}"
+            logger.warning("scan id '%s' already exists; using '%s'", self.scan_id, new_id)
+            self.scan_id = new_id
+
         session = Session.from_cookie_string(self.config.auth_cookie)
         session.headers.update(self.config.extra_headers)
         http = HttpClient.from_config(
