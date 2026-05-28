@@ -8,8 +8,8 @@ version = "0.1.0"
 description = "Automated vulnerability discovery & exploitation confirmation framework (authorized security testing only)"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{ name = "LO & ENI" }]
-license = { text = "Proprietary - Internal Use Only" }
+authors = [{ name = "Ankit Jha" }]
+license = { text = "MIT" }
 keywords = ["security", "pentest", "vulnerability-scanner", "appsec"]
 
 # Lean core: pure-Python / wheel-available deps that install cleanly on Windows + 3.14.

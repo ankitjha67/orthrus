@@ -43,6 +43,8 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Extracted PRD scratch
+# Internal spec / PRD — kept local, never published
+HYDRA_PRD_v1.0.docx
+*.docx
 _prd_extracted.txt
 _prd_unpacked/
