@@ -53,6 +53,9 @@ OWASP_2021 = {
     "prototype-pollution": "A08:2021 - Software and Data Integrity Failures",
     "tls": "A02:2021 - Cryptographic Failures",
     "cve": "A06:2021 - Vulnerable and Outdated Components",
+    "default-creds": "A07:2021 - Identification and Authentication Failures",
+    "race-condition": "A04:2021 - Insecure Design",
+    "example": "A05:2021 - Security Misconfiguration",
 }
 
 

@@ -1,12 +1,14 @@
-"""Authentication & session cookie security scanner (PRD §6.6).
+"""Authentication & session security scanner (PRD §6.6).
 
-Foundation scope: passive analysis of Set-Cookie security attributes
-(Secure / HttpOnly / SameSite). Default-credential testing, session-token
-entropy, and reset-flow analysis are later additions to this module.
+Passive: Set-Cookie security attributes (Secure / HttpOnly / SameSite) and
+session-token entropy (predictable/low-entropy tokens). Default-credential
+testing lives in the separate ``default-credentials`` scanner.
 """
 
 from __future__ import annotations
 
+import math
+from collections import Counter
 from collections.abc import AsyncIterator
 from urllib.parse import urlsplit
 
@@ -16,6 +18,26 @@ from hydra.scanners.base_scanner import BaseScanner
 from hydra.scanners.registry import register
 
 SCANNER_NAME = "auth-session"
+_SESSION_HINTS = ("sess", "sid", "token", "auth", "jwt", "csrf")
+MIN_TOKEN_BITS = 64
+
+
+def shannon_entropy(value: str) -> float:
+    """Shannon entropy in bits per character."""
+    if not value:
+        return 0.0
+    counts = Counter(value)
+    n = len(value)
+    return -sum((c / n) * math.log2(c / n) for c in counts.values())
+
+
+def token_strength_bits(value: str) -> float:
+    return shannon_entropy(value) * len(value)
+
+
+def is_session_cookie(name: str) -> bool:
+    lower = name.lower()
+    return any(h in lower for h in _SESSION_HINTS)
 
 
 def cookie_issues(set_cookie: str, is_https: bool) -> list[tuple[str, Severity, str, str]]:
@@ -77,5 +99,41 @@ class AuthSessionScanner(BaseScanner):
                         evidence=Evidence(matched_at=name, notes=line),
                     )
 
+                # Session-token entropy.
+                first = line.split(";", 1)[0]
+                if "=" not in first:
+                    continue
+                cname, _, cvalue = first.partition("=")
+                cname = cname.strip()
+                if not is_session_cookie(cname) or len(cvalue) < 4:
+                    continue
+                bits = token_strength_bits(cvalue)
+                key = (host, cname, "entropy")
+                if bits < MIN_TOKEN_BITS and key not in seen:
+                    seen.add(key)
+                    yield Finding(
+                        vuln_type="auth-session",
+                        title=f"Low-entropy session token ('{cname}')",
+                        severity=Severity.MEDIUM,
+                        confidence=Confidence.TENTATIVE,
+                        url=endpoint.url,
+                        description=(
+                            f"The session token '{cname}' has ~{bits:.0f} bits of entropy "
+                            f"(< {MIN_TOKEN_BITS}), making it potentially predictable/brute-forceable."
+                        ),
+                        remediation=(
+                            "Generate session tokens from a CSPRNG with >= 128 bits of entropy."
+                        ),
+                        cwe="CWE-331",
+                        scanner=SCANNER_NAME,
+                        evidence=Evidence(matched_at=cname, notes=f"~{bits:.0f} bits"),
+                    )
 
-__all__ = ["AuthSessionScanner", "cookie_issues"]
+
+__all__ = [
+    "AuthSessionScanner",
+    "cookie_issues",
+    "shannon_entropy",
+    "token_strength_bits",
+    "is_session_cookie",
+]

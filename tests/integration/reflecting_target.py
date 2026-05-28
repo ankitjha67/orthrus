@@ -18,6 +18,7 @@ from __future__ import annotations
 import re
 import sys
 import threading
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -48,12 +49,29 @@ HOME = (
     '<li><a href="/dom?html=hi">dom</a></li>'
     '<li><a href="/guestbook">guestbook</a></li>'
     '<li><a href="/pp?a=1">pp</a></li>'
+    '<li><a href="/redeem">redeem</a></li>'
+    '<li><a href="/login">login</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
     "</body></html>"
 )
+
+REDEEM_FORM = (
+    "<html><body><h1>Redeem</h1>"
+    '<form action="/redeem" method="post">'
+    '<input name="coupon" value="SAVE10"><button>redeem</button></form></body></html>'
+)
+LOGIN_FORM = (
+    "<html><body><h1>Login</h1>"
+    '<form action="/login" method="post">'
+    '<input name="username"><input name="password" type="password">'
+    "<button>sign in</button></form></body></html>"
+)
+REDEEM_LOCK = threading.Lock()
+REDEEM_STATE = {"granted": 0, "window": 0.0}
+REDEEM_LIMIT = 3  # per ~1s window, so a concurrent burst yields partial success
 
 GRAPHQL_SCHEMA = (
     '{"data":{"__schema":{"queryType":{"name":"Query"},'
@@ -212,6 +230,12 @@ class Handler(BaseHTTPRequestHandler):
             self._html(DOM_PAGE)
         elif parts.path == "/pp":
             self._html(PP_PAGE)
+        elif parts.path == "/redeem":
+            self._html(REDEEM_FORM)
+        elif parts.path == "/login":
+            self._html(LOGIN_FORM)
+        elif parts.path == "/dashboard":
+            self._html("<html><body>Welcome, admin</body></html>")
         elif parts.path == "/app.js":
             self._raw(APP_JS.encode(), "application/javascript")
         elif parts.path == "/.env":
@@ -240,6 +264,25 @@ class Handler(BaseHTTPRequestHandler):
             if comment:
                 GUESTBOOK_COMMENTS.append(comment)
             self._html(self._guestbook())
+        elif parts.path == "/redeem":
+            with REDEEM_LOCK:  # limited stock per ~1s window -> partial success under a burst
+                now = time.time()
+                if now - REDEEM_STATE["window"] > 2.0:
+                    REDEEM_STATE["window"] = now
+                    REDEEM_STATE["granted"] = 0
+                if REDEEM_STATE["granted"] < REDEEM_LIMIT:
+                    REDEEM_STATE["granted"] += 1
+                    self._html("<html><body>coupon redeemed</body></html>")
+                else:
+                    self._headers(0, status=409)
+        elif parts.path == "/login":
+            form = parse_qs(body)
+            user = form.get("username", [""])[0]
+            pwd = form.get("password", [""])[0]
+            if user == "admin" and pwd == "admin":
+                self._headers(0, status=302, location="/dashboard")
+            else:
+                self._html("<html><body>Invalid credentials</body></html>")
         else:
             self.do_GET()
 
