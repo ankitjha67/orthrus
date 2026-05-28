@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 import sys
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
@@ -42,6 +43,7 @@ HOME = (
     '<li><a href="/download?file=readme.txt">download</a></li>'
     '<li><a href="/xml?doc=1">xml</a></li>'
     '<li><a href="/profile?id=1">profile</a></li>'
+    '<li><a href="/fetch?url=http://127.0.0.1/health">fetch</a></li>'
     "</ul>"
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
@@ -138,6 +140,16 @@ class Handler(BaseHTTPRequestHandler):
             )
         elif parts.path == "/xml":
             self._html("<html><body>XML endpoint: POST an XML document</body></html>")
+        elif parts.path == "/fetch":
+            u = first("url")
+            status = "no url provided"
+            if u.startswith(("http://", "https://")):
+                try:  # server-side fetch -> SSRF
+                    with urllib.request.urlopen(u, timeout=3) as r:  # noqa: S310
+                        status = f"fetched HTTP {r.status}"
+                except Exception as exc:  # noqa: BLE001
+                    status = f"error: {type(exc).__name__}"
+            self._html(f"<html><body>fetch result: {status}</body></html>")
         else:
             self._html(HOME, cookies=True)
 

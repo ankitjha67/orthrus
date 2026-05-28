@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from hydra.core import schemas
+from hydra.core.callback import CallbackClient
 from hydra.core.config import ScanConfig
 from hydra.core.event_bus import EventBus
 from hydra.core.http_client import HttpClient
@@ -25,8 +26,11 @@ class ScanContext:
     http: HttpClient
     store: Store
     event_bus: EventBus
+    callback: CallbackClient | None = None
     assets: list[schemas.Asset] = field(default_factory=list)
     endpoints: list[schemas.Endpoint] = field(default_factory=list)
+    findings: list[schemas.Finding] = field(default_factory=list)
+    finding_ids: dict[str, int] = field(default_factory=dict)
 
 
 __all__ = ["ScanContext"]

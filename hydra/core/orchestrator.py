@@ -13,13 +13,15 @@ from uuid import uuid4
 from rich.table import Table
 
 from hydra.core import schemas
+from hydra.core.callback import LocalCallbackServer
 from hydra.core.config import ScanConfig, Settings
 from hydra.core.context import ScanContext
 from hydra.core.event_bus import Event, EventBus, EventType
 from hydra.core.http_client import HttpClient
-from hydra.core.schemas import Aggressiveness
+from hydra.core.schemas import Aggressiveness, Confidence
 from hydra.core.session import Session
 from hydra.db.store import Store
+from hydra.exploits.registry import exploits_for
 from hydra.recon.base import BaseRecon
 from hydra.recon.crawler import Crawler
 from hydra.recon.tech_fingerprint import TechFingerprint
@@ -64,6 +66,16 @@ class Orchestrator:
             event_bus=self.event_bus,
         )
         self._wire_events()
+
+        if not self.config.no_exploit:
+            if self.config.callback:
+                logger.info(
+                    "external callback (%s) not yet supported; using local listener",
+                    self.config.callback,
+                )
+            callback = LocalCallbackServer()
+            await callback.start()
+            self.ctx.callback = callback
 
         await self.store.create_scan(
             self.scan_id,
@@ -152,7 +164,9 @@ class Orchestrator:
             await scanner.setup(self.ctx)
             try:
                 async for finding in scanner.scan(self.ctx):
-                    await self.store.add_finding(self.scan_id, finding)
+                    db_id = await self.store.add_finding(self.scan_id, finding)
+                    self.ctx.findings.append(finding)
+                    self.ctx.finding_ids[finding.id] = db_id
                     await self.event_bus.emit(
                         EventType.FINDING_RAISED,
                         vuln_type=finding.vuln_type,
@@ -169,13 +183,50 @@ class Orchestrator:
 
     # --------------------------------------------------------- phase: exploit
     async def run_exploit(self) -> int:
+        assert self.ctx is not None
         if self.config.no_exploit:
             logger.info("exploitation skipped (--no-exploit)")
             return 0
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="exploit")
-        logger.info("exploit: no exploit modules registered yet (Roadmap Phase 4)")
+
+        confirmed = 0
+        for finding in self.ctx.findings:
+            modules = exploits_for(finding)
+            if not modules:
+                continue
+            for module in modules:
+                try:
+                    result = await module.confirm(self.ctx, finding)
+                except Exception:
+                    logger.exception("exploit module %s crashed on %s", module.name, finding.id)
+                    continue
+                finding_db_id = self.ctx.finding_ids.get(finding.id)
+                if finding_db_id is not None:
+                    await self.store.add_exploitation(finding_db_id, result)
+                if result.success:
+                    confirmed += 1
+                    finding.confidence = Confidence.CONFIRMED
+                    if finding_db_id is not None:
+                        await self.store.set_finding_confidence(
+                            finding_db_id, Confidence.CONFIRMED.value
+                        )
+                    await self.event_bus.emit(
+                        EventType.EXPLOIT_CONFIRMED,
+                        vuln_type=finding.vuln_type,
+                        url=finding.url,
+                        technique=result.technique,
+                    )
+                    logger.info(
+                        "[bold green]CONFIRMED[/] %s at %s (%s)",
+                        finding.vuln_type,
+                        finding.url,
+                        result.technique,
+                    )
+                    break  # one successful confirmation per finding is enough
+
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="exploit")
-        return 0
+        logger.info("exploitation complete: %d finding(s) confirmed", confirmed)
+        return confirmed
 
     # ---------------------------------------------------------- phase: report
     async def run_report(self, fmt: str, output: str) -> str:
@@ -192,6 +243,8 @@ class Orchestrator:
     async def teardown(self, status: str = "completed") -> None:
         if self.ctx is not None:
             await self.ctx.http.aclose()
+            if self.ctx.callback is not None:
+                await self.ctx.callback.stop()
         await self.store.set_scan_status(self.scan_id, status, completed=True)
         await self.event_bus.emit(EventType.SCAN_COMPLETED, scan_id=self.scan_id, status=status)
         await self.store.close()
@@ -204,9 +257,13 @@ class Orchestrator:
         for severity in ("critical", "high", "medium", "low", "info"):
             table.add_row(severity.title(), str(counts.get(severity, 0)))
         if self.ctx is not None:
+            confirmed = sum(
+                1 for f in self.ctx.findings if f.confidence == Confidence.CONFIRMED
+            )
             table.add_section()
             table.add_row("Assets", str(len(self.ctx.assets)))
             table.add_row("Endpoints", str(len(self.ctx.endpoints)))
+            table.add_row("Confirmed findings", str(confirmed))
             table.add_row("Requests sent", str(self.ctx.http.requests_sent))
             table.add_row("Scope violations blocked", str(self.ctx.http.scope_violations))
         console.print(table)

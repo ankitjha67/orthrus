@@ -152,6 +152,13 @@ class Store:
             )
             return list(result.scalars().all())
 
+    async def set_finding_confidence(self, finding_id: int, confidence: str) -> None:
+        async with self.session() as session:
+            row = await session.get(FindingRow, finding_id)
+            if row is not None:
+                row.confidence = confidence
+                await session.commit()
+
     async def severity_counts(self, scan_id: str) -> dict[str, int]:
         async with self.session() as session:
             result = await session.execute(

@@ -20,9 +20,11 @@ full PRD vision.
 | Database (SQLAlchemy 2.0, SQLite dev) | Implemented |
 | Recon: static crawler, passive tech fingerprinting | Implemented |
 | Recon: subdomain enum, port scan, JS analysis, content discovery | Planned |
-| Scanners (16): security-headers, cors, xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls | Implemented |
-| Scanners: SSRF, stored/DOM XSS, prototype pollution, websocket, race condition, CVE matcher | Deferred (need callback server / Playwright / NVD) |
-| Exploitation confirmation | Interface + registry only |
+| Scanners (18): security-headers, cors, xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf | Implemented |
+| OOB callback server (local fallback listener) | Implemented |
+| Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe) | Implemented |
+| Scanners: stored/DOM XSS, prototype pollution, websocket, race condition, CVE matcher | Deferred (need Playwright / NVD) |
+| XSS confirmation | Deferred (needs headless browser) |
 | Reporting | JSON only (HTML/PDF templates planned) |
 | Playwright browser engine, Nmap, Interactsh, Celery, Postgres | Deferred behind interfaces |
 
@@ -63,10 +65,14 @@ hydra recon -t https://app.target.com `
   --scope "*.target.com,api.target.com,10.0.0.0/24" `
   --exclude-paths "/admin/delete/.*,/api/v1/payments"
 
-# Full pipeline (recon -> scan -> exploit -> report). Active scanners today:
-# security-headers, cors, xss, sqli, ssti, lfi, cmd-injection, open-redirect.
+# Full pipeline (recon -> scan -> exploit -> report). 18 scanners run; detected
+# findings are then re-proven by the confirmation phase (confidence -> confirmed).
+# A local OOB callback server starts automatically for SSRF/blind detection.
 # Time-based SQLi/cmd-injection blind tests run only with --aggressive.
 hydra scan -t https://example.com -o report.json
+
+# Skip the confirmation phase (also disables the callback server)
+hydra scan -t https://example.com --no-exploit -o report.json
 
 # Run only specific scanner modules
 hydra scan -t https://app.target.com --modules sqli,xss,ssti -o report.json

@@ -19,6 +19,7 @@ from hydra.scanners import (  # noqa: F401  (registration side-effects)
     lfi,
     open_redirect,
     sqli,
+    ssrf,
     ssti,
     tls_analyzer,
     xss,
