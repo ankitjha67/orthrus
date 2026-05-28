@@ -14,6 +14,7 @@ from hydra.scanners import (  # noqa: F401  (registration side-effects)
     cve_matcher,
     deserialization,
     dom_xss,
+    exposed_files,
     graphql,
     headers,
     idor,
@@ -26,6 +27,7 @@ from hydra.scanners import (  # noqa: F401  (registration side-effects)
     ssti,
     stored_xss,
     tls_analyzer,
+    websocket,
     xss,
     xxe,
 )

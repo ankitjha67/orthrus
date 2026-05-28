@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import re
 import sys
+import threading
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -48,6 +49,7 @@ HOME = (
     '<li><a href="/guestbook">guestbook</a></li>'
     '<li><a href="/pp?a=1">pp</a></li>'
     "</ul>"
+    '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
     "</body></html>"
@@ -91,6 +93,17 @@ PP_PAGE = (
     "</script></body></html>"
 )
 
+# External JS with API endpoints, a websocket URL, and a leaked key (for js-analyzer).
+APP_JS = (
+    "const API='/api/v2';"
+    "fetch('/api/v2/profile').then(r=>r.json());"
+    "axios.get('/api/v2/orders');"
+    "const ws=new WebSocket('ws://127.0.0.1:8732/ws');"
+    "const AWS_KEY='AKIAIOSFODNN7EXAMPLE';"
+)
+ENV_FILE = "SECRET_KEY=hydra-prod-123\nDATABASE_URL=postgres://u:p@db/app\n"
+GIT_HEAD = "ref: refs/heads/main\n"
+
 # Stored XSS: comments are rendered into HTML without sanitization.
 GUESTBOOK_COMMENTS: list[str] = []
 
@@ -120,6 +133,13 @@ class Handler(BaseHTTPRequestHandler):
             body = body.replace("</body>", f'<link href="https://{xfh}/s.css"></body>')
         data = body.encode("utf-8")
         self._headers(len(data), cookies=cookies)
+        self.wfile.write(data)
+
+    def _raw(self, data: bytes, content_type: str) -> None:
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
         self.wfile.write(data)
 
     def _body(self) -> str:
@@ -192,6 +212,12 @@ class Handler(BaseHTTPRequestHandler):
             self._html(DOM_PAGE)
         elif parts.path == "/pp":
             self._html(PP_PAGE)
+        elif parts.path == "/app.js":
+            self._raw(APP_JS.encode(), "application/javascript")
+        elif parts.path == "/.env":
+            self._raw(ENV_FILE.encode(), "text/plain")
+        elif parts.path == "/.git/HEAD":
+            self._raw(GIT_HEAD.encode(), "text/plain")
         elif parts.path == "/guestbook":
             self._html(self._guestbook())
         else:
@@ -221,8 +247,32 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def _start_ws_server(port: int) -> None:
+    """A WebSocket server that accepts ANY origin (missing Origin validation)."""
+    import asyncio
+
+    try:
+        import websockets
+    except ImportError:
+        return
+
+    async def handler(ws):  # noqa: ANN001
+        try:
+            async for msg in ws:
+                await ws.send(f"echo:{msg}")
+        except Exception:
+            pass
+
+    async def serve() -> None:
+        async with websockets.serve(handler, "127.0.0.1", port):
+            await asyncio.Future()
+
+    asyncio.run(serve())
+
+
 def main() -> None:
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8731
+    threading.Thread(target=_start_ws_server, args=(port + 1,), daemon=True).start()
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
 

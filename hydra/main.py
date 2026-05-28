@@ -211,7 +211,9 @@ async def _run_scan(config: ScanConfig) -> None:
 @click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
 @click.option("--fingerprint/--no-fingerprint", default=True, help="Run technology fingerprinting.")
 @click.option("--crawl/--no-crawl", default=True, help="Run the web crawler.")
-@click.option("--subdomains", is_flag=True, help="Subdomain enumeration (deferred).")
+@click.option("--js/--no-js", "js_analysis", default=True, help="Run JS endpoint/secret analysis.")
+@click.option("--content/--no-content", "content_discovery", default=True, help="Run content discovery.")
+@click.option("--subdomains", is_flag=True, help="Run subdomain enumeration (needs *.domain scope).")
 @click.option("--crawl-depth", default=5, type=int, help="Maximum crawl depth.")
 @click.option("--max-pages", default=2000, type=int, help="Maximum pages to crawl.")
 @click.option("--rate-limit", default=50.0, type=float, help="Max requests/sec per domain.")
@@ -227,6 +229,8 @@ def recon(
     scope_str: str,
     fingerprint: bool,
     crawl: bool,
+    js_analysis: bool,
+    content_discovery: bool,
     subdomains: bool,
     crawl_depth: int,
     max_pages: int,
@@ -241,8 +245,6 @@ def recon(
 ) -> None:
     """Run reconnaissance only."""
     configure_logging(verbose)
-    if subdomains:
-        logger.warning("subdomain enumeration is deferred (Roadmap Phase 1 follow-up); skipping")
     scope = build_scope(scope_str, target, exclude_paths)
     config = ScanConfig(
         scan_id=scan_id,
@@ -260,6 +262,12 @@ def recon(
         which.add("fingerprint")
     if crawl:
         which.add("crawl")
+    if js_analysis:
+        which.add("js")
+    if content_discovery:
+        which.add("content")
+    if subdomains:
+        which.add("subdomains")
     _log_scope(scope)
     asyncio.run(_run_recon(config, which, output))
 

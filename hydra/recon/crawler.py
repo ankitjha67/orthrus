@@ -20,6 +20,7 @@ from hydra.core import schemas
 from hydra.core.context import ScanContext
 from hydra.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
 from hydra.recon.base import BaseRecon
+from hydra.recon.js_analyzer import extract_endpoints, extract_websockets
 from hydra.utils.logger import get_logger
 from hydra.utils.scope import ScopeViolation
 
@@ -124,6 +125,25 @@ class Crawler(BaseRecon):
 
             for form in soup.find_all("form"):
                 yield _parse_form(url, form)
+
+            # External scripts -> recorded for the JS analyzer to fetch.
+            for script in soup.find_all("script", src=True):
+                src = _normalize(urljoin(url, script["src"].strip()))
+                if src and src not in seen_urls and ctx.scope.is_allowed(src):
+                    seen_urls.add(src)
+                    yield Endpoint(url=src, method=HttpMethod.GET, source="script")
+
+            # Inline scripts -> mine endpoints / websockets directly (body in hand).
+            for script in soup.find_all("script", src=False):
+                code = script.string or script.get_text() or ""
+                if not code.strip():
+                    continue
+                for ep_url in extract_endpoints(code, url):
+                    if ctx.scope.is_allowed(ep_url):
+                        yield Endpoint(url=ep_url, method=HttpMethod.GET, source="js-inline")
+                for ws in extract_websockets(code, url):
+                    if ws not in ctx.websockets:
+                        ctx.websockets.append(ws)
 
             if depth >= max_depth:
                 continue

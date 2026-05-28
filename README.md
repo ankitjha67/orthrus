@@ -18,16 +18,15 @@ full PRD vision.
 |------|-------|
 | Core: config, scope engine, HTTP client, rate limiter, event bus | Implemented |
 | Database (SQLAlchemy 2.0, SQLite dev) | Implemented |
-| Recon: static crawler, passive tech fingerprinting | Implemented |
-| Recon: subdomain enum, port scan, JS analysis, content discovery | Planned |
-| Scanners (22): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf, prototype-pollution, cve | Implemented |
+| Recon: crawler, fingerprint, JS analysis (endpoints/secrets/ws), content discovery, subdomain enum (DNS + crt.sh) | Implemented |
+| Scanners (24): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf, prototype-pollution, cve, exposed-file, websocket | Implemented |
 | Headless browser engine (Playwright/Chromium, scope-enforced) | Implemented |
 | OOB callback server (local fallback listener) | Implemented |
 | CVE matching via NVD (cached) | Implemented |
 | Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe, xss) | Implemented |
 | Reporting: JSON, CSV, HTML + PDF (executive/technical/compliance), CVSS v3.1, OWASP/CWE mapping | Implemented |
-| Scanners: websocket, race condition | Deferred (need ws endpoint discovery / app-aware logic) |
-| Recon: subdomain enum, port scan (Nmap), distributed scanning (Celery), Postgres | Deferred behind interfaces |
+| Scanners: race condition | Deferred (app-aware, high false-positive) |
+| Recon: port scan (Nmap); distributed scanning (Celery), Postgres | Planned next |
 
 ## Requirements
 

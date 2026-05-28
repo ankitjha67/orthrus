@@ -31,6 +31,7 @@ class ScanContext:
     browser: BrowserManager | None = None
     assets: list[schemas.Asset] = field(default_factory=list)
     endpoints: list[schemas.Endpoint] = field(default_factory=list)
+    websockets: list[str] = field(default_factory=list)
     findings: list[schemas.Finding] = field(default_factory=list)
     finding_ids: dict[str, int] = field(default_factory=dict)
 

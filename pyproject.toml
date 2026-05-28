@@ -33,7 +33,7 @@ dependencies = [
 
 [project.optional-dependencies]
 browser = ["playwright>=1.44"]
-scanners = ["pyjwt>=2.8", "cryptography>=42.0", "sslyze>=6.0", "paramiko>=3.4"]
+scanners = ["pyjwt>=2.8", "cryptography>=42.0", "sslyze>=6.0", "paramiko>=3.4", "websockets>=12.0"]
 recon = ["python-nmap>=0.7"]
 reporting = ["weasyprint>=62.0"]  # optional alt PDF backend; default PDF uses [browser] Chromium
 distributed = ["celery>=5.4", "redis>=5.0"]

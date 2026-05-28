@@ -24,7 +24,10 @@ from hydra.core.session import Session
 from hydra.db.store import Store
 from hydra.exploits.registry import exploits_for
 from hydra.recon.base import BaseRecon
+from hydra.recon.content_discovery import ContentDiscovery
 from hydra.recon.crawler import Crawler
+from hydra.recon.js_analyzer import JsAnalyzer
+from hydra.recon.subdomain_enum import SubdomainEnum
 from hydra.recon.tech_fingerprint import TechFingerprint
 from hydra.reporting.generator import generate_report
 from hydra.scanners.registry import get_scanners
@@ -119,11 +122,18 @@ class Orchestrator:
         assert self.ctx is not None
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="recon")
 
+        # Order matters: crawl populates script endpoints before js-analysis reads them.
         modules: list[BaseRecon] = []
         if which is None or "fingerprint" in which:
             modules.append(TechFingerprint())
         if which is None or "crawl" in which:
             modules.append(Crawler())
+        if which is None or "js" in which:
+            modules.append(JsAnalyzer())
+        if which is None or "content" in which:
+            modules.append(ContentDiscovery())
+        if which is not None and "subdomains" in which:
+            modules.append(SubdomainEnum())
 
         seen_endpoints: set[tuple[str, str]] = set()
         for module in modules:

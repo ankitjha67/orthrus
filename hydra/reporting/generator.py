@@ -45,6 +45,8 @@ OWASP_2021 = {
     "security-headers": "A05:2021 - Security Misconfiguration",
     "cache-poisoning": "A05:2021 - Security Misconfiguration",
     "graphql": "A05:2021 - Security Misconfiguration",
+    "exposed-file": "A05:2021 - Security Misconfiguration",
+    "websocket": "A05:2021 - Security Misconfiguration",
     "auth-session": "A07:2021 - Identification and Authentication Failures",
     "jwt": "A07:2021 - Identification and Authentication Failures",
     "deserialization": "A08:2021 - Software and Data Integrity Failures",
