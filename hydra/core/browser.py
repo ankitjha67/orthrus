@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import os
 from dataclasses import dataclass
+from urllib.parse import urlsplit
 
 from hydra.utils.logger import get_logger
 from hydra.utils.scope import ScopeValidator
@@ -34,6 +35,17 @@ class ExecutionProbe:
     method: str = ""  # "global" | "dialog"
     message: str = ""
     screenshot_path: str | None = None
+
+
+@dataclass
+class CapturedRequest:
+    """An API request the page fired (XHR/fetch), recorded for the inventory."""
+
+    method: str
+    url: str
+    post_data: str | None = None
+    content_type: str | None = None
+    resource_type: str = ""
 
 
 class BrowserManager:
@@ -61,6 +73,10 @@ class BrowserManager:
         self._browser = None
         self._context = None
         self._page_count = 0
+        # API requests (XHR/fetch) observed in-scope, harvested by browser-crawl recon.
+        self.captured: list[CapturedRequest] = []
+        self._capture_seen: set[tuple[str, str, str, str]] = set()
+        self.max_captured = 500
 
     @staticmethod
     def is_available() -> bool:
@@ -93,6 +109,7 @@ class BrowserManager:
     async def _route(self, route) -> None:  # type: ignore[no-untyped-def]
         try:
             if self.scope.is_allowed(route.request.url):
+                self._maybe_capture(route.request)
                 await route.continue_()
             else:
                 await route.abort()
@@ -101,6 +118,34 @@ class BrowserManager:
                 await route.abort()
             except Exception:
                 pass
+
+    def _maybe_capture(self, request) -> None:  # type: ignore[no-untyped-def]
+        """Record in-scope API calls (XHR/fetch, or any body-bearing request)."""
+        try:
+            method = (request.method or "GET").upper()
+            rtype = request.resource_type or ""
+            post = request.post_data
+            if rtype not in ("xhr", "fetch") and method in ("GET", "HEAD", "OPTIONS") and not post:
+                return  # ordinary navigation/subresource, not an API call
+            if len(self.captured) >= self.max_captured:
+                return
+            headers = request.headers or {}
+            ctype = headers.get("content-type", "") or ""
+            sig = (method, urlsplit(request.url).path, ctype.split(";")[0], post or "")
+            if sig in self._capture_seen:
+                return
+            self._capture_seen.add(sig)
+            self.captured.append(
+                CapturedRequest(
+                    method=method,
+                    url=request.url,
+                    post_data=post,
+                    content_type=ctype or None,
+                    resource_type=rtype,
+                )
+            )
+        except Exception:
+            pass
 
     async def _new_page(self):  # type: ignore[no-untyped-def]
         if self._page_count >= self.max_pages_per_context:
@@ -195,4 +240,4 @@ class BrowserManager:
             pass
 
 
-__all__ = ["BrowserManager", "ExecutionProbe"]
+__all__ = ["BrowserManager", "ExecutionProbe", "CapturedRequest"]

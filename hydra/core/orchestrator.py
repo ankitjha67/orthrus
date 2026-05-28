@@ -26,6 +26,7 @@ from hydra.exploits.registry import exploits_for
 from hydra.plugins import load_plugins
 from hydra.recon.api_discovery import ApiDiscovery
 from hydra.recon.base import BaseRecon
+from hydra.recon.browser_crawl import BrowserCrawl
 from hydra.recon.content_discovery import ContentDiscovery
 from hydra.recon.crawler import Crawler
 from hydra.recon.dns_enum import DnsEnum
@@ -160,6 +161,10 @@ class Orchestrator:
             modules.append(WafDetect())
         if which is None or "api" in which:
             modules.append(ApiDiscovery())
+        # Dynamic (browser) crawl: navigates the SPA so its real XHR/fetch API
+        # calls are captured as endpoints. applicable() gates on browser presence.
+        if which is None or "browser" in which:
+            modules.append(BrowserCrawl())
         if which is None or "dns" in which:
             modules.append(DnsEnum())  # applicable() skips IP targets
         if which is not None and "subdomains" in which:
