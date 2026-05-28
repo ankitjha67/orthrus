@@ -13,7 +13,13 @@ from hydra.core.schemas import (
     ParamLocation,
     Severity,
 )
-from hydra.exploits._replay import find_endpoint, payload_from_evidence, reissue
+from hydra.exploits._replay import (
+    find_endpoint,
+    payload_from_evidence,
+    reissue,
+    send_value,
+)
+from hydra.utils.encoding import with_query_param
 
 
 def _finding(**kw: object) -> Finding:
@@ -178,3 +184,51 @@ async def test_reissue_body_none_when_payload_unrecoverable():
     )
     assert await reissue(ctx, f) is None
     assert http.post_calls == []
+
+
+# --- send_value (fresh-value injection, used by SSRF confirmation) ---
+
+
+async def test_send_value_query_injects_into_param():
+    http = FakeHttp()
+    ctx = SimpleNamespace(http=http, endpoints=[])
+    f = _finding(url="http://h/fetch", parameter="url", param_location=ParamLocation.QUERY)
+    resp = await send_value(ctx, f, "http://cb/tok")
+    assert resp.kind == "get"
+    assert http.get_calls == [(with_query_param("http://h/fetch", "url", "http://cb/tok"), True)]
+    assert http.post_calls == []
+
+
+async def test_send_value_body_injects_into_form_field():
+    http = FakeHttp()
+    ep = Endpoint(
+        url="http://h/fetch",
+        method=HttpMethod.POST,
+        params=[
+            Param(name="url", location=ParamLocation.BODY),
+            Param(name="csrf", location=ParamLocation.BODY, value="tok123"),
+        ],
+    )
+    ctx = SimpleNamespace(http=http, endpoints=[ep])
+    f = _finding(url="http://h/fetch", parameter="url", param_location=ParamLocation.BODY)
+    resp = await send_value(ctx, f, "http://cb/tok")
+    assert resp.kind == "post"
+    url, data, _ = http.post_calls[0]
+    assert url == "http://h/fetch"
+    assert data == {"url": "http://cb/tok", "csrf": "tok123"}
+
+
+async def test_send_value_body_none_when_endpoint_missing():
+    http = FakeHttp()
+    ctx = SimpleNamespace(http=http, endpoints=[])
+    f = _finding(url="http://h/fetch", parameter="url", param_location=ParamLocation.BODY)
+    assert await send_value(ctx, f, "http://cb/tok") is None
+    assert http.post_calls == []
+
+
+async def test_send_value_none_without_parameter():
+    http = FakeHttp()
+    ctx = SimpleNamespace(http=http, endpoints=[])
+    f = _finding(url="http://h/fetch", param_location=ParamLocation.QUERY)
+    assert await send_value(ctx, f, "http://cb/tok") is None
+    assert http.get_calls == []

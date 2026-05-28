@@ -9,6 +9,7 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /sqli?id=      SQLi (MySQL error on quote)   /comment(POST) reflected XSS (body) + CSRF
   /ping?host=    OS command injection          cookies        missing flags / serialized / weak JWT
   /download?file=LFI (/etc/passwd, win.ini)    X-Forwarded-Host reflection -> cache poisoning
+  /fetch?url=    SSRF (GET + POST body)
 
 Run: python reflecting_target.py [port]
 """
@@ -55,6 +56,8 @@ HOME = (
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
+    '<form action="/fetch" method="post">'
+    '<input name="url"><button>fetch</button></form>'
     "</body></html>"
 )
 
@@ -124,6 +127,17 @@ GIT_HEAD = "ref: refs/heads/main\n"
 
 # Stored XSS: comments are rendered into HTML without sanitization.
 GUESTBOOK_COMMENTS: list[str] = []
+
+
+def fetch_url(u: str) -> str:
+    """Server-side fetch of an attacker-controlled URL -> SSRF (shared GET/POST)."""
+    if not u.startswith(("http://", "https://")):
+        return "no url provided"
+    try:  # noqa: S310 (intentionally unvalidated for the SSRF test case)
+        with urllib.request.urlopen(u, timeout=3) as r:  # noqa: S310
+            return f"fetched HTTP {r.status}"
+    except Exception as exc:  # noqa: BLE001
+        return f"error: {type(exc).__name__}"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -217,15 +231,7 @@ class Handler(BaseHTTPRequestHandler):
         elif parts.path == "/xml":
             self._html("<html><body>XML endpoint: POST an XML document</body></html>")
         elif parts.path == "/fetch":
-            u = first("url")
-            status = "no url provided"
-            if u.startswith(("http://", "https://")):
-                try:  # server-side fetch -> SSRF
-                    with urllib.request.urlopen(u, timeout=3) as r:  # noqa: S310
-                        status = f"fetched HTTP {r.status}"
-                except Exception as exc:  # noqa: BLE001
-                    status = f"error: {type(exc).__name__}"
-            self._html(f"<html><body>fetch result: {status}</body></html>")
+            self._html(f"<html><body>fetch result: {fetch_url(first('url'))}</body></html>")
         elif parts.path == "/dom":
             self._html(DOM_PAGE)
         elif parts.path == "/pp":
@@ -286,6 +292,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parts.path == "/comment":
             text = parse_qs(body).get("text", [""])[0]  # reflected unencoded -> XSS (POST body)
             self._html(f"<html><body>Thanks. You said: {text}</body></html>")
+        elif parts.path == "/fetch":
+            url = parse_qs(body).get("url", [""])[0]  # server-side fetch of body param -> SSRF (POST)
+            self._html(f"<html><body>fetch result: {fetch_url(url)}</body></html>")
         else:
             self.do_GET()
 
