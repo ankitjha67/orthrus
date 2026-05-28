@@ -132,6 +132,7 @@ class Settings(BaseSettings):
     db_url: str = "sqlite+aiosqlite:///./hydra.sqlite3"
     data_dir: str = "./scan_data"
     log_level: str = "info"
+    redis_url: str = "redis://localhost:6379/0"  # Celery broker/backend (distributed mode)
 
     # Deferred external-integration credentials (optional until those modules land).
     shodan_api_key: str | None = None

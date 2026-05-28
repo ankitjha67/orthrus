@@ -124,6 +124,9 @@ def cli() -> None:
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
 @click.option("--headers", default=None, help="Extra headers as JSON object.")
 @click.option("--threads", default=10, type=int, help="Concurrent scanner threads.")
+@click.option("--distributed", is_flag=True, help="Distribute targets across Celery workers.")
+@click.option("--workers", default=4, type=int, help="Worker count (distributed partitioning).")
+@click.option("--redis", "redis_url", default=None, help="Redis broker URL (distributed mode).")
 @click.option("--scan-id", default=None, help="Custom scan identifier.")
 @click.option("--output", "-o", default="hydra_report", help="Report output path.")
 @click.option(
@@ -153,6 +156,9 @@ def scan(
     exclude_paths: str | None,
     headers: str | None,
     threads: int,
+    distributed: bool,
+    workers: int,
+    redis_url: str | None,
     scan_id: str | None,
     output: str,
     report_format: str,
@@ -160,13 +166,24 @@ def scan(
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
     configure_logging(verbose)
+    module_list = [m.strip() for m in modules.split(",") if m.strip()]
+    aggressiveness = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
+
+    if distributed:
+        _run_distributed(
+            target, scope_str, exclude_paths, module_list, aggressiveness,
+            crawl_depth, max_pages, timeout, no_exploit, browser, report_format,
+            workers, redis_url,
+        )
+        return
+
     scope = build_scope(scope_str, target, exclude_paths)
     config = ScanConfig(
         scan_id=scan_id,
         target=target,
         scope=scope,
-        modules=[m.strip() for m in modules.split(",") if m.strip()],
-        aggressiveness=Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL,
+        modules=module_list,
+        aggressiveness=aggressiveness,
         crawl_depth=crawl_depth,
         max_pages=max_pages,
         timeout=timeout,
@@ -204,6 +221,62 @@ async def _run_scan(config: ScanConfig) -> None:
         logger.exception("scan aborted")
     finally:
         await orch.teardown(status)
+
+
+def _run_distributed(
+    target_spec: str,
+    scope_str: str,
+    exclude_paths: str | None,
+    module_list: list[str],
+    aggressiveness: Aggressiveness,
+    crawl_depth: int,
+    max_pages: int,
+    timeout: float,
+    no_exploit: bool,
+    browser: bool,
+    report_format: str,
+    workers: int,
+    redis_url: str | None,
+) -> None:
+    import os
+
+    if redis_url:
+        os.environ["HYDRA_REDIS_URL"] = redis_url
+    try:
+        from hydra.distributed.dispatcher import dispatch, load_targets, partition_targets
+    except ImportError:
+        logger.error("distributed mode needs the [distributed] extra (celery + redis)")
+        return
+
+    targets = load_targets(target_spec)
+    if not targets:
+        logger.error("no targets found in %s", target_spec)
+        return
+
+    configs = [
+        ScanConfig(
+            target=t,
+            scope=build_scope(scope_str, t, exclude_paths),
+            modules=module_list,
+            aggressiveness=aggressiveness,
+            crawl_depth=crawl_depth,
+            max_pages=max_pages,
+            timeout=timeout,
+            no_exploit=no_exploit,
+            use_browser=browser,
+            report_format=report_format,
+        )
+        for t in targets
+    ]
+    buckets = partition_targets(targets, workers)
+    logger.info(
+        "dispatching %d target(s) across %d worker bucket(s) via Redis",
+        len(targets),
+        len(buckets),
+    )
+    results = dispatch(configs)
+    for r in results:
+        logger.info("%s -> %s", r.get("target"), r.get("status"))
 
 
 @cli.command()

@@ -25,8 +25,9 @@ full PRD vision.
 | CVE matching via NVD (cached) | Implemented |
 | Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe, xss) | Implemented |
 | Reporting: JSON, CSV, HTML + PDF (executive/technical/compliance), CVSS v3.1, OWASP/CWE mapping | Implemented |
+| Production: PostgreSQL (+ Alembic migrations), distributed scanning (Celery/Redis), Docker Compose stack | Implemented |
 | Scanners: race condition | Deferred (app-aware, high false-positive) |
-| Recon: port scan (Nmap); distributed scanning (Celery), Postgres | Planned next |
+| Recon: port scan (Nmap), Shodan/Censys passive recon | Planned next |
 
 ## Requirements
 
@@ -89,6 +90,25 @@ hydra report --scan-id scan-abcd1234 --format html --template technical -o tech_
 
 Run `hydra --help` or `hydra <command> --help` for all options.
 
+## Production: PostgreSQL & distributed scanning
+
+```powershell
+# Use PostgreSQL instead of SQLite (needs the [postgres] extra: asyncpg + alembic)
+$env:HYDRA_DB_URL = "postgresql+asyncpg://hydra:hydra@localhost:5432/hydra"
+alembic upgrade head            # create/upgrade schema (or rely on auto-create for dev)
+
+# Distributed scanning across Celery workers (needs the [distributed] extra + Redis)
+celery -A hydra.distributed.celery_app worker --loglevel=info   # start worker(s)
+hydra scan --distributed --workers 4 --redis redis://localhost:6379/0 -t targets.txt
+
+# Or run the whole stack (app + workers + redis + postgres) with Docker
+docker compose -f docker/docker-compose.yml up -d --build
+docker compose -f docker/docker-compose.yml run --rm app scan -t https://example.com
+```
+
+> Distributed OOB detection needs a shared, externally-reachable callback server
+> (Interactsh); the built-in LocalCallbackServer only serves same-host targets.
+
 ## Scope enforcement (read this)
 
 `hydra.utils.scope.ScopeValidator` is the safety boundary. It is **deny by
@@ -101,15 +121,16 @@ boundary cannot be bypassed.
 
 ```
 hydra/
-  core/        config, scope-enforced HTTP client, session, event bus, orchestrator, schemas, context
-  recon/       crawler, tech fingerprint (+ base interface)
-  scanners/    base interface + registry (modules land here)
-  exploits/    base interface + registry (modules land here)
+  core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
+  recon/       crawler, fingerprint, JS analyzer, content discovery, subdomain enum
+  scanners/    24 scanners + base interface + registry
+  exploits/    confirmation modules + base interface + registry
   reporting/   JSON/CSV/HTML/PDF generator, CVSS engine, Jinja2 templates
-  db/          SQLAlchemy models + async store
-  utils/       logger, scope validator, rate limiter
-  plugins/     plugin loader (planned)
+  db/          SQLAlchemy models, async store, Alembic migrations
+  distributed/ Celery app, tasks, target dispatcher
+  utils/       logger, scope validator, rate limiter, encoding
   main.py      Click CLI entry point
+docker/        Dockerfile + docker-compose (app, workers, redis, postgres)
 ```
 
 ## Development

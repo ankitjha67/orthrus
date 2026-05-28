@@ -1,0 +1,58 @@
+# HYDRA distributed stack (PRD §15.2). Authorized testing only.
+#
+#   docker compose -f docker/docker-compose.yml up -d --build
+#   docker compose -f docker/docker-compose.yml run --rm app scan -t https://example.com
+#
+# `worker` runs Celery workers (scale with --scale worker=N); targets dispatched
+# via `hydra scan --distributed -t targets.txt` land on them through Redis and
+# write to the shared Postgres database.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: hydra
+      POSTGRES_USER: hydra
+      POSTGRES_PASSWORD: hydra
+    volumes:
+      - hydra-pgdata:/var/lib/postgresql/data
+
+  app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on: [redis, postgres]
+    environment: &hydra-env
+      HYDRA_DB_URL: postgresql+asyncpg://hydra:hydra@postgres:5432/hydra
+      HYDRA_REDIS_URL: redis://redis:6379/0
+      HYDRA_DATA_DIR: /data
+    volumes:
+      - hydra-data:/data
+    # CLI-driven: `docker compose run --rm app scan ...`
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    depends_on: [redis, postgres]
+    environment: *hydra-env
+    volumes:
+      - hydra-data:/data
+    entrypoint: ["celery", "-A", "hydra.distributed.celery_app", "worker", "--loglevel=info"]
+
+  # OOB callbacks across distributed workers need a SHARED, externally-reachable
+  # callback server. The in-process LocalCallbackServer only serves same-host
+  # targets; for distributed engagements run Interactsh and point modules at it
+  # (future integration). Example:
+  # callback:
+  #   image: projectdiscovery/interactsh-server:latest
+  #   ports: ["53:53/udp", "80:80", "443:443"]
+
+volumes:
+  hydra-pgdata:
+  hydra-data:
