@@ -20,11 +20,11 @@ full PRD vision.
 | Database (SQLAlchemy 2.0, SQLite dev) | Implemented |
 | Recon: static crawler, passive tech fingerprinting | Implemented |
 | Recon: subdomain enum, port scan, JS analysis, content discovery | Planned |
-| Scanners (18): security-headers, cors, xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf | Implemented |
+| Scanners (20): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf | Implemented |
+| Headless browser engine (Playwright/Chromium, scope-enforced) | Implemented |
 | OOB callback server (local fallback listener) | Implemented |
-| Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe) | Implemented |
-| Scanners: stored/DOM XSS, prototype pollution, websocket, race condition, CVE matcher | Deferred (need Playwright / NVD) |
-| XSS confirmation | Deferred (needs headless browser) |
+| Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe, xss) | Implemented |
+| Scanners: prototype pollution, websocket, race condition, CVE matcher | Deferred (need NVD / more tooling) |
 | Reporting | JSON only (HTML/PDF templates planned) |
 | Playwright browser engine, Nmap, Interactsh, Celery, Postgres | Deferred behind interfaces |
 
@@ -51,8 +51,10 @@ pip install -e ".[dev]"          # pytest, ruff, mypy
 ```
 
 > The **jwt** and **tls** scanners require the `[scanners]` extra (pyjwt /
-> cryptography / sslyze). Without it they self-disable; the other 14 scanners run
-> on the lean core.
+> cryptography / sslyze). The **dom-xss** and **stored-xss** scanners and **xss**
+> confirmation require the `[browser]` extra plus `playwright install chromium`.
+> All self-disable cleanly if their extra is absent; the lean core still runs the
+> rest.
 
 ## Usage
 
@@ -73,6 +75,9 @@ hydra scan -t https://example.com -o report.json
 
 # Skip the confirmation phase (also disables the callback server)
 hydra scan -t https://example.com --no-exploit -o report.json
+
+# Disable the headless browser (skips DOM/stored XSS + browser confirmation)
+hydra scan -t https://example.com --no-browser -o report.json
 
 # Run only specific scanner modules
 hydra scan -t https://app.target.com --modules sqli,xss,ssti -o report.json

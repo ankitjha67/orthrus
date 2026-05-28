@@ -43,6 +43,26 @@ def build_payload(marker: str) -> str:
     return marker + "".join(f"{c}{marker}" for c in PROBE_CHARS)
 
 
+def execution_payloads(marker: str) -> list[str]:
+    """Browser-executing payloads that set window.__hydra_xss=marker (or alert it).
+
+    Covers several injection contexts; onerror/onload variants also fire when the
+    sink writes via innerHTML (where injected <script> would not run).
+    """
+    # Set a *marker-namespaced* global so detection survives pages that render
+    # many payloads (stored XSS): each marker has its own property, so there is
+    # no last-write-wins clash and no need for alert()-driven dialog storms.
+    js = f"window['__hx_{marker}']=1"
+    return [
+        f"<script>{js}</script>",
+        f'"><script>{js}</script>',
+        f'<img src=x onerror="{js}">',
+        f'"><img src=x onerror="{js}">',
+        f'<svg onload="{js}">',
+        f'<details open ontoggle="{js}">',
+    ]
+
+
 def detect_reflection(marker: str, body: str) -> tuple[bool, set[str]]:
     """Return (was the marker reflected, set of probe chars reflected unencoded)."""
     reflected = marker in body
@@ -181,4 +201,10 @@ class ReflectedXssScanner(BaseScanner):
                         yield finding
 
 
-__all__ = ["ReflectedXssScanner", "detect_reflection", "build_payload", "classify"]
+__all__ = [
+    "ReflectedXssScanner",
+    "detect_reflection",
+    "build_payload",
+    "classify",
+    "execution_payloads",
+]

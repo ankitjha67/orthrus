@@ -120,6 +120,7 @@ def cli() -> None:
 @click.option("--user-agent", default="random", help="User-Agent string or 'random'.")
 @click.option("--callback", default=None, help="Callback server URL for OOB detection.")
 @click.option("--no-exploit", is_flag=True, help="Skip exploitation confirmation phase.")
+@click.option("--browser/--no-browser", default=True, help="Use headless browser (DOM/stored XSS).")
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
 @click.option("--headers", default=None, help="Extra headers as JSON object.")
 @click.option("--threads", default=10, type=int, help="Concurrent scanner threads.")
@@ -148,6 +149,7 @@ def scan(
     user_agent: str,
     callback: str | None,
     no_exploit: bool,
+    browser: bool,
     exclude_paths: str | None,
     headers: str | None,
     threads: int,
@@ -176,6 +178,7 @@ def scan(
         auth_script=auth_script,
         callback=callback,
         no_exploit=no_exploit,
+        use_browser=browser,
         output=output,
         report_format=report_format,
     )

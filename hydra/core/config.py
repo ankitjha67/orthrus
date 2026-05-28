@@ -114,6 +114,7 @@ class ScanConfig(BaseModel):
 
     callback: str | None = None
     no_exploit: bool = False
+    use_browser: bool = True  # use Playwright for DOM/stored XSS + confirmation when available
     verify_tls: bool = False  # pentest default: tolerate self-signed/expired certs
 
     output: str = "hydra_report"

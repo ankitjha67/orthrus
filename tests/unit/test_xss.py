@@ -5,7 +5,8 @@ from __future__ import annotations
 import html
 
 from hydra.core.schemas import Confidence, Severity
-from hydra.scanners.xss import build_payload, classify, detect_reflection
+from hydra.scanners.stored_xss import _payload as stored_payload
+from hydra.scanners.xss import build_payload, classify, detect_reflection, execution_payloads
 
 
 def test_verbatim_reflection_detects_all_chars():
@@ -43,3 +44,17 @@ def test_not_reflected():
     reflected, survived = detect_reflection("hxssZZZ", "<html>nothing here</html>")
     assert reflected is False
     assert survived == set()
+
+
+def test_execution_payloads_use_marker_namespaced_global():
+    # Guards the contract with BrowserManager.check_execution, which reads
+    # window['__hx_<marker>']. A mismatch silently breaks browser confirmation.
+    marker = "M0d3"
+    payloads = execution_payloads(marker)
+    assert payloads
+    assert all(f"__hx_{marker}" in p for p in payloads)
+
+
+def test_stored_payload_matches_global_contract():
+    marker = "M0d3"
+    assert f"__hx_{marker}" in stored_payload(marker)

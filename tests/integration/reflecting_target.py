@@ -44,6 +44,8 @@ HOME = (
     '<li><a href="/xml?doc=1">xml</a></li>'
     '<li><a href="/profile?id=1">profile</a></li>'
     '<li><a href="/fetch?url=http://127.0.0.1/health">fetch</a></li>'
+    '<li><a href="/dom?html=hi">dom</a></li>'
+    '<li><a href="/guestbook">guestbook</a></li>'
     "</ul>"
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
@@ -64,6 +66,18 @@ WININI = "; for 16-bit app support\n[fonts]\n[extensions]\n[mci extensions]\n"
 _ARITH = re.compile(r"(\d+)\*(\d+)")
 _ECHO = re.compile(r"echo\s+([A-Za-z0-9]+)")
 _SHELL_META = re.compile(r"[;|&`$\n]")
+
+# Client-side sink: writes the URL fragment / ?html param straight into innerHTML.
+DOM_PAGE = (
+    "<html><body><h1>DOM</h1><div id=out></div><script>"
+    "var h=location.hash.slice(1);try{h=decodeURIComponent(h)}catch(e){}"
+    'var q=new URLSearchParams(location.search).get("html")||"";'
+    "document.getElementById('out').innerHTML=h+q;"
+    "</script></body></html>"
+)
+
+# Stored XSS: comments are rendered into HTML without sanitization.
+GUESTBOOK_COMMENTS: list[str] = []
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -96,6 +110,15 @@ class Handler(BaseHTTPRequestHandler):
     def _body(self) -> str:
         length = int(self.headers.get("Content-Length", "0") or 0)
         return self.rfile.read(length).decode("utf-8", "ignore") if length else ""
+
+    def _guestbook(self) -> str:
+        items = "".join(f"<div class=c>{c}</div>" for c in GUESTBOOK_COMMENTS)
+        return (
+            "<html><body><h1>Guestbook</h1>" + items
+            + '<form action="/guestbook" method="post">'
+            '<textarea name="comment"></textarea><button>post</button></form>'
+            "</body></html>"
+        )
 
     def do_GET(self) -> None:  # noqa: N802 (BaseHTTPRequestHandler API)
         parts = urlsplit(self.path)
@@ -150,6 +173,10 @@ class Handler(BaseHTTPRequestHandler):
                 except Exception as exc:  # noqa: BLE001
                     status = f"error: {type(exc).__name__}"
             self._html(f"<html><body>fetch result: {status}</body></html>")
+        elif parts.path == "/dom":
+            self._html(DOM_PAGE)
+        elif parts.path == "/guestbook":
+            self._html(self._guestbook())
         else:
             self._html(HOME, cookies=True)
 
@@ -165,6 +192,11 @@ class Handler(BaseHTTPRequestHandler):
                 self._html("<html><body>&lt;ok/&gt;</body></html>")
         elif parts.path == "/graphql":
             self._html(GRAPHQL_SCHEMA if "__schema" in body or "query" in body else "{}")
+        elif parts.path == "/guestbook":
+            comment = parse_qs(body).get("comment", [""])[0]
+            if comment:
+                GUESTBOOK_COMMENTS.append(comment)
+            self._html(self._guestbook())
         else:
             self.do_GET()
 

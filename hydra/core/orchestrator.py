@@ -13,6 +13,7 @@ from uuid import uuid4
 from rich.table import Table
 
 from hydra.core import schemas
+from hydra.core.browser import BrowserManager
 from hydra.core.callback import LocalCallbackServer
 from hydra.core.config import ScanConfig, Settings
 from hydra.core.context import ScanContext
@@ -76,6 +77,20 @@ class Orchestrator:
             callback = LocalCallbackServer()
             await callback.start()
             self.ctx.callback = callback
+
+        if self.config.use_browser and BrowserManager.is_available():
+            browser = BrowserManager(
+                self.scope,
+                user_agent=None if self.config.user_agent == "random" else self.config.user_agent,
+                screenshot_dir=f"{self.settings.data_dir}/screenshots",
+            )
+            try:
+                await browser.start()
+                self.ctx.browser = browser
+            except Exception:
+                logger.exception("browser engine failed to start; continuing without it")
+        elif self.config.use_browser:
+            logger.info("Playwright not installed ([browser] extra); browser scanners disabled")
 
         await self.store.create_scan(
             self.scan_id,
@@ -191,6 +206,8 @@ class Orchestrator:
 
         confirmed = 0
         for finding in self.ctx.findings:
+            if finding.confidence == Confidence.CONFIRMED:
+                continue  # execution-based scanners (DOM/stored XSS) already proved it
             modules = exploits_for(finding)
             if not modules:
                 continue

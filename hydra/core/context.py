@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from hydra.core import schemas
+from hydra.core.browser import BrowserManager
 from hydra.core.callback import CallbackClient
 from hydra.core.config import ScanConfig
 from hydra.core.event_bus import EventBus
@@ -27,6 +28,7 @@ class ScanContext:
     store: Store
     event_bus: EventBus
     callback: CallbackClient | None = None
+    browser: BrowserManager | None = None
     assets: list[schemas.Asset] = field(default_factory=list)
     endpoints: list[schemas.Endpoint] = field(default_factory=list)
     findings: list[schemas.Finding] = field(default_factory=list)
