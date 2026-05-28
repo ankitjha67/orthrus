@@ -1,0 +1,140 @@
+"""Static deep web crawler (PRD §5.2).
+
+Hybrid crawling is a roadmap goal; this is the httpx-based static half. It does
+breadth-first discovery within scope, extracts links and forms, dedupes by URL
+and content hash, and yields Endpoint objects. The Playwright dynamic half
+(JS-rendered DOM, SPA routes) plugs in behind the same BaseRecon interface.
+"""
+
+from __future__ import annotations
+
+import hashlib
+from collections import deque
+from collections.abc import AsyncIterator
+from urllib.parse import parse_qsl, urljoin, urlsplit, urlunsplit
+
+import httpx
+from bs4 import BeautifulSoup
+
+from hydra.core import schemas
+from hydra.core.context import ScanContext
+from hydra.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
+from hydra.recon.base import BaseRecon
+from hydra.utils.logger import get_logger
+from hydra.utils.scope import ScopeViolation
+
+logger = get_logger("recon.crawler")
+
+_SKIP_SCHEMES = {"mailto", "tel", "javascript", "data", "ftp", "file"}
+_NON_PARSEABLE = ("application/pdf", "image/", "video/", "audio/", "font/")
+
+
+def _normalize(url: str) -> str | None:
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        return None
+    return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", parts.query, ""))
+
+
+def _params_from_query(url: str) -> list[Param]:
+    query = urlsplit(url).query
+    return [
+        Param(name=name, location=ParamLocation.QUERY, value=value)
+        for name, value in parse_qsl(query, keep_blank_values=True)
+    ]
+
+
+def _content_hash(body: str) -> str:
+    return hashlib.sha256(body.encode("utf-8", "ignore")).hexdigest()
+
+
+def _parse_form(page_url: str, form: object) -> Endpoint:
+    action = form.get("action") or ""  # type: ignore[attr-defined]
+    method_str = (form.get("method") or "GET").upper()  # type: ignore[attr-defined]
+    method = HttpMethod.POST if method_str == "POST" else HttpMethod.GET
+    target_url = _normalize(urljoin(page_url, action)) or page_url
+
+    location = ParamLocation.BODY if method == HttpMethod.POST else ParamLocation.QUERY
+    params: list[Param] = []
+    for field in form.find_all(["input", "textarea", "select"]):  # type: ignore[attr-defined]
+        name = field.get("name")
+        if not name:
+            continue
+        params.append(Param(name=name, location=location, value=field.get("value")))
+
+    return Endpoint(url=target_url, method=method, params=params, source="form")
+
+
+class Crawler(BaseRecon):
+    name = "crawler"
+
+    async def discover(self, ctx: ScanContext) -> AsyncIterator[schemas.Endpoint]:
+        start = _normalize(ctx.config.target) or ctx.config.target
+        max_depth = ctx.config.crawl_depth
+        max_pages = ctx.config.max_pages
+
+        seen_urls: set[str] = set()
+        seen_hashes: set[str] = set()
+        queue: deque[tuple[str, int]] = deque([(start, 0)])
+        pages = 0
+
+        while queue and pages < max_pages:
+            url, depth = queue.popleft()
+            if url in seen_urls:
+                continue
+            seen_urls.add(url)
+            if not ctx.scope.is_allowed(url):
+                continue
+
+            try:
+                resp = await ctx.http.get(url)
+            except ScopeViolation:
+                continue
+            except httpx.HTTPError as exc:
+                logger.debug("crawl fetch failed for %s: %s", url, exc)
+                continue
+
+            pages += 1
+            content_type = resp.headers.get("content-type", "")
+            is_html = "html" in content_type
+            body = resp.text if is_html or "text" in content_type else ""
+
+            yield Endpoint(
+                url=url,
+                method=HttpMethod.GET,
+                params=_params_from_query(url),
+                response_status=resp.status_code,
+                response_headers=dict(resp.headers),
+                set_cookies=resp.headers.get_list("set-cookie"),
+                content_type=content_type or None,
+                content_length=len(resp.content),
+                content_hash=_content_hash(body) if body else None,
+                source="crawler",
+            )
+
+            if not is_html or any(np in content_type for np in _NON_PARSEABLE):
+                continue
+
+            chash = _content_hash(body)
+            if chash in seen_hashes:
+                continue  # identical page already mined for links/forms
+            seen_hashes.add(chash)
+
+            soup = BeautifulSoup(body, "lxml")
+
+            for form in soup.find_all("form"):
+                yield _parse_form(url, form)
+
+            if depth >= max_depth:
+                continue
+            for anchor in soup.find_all("a", href=True):
+                href = anchor["href"].strip()
+                scheme = urlsplit(href).scheme.lower()
+                if scheme in _SKIP_SCHEMES:
+                    continue
+                child = _normalize(urljoin(url, href))
+                if child and child not in seen_urls and ctx.scope.is_allowed(child):
+                    queue.append((child, depth + 1))
+
+
+__all__ = ["Crawler"]

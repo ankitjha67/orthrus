@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+
+# Hydra runtime artifacts
+*.sqlite
+*.sqlite3
+*.db
+hydra_report*
+scan_data/
+evidence/
+screenshots/
+*.har
+
+# Secrets / config
+.env
+.env.*
+config.local.*
+*.key
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Extracted PRD scratch
+_prd_extracted.txt
+_prd_unpacked/
