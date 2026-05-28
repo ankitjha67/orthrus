@@ -46,6 +46,7 @@ HOME = (
     '<li><a href="/fetch?url=http://127.0.0.1/health">fetch</a></li>'
     '<li><a href="/dom?html=hi">dom</a></li>'
     '<li><a href="/guestbook">guestbook</a></li>'
+    '<li><a href="/pp?a=1">pp</a></li>'
     "</ul>"
     '<form action="/comment" method="post">'
     '<input name="text"><input name="email"><button>send</button></form>'
@@ -73,6 +74,20 @@ DOM_PAGE = (
     "var h=location.hash.slice(1);try{h=decodeURIComponent(h)}catch(e){}"
     'var q=new URLSearchParams(location.search).get("html")||"";'
     "document.getElementById('out').innerHTML=h+q;"
+    "</script></body></html>"
+)
+
+# Client-side prototype pollution: a naive recursive merge of URL params with no
+# __proto__/constructor guard.
+PP_PAGE = (
+    "<html><body><h1>PP</h1><script>"
+    "function setDeep(o,path,v){for(var i=0;i<path.length-1;i++){var k=path[i];"
+    "if(!(k in o))o[k]={};o=o[k];}o[path[path.length-1]]=v;}"
+    "function parse(qs){var out={};(qs||'').split('&').forEach(function(p){"
+    "if(!p)return;var i=p.indexOf('=');if(i<0)return;"
+    "var key=decodeURIComponent(p.slice(0,i));var val=decodeURIComponent(p.slice(i+1));"
+    "var path=key.replace(/\\]/g,'').split(/\\[|\\./).filter(Boolean);setDeep(out,path,val);});return out;}"
+    "parse(location.search.slice(1)||location.hash.slice(1));"
     "</script></body></html>"
 )
 
@@ -175,6 +190,8 @@ class Handler(BaseHTTPRequestHandler):
             self._html(f"<html><body>fetch result: {status}</body></html>")
         elif parts.path == "/dom":
             self._html(DOM_PAGE)
+        elif parts.path == "/pp":
+            self._html(PP_PAGE)
         elif parts.path == "/guestbook":
             self._html(self._guestbook())
         else:

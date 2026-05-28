@@ -112,6 +112,19 @@ class BrowserManager:
         finally:
             await page.close()
 
+    async def evaluate_on(self, url: str, expression: str, *, wait_ms: int = 600):  # type: ignore[no-untyped-def]
+        """Navigate to ``url`` then evaluate a JS expression; return its value or None."""
+        page = await self._new_page()
+        try:
+            await page.goto(url, wait_until="domcontentloaded", timeout=self.nav_timeout_ms)
+            await page.wait_for_timeout(wait_ms)
+            return await page.evaluate(expression)
+        except Exception as exc:
+            logger.debug("evaluate_on failed for %s: %s", url, exc)
+            return None
+        finally:
+            await page.close()
+
     async def check_execution(
         self,
         url: str,

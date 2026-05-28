@@ -152,6 +152,13 @@ class Store:
             )
             return list(result.scalars().all())
 
+    async def get_exploitations(self, finding_id: int) -> list[ExploitationRow]:
+        async with self.session() as session:
+            result = await session.execute(
+                select(ExploitationRow).where(ExploitationRow.finding_id == finding_id)
+            )
+            return list(result.scalars().all())
+
     async def set_finding_confidence(self, finding_id: int, confidence: str) -> None:
         async with self.session() as session:
             row = await session.get(FindingRow, finding_id)

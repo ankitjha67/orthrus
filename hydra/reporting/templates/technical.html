@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Technical Report{% endblock %}
+{% block heading %}Technical Findings Report{% endblock %}
+{% block content %}
+<h2>Summary</h2>
+<p>
+  <strong>{{ summary.total }}</strong> findings
+  (<strong>{{ summary.confirmed }}</strong> confirmed by exploitation)
+  across target <code>{{ scan.target }}</code>.
+</p>
+{% for sev in ["critical", "high", "medium", "low", "info"] %}
+  {{ sevbar(sev, summary.counts[sev], summary.total) }}
+{% endfor %}
+
+<h2>Findings</h2>
+{% for f in findings %}
+<div class="finding">
+  <div class="hd">
+    <span class="sev sev-{{ f.severity }}">{{ f.severity }}</span>
+    <span class="conf conf-{{ f.confidence }}">{{ f.confidence }}</span>
+    <h3>{{ f.title }}</h3>
+  </div>
+  <div class="kv">
+    <span class="cvss">CVSS {{ "%.1f"|format(f.cvss_score or 0) }}</span>
+    &nbsp;·&nbsp; <code>{{ f.cvss_vector }}</code>
+    {% if f.cwe %}&nbsp;·&nbsp; {{ f.cwe }}{% endif %}
+    &nbsp;·&nbsp; <span class="pill">{{ f.owasp }}</span>
+    &nbsp;·&nbsp; scanner: {{ f.scanner }}
+  </div>
+  <div class="kv">URL: <code>{{ f.url }}</code>
+    {% if f.parameter %}&nbsp;·&nbsp; parameter: <code>{{ f.parameter }}</code>{% endif %}
+  </div>
+  <p>{{ f.description }}</p>
+  {% if f.evidence.request_raw %}
+    <strong>Request</strong>
+    <pre>{{ f.evidence.request_raw }}</pre>
+  {% endif %}
+  {% if f.evidence.response_raw %}
+    <strong>Response</strong>
+    <pre>{{ f.evidence.response_raw }}</pre>
+  {% endif %}
+  {% if f.evidence.matched_at %}
+    <div class="kv">Evidence: <code>{{ f.evidence.matched_at }}</code></div>
+  {% endif %}
+  {% if f.screenshot %}
+    <strong>Screenshot</strong><br>
+    <img class="shot" src="{{ f.screenshot }}" alt="evidence screenshot">
+  {% endif %}
+  {% for ex in f.exploitations if ex.success %}
+    <div class="kv">
+      <strong>Confirmed</strong> via {{ ex.technique }}
+      {% if ex.extracted_data %} — extracted: <code>{{ ex.extracted_data }}</code>{% endif %}
+    </div>
+    {% if ex.request_raw %}<pre>{{ ex.request_raw }}</pre>{% endif %}
+    {% if ex.response_raw %}<pre>{{ ex.response_raw }}</pre>{% endif %}
+    {% if ex.screenshot %}<img class="shot" src="{{ ex.screenshot }}" alt="exploit screenshot">{% endif %}
+  {% endfor %}
+  <p><strong>Remediation.</strong> {{ f.remediation }}</p>
+</div>
+{% else %}
+<p>No findings.</p>
+{% endfor %}
+{% endblock %}

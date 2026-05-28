@@ -197,11 +197,7 @@ async def _run_scan(config: ScanConfig) -> None:
         await orch.run_recon()
         await orch.run_scan()
         await orch.run_exploit()
-        fmt = config.report_format
-        if fmt in ("html", "pdf", "csv"):
-            logger.warning("%s reporting not implemented yet; emitting JSON instead", fmt)
-            fmt = "json"
-        await orch.run_report(fmt, config.output)
+        await orch.run_report(config.report_format, config.output)
         await orch.print_summary()
     except Exception:
         status = "failed"
@@ -304,8 +300,12 @@ async def _run_exploit(scan_id: str) -> None:
             logger.error("no such scan: %s", scan_id)
             return
         findings = await store.get_findings(scan_id)
-        logger.info("scan %s has %d finding(s)", scan_id, len(findings))
-        logger.info("exploit modules not registered yet (Roadmap Phase 4) — nothing to confirm")
+        confirmed = sum(1 for f in findings if f.confidence == "confirmed")
+        logger.info("scan %s has %d finding(s), %d already confirmed", scan_id, len(findings), confirmed)
+        logger.info(
+            "confirmation runs automatically during `hydra scan`; standalone replay-from-DB "
+            "is not yet supported (re-run the scan to confirm)"
+        )
     finally:
         await store.close()
 
@@ -323,20 +323,18 @@ async def _run_exploit(scan_id: str) -> None:
 @click.option("--branding", default=None, help="Logo/branding asset path (deferred).")
 @click.option("--output", "-o", default="hydra_report", help="Output file path.")
 @click.option("--verbose", "-v", default="info", help="Log level.")
-def report(scan_id: str, fmt: str, template: str, branding: str | None, output: str) -> None:
+def report(
+    scan_id: str, fmt: str, template: str, branding: str | None, output: str, verbose: str
+) -> None:
     """Generate a report from an existing scan."""
-    configure_logging(verbose="info")
-    asyncio.run(_run_report(scan_id, fmt, output))
+    configure_logging(verbose)
+    asyncio.run(_run_report(scan_id, fmt, output, template))
 
 
-async def _run_report(scan_id: str, fmt: str, output: str) -> None:
+async def _run_report(scan_id: str, fmt: str, output: str, template: str = "technical") -> None:
     store = Store(get_settings().db_url)
     try:
-        try:
-            path = await generate_report(store, scan_id, fmt, output)
-        except NotImplementedError as exc:
-            logger.warning("%s", exc)
-            path = await generate_report(store, scan_id, "json", output)
+        path = await generate_report(store, scan_id, fmt, output, template=template)
         logger.info("report written to %s", path)
     finally:
         await store.close()

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Compliance Mapping{% endblock %}
+{% block heading %}Compliance Mapping Report{% endblock %}
+{% block content %}
+<h2>OWASP Top 10 (2021) Coverage</h2>
+<table>
+  <tr><th>OWASP Category</th><th>Findings</th></tr>
+  {% for category, count in summary.owasp_counts | dictsort %}
+  <tr><td>{{ category }}</td><td>{{ count }}</td></tr>
+  {% else %}
+  <tr><td colspan="2">No findings.</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Finding-to-Standard Mapping</h2>
+<table>
+  <tr><th>Severity</th><th>Issue</th><th>OWASP 2021</th><th>CWE</th><th>CVSS</th></tr>
+  {% for f in findings %}
+  <tr>
+    <td><span class="sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+    <td>{{ f.title }}</td>
+    <td>{{ f.owasp }}</td>
+    <td>{{ f.cwe or "—" }}</td>
+    <td class="cvss">{{ "%.1f"|format(f.cvss_score or 0) }}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No findings.</td></tr>
+  {% endfor %}
+</table>
+<p style="font-size:12px;color:#666">
+  CWE = Common Weakness Enumeration. OWASP categories per the 2021 Top 10.
+  PCI-DSS / NIST CSF / MITRE ATT&CK mappings are planned extensions.
+</p>
+{% endblock %}

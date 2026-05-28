@@ -20,13 +20,14 @@ full PRD vision.
 | Database (SQLAlchemy 2.0, SQLite dev) | Implemented |
 | Recon: static crawler, passive tech fingerprinting | Implemented |
 | Recon: subdomain enum, port scan, JS analysis, content discovery | Planned |
-| Scanners (20): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf | Implemented |
+| Scanners (22): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf, prototype-pollution, cve | Implemented |
 | Headless browser engine (Playwright/Chromium, scope-enforced) | Implemented |
 | OOB callback server (local fallback listener) | Implemented |
+| CVE matching via NVD (cached) | Implemented |
 | Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe, xss) | Implemented |
-| Scanners: prototype pollution, websocket, race condition, CVE matcher | Deferred (need NVD / more tooling) |
-| Reporting | JSON only (HTML/PDF templates planned) |
-| Playwright browser engine, Nmap, Interactsh, Celery, Postgres | Deferred behind interfaces |
+| Reporting: JSON, CSV, HTML + PDF (executive/technical/compliance), CVSS v3.1, OWASP/CWE mapping | Implemented |
+| Scanners: websocket, race condition | Deferred (need ws endpoint discovery / app-aware logic) |
+| Recon: subdomain enum, port scan (Nmap), distributed scanning (Celery), Postgres | Deferred behind interfaces |
 
 ## Requirements
 
@@ -46,7 +47,7 @@ Optional dependency groups (added per roadmap phase):
 ```powershell
 pip install -e ".[browser]"      # Playwright headless browser
 pip install -e ".[scanners]"     # pyjwt, cryptography, sslyze, paramiko
-pip install -e ".[reporting]"    # jinja2, weasyprint (HTML/PDF reports)
+pip install -e ".[reporting]"    # weasyprint (optional alt PDF backend; default uses [browser])
 pip install -e ".[dev]"          # pytest, ruff, mypy
 ```
 
@@ -82,8 +83,9 @@ hydra scan -t https://example.com --no-browser -o report.json
 # Run only specific scanner modules
 hydra scan -t https://app.target.com --modules sqli,xss,ssti -o report.json
 
-# Generate a report from a stored scan
-hydra report --scan-id scan-abcd1234 --format json -o report.json
+# Generate reports from a stored scan (json/csv/html/pdf; templates: executive/technical/compliance)
+hydra report --scan-id scan-abcd1234 --format pdf --template executive -o exec_report
+hydra report --scan-id scan-abcd1234 --format html --template technical -o tech_report
 ```
 
 Run `hydra --help` or `hydra <command> --help` for all options.
@@ -104,7 +106,7 @@ hydra/
   recon/       crawler, tech fingerprint (+ base interface)
   scanners/    base interface + registry (modules land here)
   exploits/    base interface + registry (modules land here)
-  reporting/   report generator (JSON now)
+  reporting/   JSON/CSV/HTML/PDF generator, CVSS engine, Jinja2 templates
   db/          SQLAlchemy models + async store
   utils/       logger, scope validator, rate limiter
   plugins/     plugin loader (planned)
