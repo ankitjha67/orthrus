@@ -313,6 +313,8 @@ class Orchestrator:
     # ------------------------------------------------------------- lifecycle
     async def teardown(self, status: str = "completed") -> None:
         if self.ctx is not None:
+            if self.ctx.browser is not None:
+                await self.ctx.browser.stop()
             await self.ctx.http.aclose()
             if self.ctx.callback is not None:
                 await self.ctx.callback.stop()
