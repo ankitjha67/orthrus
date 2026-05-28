@@ -133,8 +133,9 @@ class Settings(BaseSettings):
     data_dir: str = "./scan_data"
     log_level: str = "info"
     redis_url: str = "redis://localhost:6379/0"  # Celery broker/backend (distributed mode)
+    plugins_dir: str | None = None  # external plugin directory auto-loaded at startup
 
-    # Deferred external-integration credentials (optional until those modules land).
+    # External-integration credentials (optional; passive-recon modules use these).
     shodan_api_key: str | None = None
     censys_api_id: str | None = None
     censys_api_secret: str | None = None

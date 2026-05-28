@@ -23,12 +23,19 @@ from hydra.core.schemas import Aggressiveness, Confidence
 from hydra.core.session import Session
 from hydra.db.store import Store
 from hydra.exploits.registry import exploits_for
+from hydra.plugins import load_plugins
+from hydra.recon.api_discovery import ApiDiscovery
 from hydra.recon.base import BaseRecon
 from hydra.recon.content_discovery import ContentDiscovery
 from hydra.recon.crawler import Crawler
+from hydra.recon.dns_enum import DnsEnum
 from hydra.recon.js_analyzer import JsAnalyzer
+from hydra.recon.port_scan import PortScan
+from hydra.recon.registry import get_recon_plugins
 from hydra.recon.subdomain_enum import SubdomainEnum
 from hydra.recon.tech_fingerprint import TechFingerprint
+from hydra.recon.waf_detect import WafDetect
+from hydra.recon.wayback import Wayback
 from hydra.reporting.generator import generate_report
 from hydra.scanners.registry import get_scanners
 from hydra.utils.logger import console, get_logger
@@ -54,6 +61,7 @@ class Orchestrator:
         self.ctx: ScanContext | None = None
 
     async def setup(self) -> None:
+        load_plugins(self.settings.plugins_dir)
         await self.store.init()
 
         session = Session.from_cookie_string(self.config.auth_cookie)
@@ -132,8 +140,19 @@ class Orchestrator:
             modules.append(JsAnalyzer())
         if which is None or "content" in which:
             modules.append(ContentDiscovery())
+        if which is None or "waf" in which:
+            modules.append(WafDetect())
+        if which is None or "api" in which:
+            modules.append(ApiDiscovery())
+        if which is None or "dns" in which:
+            modules.append(DnsEnum())  # applicable() skips IP targets
         if which is not None and "subdomains" in which:
             modules.append(SubdomainEnum())
+        if which is not None and "wayback" in which:
+            modules.append(Wayback())
+        if which is not None and "ports" in which:
+            modules.append(PortScan())
+        modules.extend(get_recon_plugins())  # recon plugins run alongside built-ins
 
         seen_endpoints: set[tuple[str, str]] = set()
         for module in modules:

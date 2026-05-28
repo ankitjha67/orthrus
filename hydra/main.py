@@ -286,7 +286,12 @@ def _run_distributed(
 @click.option("--crawl/--no-crawl", default=True, help="Run the web crawler.")
 @click.option("--js/--no-js", "js_analysis", default=True, help="Run JS endpoint/secret analysis.")
 @click.option("--content/--no-content", "content_discovery", default=True, help="Run content discovery.")
+@click.option("--waf/--no-waf", "waf_detect", default=True, help="Run WAF detection.")
+@click.option("--api/--no-api", "api_discovery", default=True, help="Run API discovery.")
+@click.option("--dns/--no-dns", "dns_enum", default=True, help="Run DNS enumeration (domain targets).")
 @click.option("--subdomains", is_flag=True, help="Run subdomain enumeration (needs *.domain scope).")
+@click.option("--wayback", is_flag=True, help="Query the Wayback Machine for historical URLs.")
+@click.option("--ports", is_flag=True, help="Run Nmap port scan (needs the nmap binary).")
 @click.option("--crawl-depth", default=5, type=int, help="Maximum crawl depth.")
 @click.option("--max-pages", default=2000, type=int, help="Maximum pages to crawl.")
 @click.option("--rate-limit", default=50.0, type=float, help="Max requests/sec per domain.")
@@ -304,7 +309,12 @@ def recon(
     crawl: bool,
     js_analysis: bool,
     content_discovery: bool,
+    waf_detect: bool,
+    api_discovery: bool,
+    dns_enum: bool,
     subdomains: bool,
+    wayback: bool,
+    ports: bool,
     crawl_depth: int,
     max_pages: int,
     rate_limit: float,
@@ -330,17 +340,12 @@ def recon(
         auth_cookie=auth_cookie,
     )
     config.rate_limit.requests_per_second = rate_limit
-    which = set()
-    if fingerprint:
-        which.add("fingerprint")
-    if crawl:
-        which.add("crawl")
-    if js_analysis:
-        which.add("js")
-    if content_discovery:
-        which.add("content")
-    if subdomains:
-        which.add("subdomains")
+    flags = {
+        "fingerprint": fingerprint, "crawl": crawl, "js": js_analysis,
+        "content": content_discovery, "waf": waf_detect, "api": api_discovery,
+        "dns": dns_enum, "subdomains": subdomains, "wayback": wayback, "ports": ports,
+    }
+    which = {name for name, on in flags.items() if on}
     _log_scope(scope)
     asyncio.run(_run_recon(config, which, output))
 
