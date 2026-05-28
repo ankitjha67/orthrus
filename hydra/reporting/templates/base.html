@@ -48,6 +48,8 @@
 <body>
 <div class="classification">Internal — Authorized Personnel Only</div>
 <header class="brand">
+  {% if branding.logo_uri %}<img src="{{ branding.logo_uri }}" alt="logo"
+       style="max-height:48px;display:block;margin-bottom:8px">{% endif %}
   <h1>{{ branding.name }} — {% block heading %}Security Assessment{% endblock %}</h1>
   <div class="meta">
     Target: {{ scan.target }} &nbsp;·&nbsp; Scan: {{ scan.id }} &nbsp;·&nbsp;

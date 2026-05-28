@@ -46,6 +46,7 @@ class BrowserManager:
         screenshot_dir: str = "scan_data/screenshots",
         max_pages_per_context: int = 20,
         nav_timeout_ms: int = 15000,
+        har_path: str | None = None,
     ) -> None:
         self.scope = scope
         self.headless = headless
@@ -53,6 +54,9 @@ class BrowserManager:
         self.screenshot_dir = screenshot_dir
         self.max_pages_per_context = max_pages_per_context
         self.nav_timeout_ms = nav_timeout_ms
+        self.har_path = har_path
+        self.har_files: list[str] = []
+        self._har_index = 0
         self._pw = None
         self._browser = None
         self._context = None
@@ -77,6 +81,11 @@ class BrowserManager:
         kwargs = {"ignore_https_errors": True}
         if self.user_agent:
             kwargs["user_agent"] = self.user_agent
+        if self.har_path:  # one HAR per context (PRD §7.3 evidence)
+            self._har_index += 1
+            har_file = f"{self.har_path}.{self._har_index}.har"
+            kwargs["record_har_path"] = har_file
+            self.har_files.append(har_file)
         self._context = await self._browser.new_context(**kwargs)
         await self._context.route("**/*", self._route)
         self._page_count = 0

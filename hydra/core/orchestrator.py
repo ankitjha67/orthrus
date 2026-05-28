@@ -57,7 +57,7 @@ class Orchestrator:
         self.scan_id = config.scan_id or f"scan-{uuid4().hex[:8]}"
         self.event_bus = EventBus()
         self.scope = ScopeValidator(config.scope)
-        self.store = Store(settings.db_url)
+        self.store = Store(settings.db_url, encryption_key=settings.encryption_key)
         self.ctx: ScanContext | None = None
 
     async def setup(self) -> None:
@@ -94,6 +94,7 @@ class Orchestrator:
                 self.scope,
                 user_agent=None if self.config.user_agent == "random" else self.config.user_agent,
                 screenshot_dir=f"{self.settings.data_dir}/screenshots",
+                har_path=self.config.har_path,
             )
             try:
                 await browser.start()
@@ -111,6 +112,14 @@ class Orchestrator:
         )
         await self.event_bus.emit(
             EventType.SCAN_STARTED, scan_id=self.scan_id, target=self.config.target
+        )
+        await self.store.log(  # operator audit trail (PRD §12.2)
+            self.scan_id,
+            "audit",
+            "audit",
+            f"scan started target={self.config.target} scope={self.config.scope.domains or self.config.scope.ip_ranges} "
+            f"modules={self.config.modules} aggressiveness={self.config.aggressiveness.value} "
+            f"exploit={not self.config.no_exploit} encryption={'on' if self.settings.encryption_key else 'off'}",
         )
         logger.info("scan [bold]%s[/] started against %s", self.scan_id, self.config.target)
 
@@ -276,7 +285,16 @@ class Orchestrator:
 
     # ---------------------------------------------------------- phase: report
     async def run_report(self, fmt: str, output: str) -> str:
-        path = await generate_report(self.store, self.scan_id, fmt, output)
+        branding = {"logo": self.config.branding_logo} if self.config.branding_logo else None
+        path = await generate_report(
+            self.store,
+            self.scan_id,
+            fmt,
+            output,
+            template=self.config.report_template,
+            branding=branding,
+            min_severity=self.config.min_severity,
+        )
         logger.info("report written to %s", path)
         return path
 

@@ -115,10 +115,14 @@ class ScanConfig(BaseModel):
     callback: str | None = None
     no_exploit: bool = False
     use_browser: bool = True  # use Playwright for DOM/stored XSS + confirmation when available
+    har_path: str | None = None  # if set, record a browser HAR for evidence (§7.3)
     verify_tls: bool = False  # pentest default: tolerate self-signed/expired certs
 
     output: str = "hydra_report"
     report_format: str = "html"
+    report_template: str = "technical"
+    min_severity: str | None = None  # report-time severity floor (§8.3)
+    branding_logo: str | None = None  # logo image embedded in HTML/PDF reports
 
 
 class Settings(BaseSettings):
@@ -134,6 +138,7 @@ class Settings(BaseSettings):
     log_level: str = "info"
     redis_url: str = "redis://localhost:6379/0"  # Celery broker/backend (distributed mode)
     plugins_dir: str | None = None  # external plugin directory auto-loaded at startup
+    encryption_key: str | None = None  # base64 AES-256 key; encrypts sensitive data at rest
 
     # External-integration credentials (optional; passive-recon modules use these).
     shodan_api_key: str | None = None

@@ -18,10 +18,12 @@ from typing import Any
 
 import aiofiles
 
+from hydra.core.config import get_settings
 from hydra.db.models import Exploitation as ExploitationRow
 from hydra.db.models import Finding as FindingRow
 from hydra.db.store import Store
-from hydra.reporting.cvss import DEFAULT_VECTORS, base_score
+from hydra.reporting.cvss import DEFAULT_VECTORS, base_score, v4_for
+from hydra.utils import crypto
 from hydra.utils.logger import get_logger
 
 logger = get_logger("reporting")
@@ -58,6 +60,39 @@ OWASP_2021 = {
     "example": "A05:2021 - Security Misconfiguration",
 }
 
+# PCI-DSS v4.0 requirement references (most-relevant control per class).
+PCI_DSS = {
+    "sqli": "6.2.4", "xss": "6.2.4", "cmd-injection": "6.2.4", "ssti": "6.2.4",
+    "lfi": "6.2.4", "xxe": "6.2.4", "ssrf": "6.2.4", "deserialization": "6.2.4",
+    "prototype-pollution": "6.2.4", "idor": "7.2", "csrf": "6.2.4",
+    "open-redirect": "6.2.4", "cors": "1.3", "security-headers": "6.4.1",
+    "cache-poisoning": "6.4.1", "graphql": "6.4.1", "auth-session": "8.3",
+    "default-creds": "8.3.6", "jwt": "8.3", "tls": "4.2.1", "cve": "6.3.3",
+    "exposed-file": "6.4.1", "websocket": "6.2.4", "race-condition": "6.2.4",
+}
+
+# NIST Cybersecurity Framework function/category.
+NIST_CSF = {
+    "tls": "PR.DS-2 (Data-in-transit)", "cve": "ID.RA-1 (Vulnerabilities identified)",
+    "auth-session": "PR.AC-1 (Identities & credentials)",
+    "default-creds": "PR.AC-1 (Identities & credentials)",
+    "jwt": "PR.AC-7 (Authentication)", "idor": "PR.AC-4 (Access permissions)",
+}
+_NIST_DEFAULT = "PR.IP-1 / PR.DS-5 (Secure config / data leak protection)"
+
+# MITRE ATT&CK techniques.
+MITRE_ATTACK = {
+    "sqli": "T1190 Exploit Public-Facing App", "cmd-injection": "T1190 / T1059 Command Execution",
+    "ssti": "T1190 Exploit Public-Facing App", "lfi": "T1083 File & Directory Discovery",
+    "xxe": "T1190 Exploit Public-Facing App", "ssrf": "T1190 / T1090 Proxy",
+    "xss": "T1059.007 JavaScript", "deserialization": "T1190 Exploit Public-Facing App",
+    "default-creds": "T1078 Valid Accounts", "jwt": "T1550 Use Alternate Auth Material",
+    "idor": "T1083 / T1530 Data from Cloud/Repo", "cve": "T1190 Exploit Public-Facing App",
+    "exposed-file": "T1213 Data from Information Repositories",
+    "tls": "T1040 Network Sniffing",
+}
+_MITRE_DEFAULT = "T1190 Exploit Public-Facing Application"
+
 
 def _embed_screenshot(path: str | None) -> str | None:
     if not path or not os.path.exists(path):
@@ -70,23 +105,29 @@ def _embed_screenshot(path: str | None) -> str | None:
         return None
 
 
-def _exploitation_dict(row: ExploitationRow) -> dict[str, Any]:
+def _exploitation_dict(row: ExploitationRow, key: str | None) -> dict[str, Any]:
+    def dec(v: str | None) -> str | None:
+        return crypto.decrypt(v, key) if (key and v) else v
+
     return {
         "technique": row.technique,
         "success": row.success,
-        "extracted_data": row.extracted_data,
-        "request_raw": row.request_raw,
-        "response_raw": row.response_raw,
+        "extracted_data": dec(row.extracted_data),
+        "request_raw": dec(row.request_raw),
+        "response_raw": dec(row.response_raw),
         "callback_id": row.callback_id,
         "screenshot": _embed_screenshot(row.screenshot_path),
     }
 
 
-def _finding_dict(row: FindingRow, exploitations: list[ExploitationRow]) -> dict[str, Any]:
+def _finding_dict(
+    row: FindingRow, exploitations: list[ExploitationRow], key: str | None
+) -> dict[str, Any]:
     vector = row.cvss_vector or DEFAULT_VECTORS.get(row.vuln_type)
     score = row.cvss_score
     if score is None and vector:
         score = base_score(vector)
+    v4_vector, v4_score = v4_for(row.vuln_type)
     evidence = row.evidence_json or {}
     return {
         "id": row.id,
@@ -98,25 +139,38 @@ def _finding_dict(row: FindingRow, exploitations: list[ExploitationRow]) -> dict
         "parameter": row.parameter,
         "cwe": row.cwe,
         "owasp": OWASP_2021.get(row.vuln_type, "Unmapped"),
+        "pci_dss": PCI_DSS.get(row.vuln_type, "—"),
+        "nist_csf": NIST_CSF.get(row.vuln_type, _NIST_DEFAULT),
+        "mitre_attack": MITRE_ATTACK.get(row.vuln_type, _MITRE_DEFAULT),
         "cvss_score": score,
         "cvss_vector": vector,
+        "cvss_v4_score": v4_score,
+        "cvss_v4_vector": v4_vector,
         "scanner": row.scanner,
         "description": row.description,
         "remediation": row.remediation,
         "evidence": evidence,
         "screenshot": _embed_screenshot(evidence.get("screenshot_path")),
-        "exploitations": [_exploitation_dict(e) for e in exploitations],
+        "exploitations": [_exploitation_dict(e, key) for e in exploitations],
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 
 
-async def _build_context(store: Store, scan_id: str, branding: dict | None) -> dict[str, Any]:
+async def _build_context(
+    store: Store, scan_id: str, branding: dict | None, min_severity: str | None
+) -> dict[str, Any]:
+    key = get_settings().encryption_key
     scan = await store.get_scan(scan_id)
     rows = await store.get_findings(scan_id)
     findings: list[dict[str, Any]] = []
     for row in rows:
         exploitations = await store.get_exploitations(row.id)
-        findings.append(_finding_dict(row, exploitations))
+        findings.append(_finding_dict(row, exploitations, key))
+
+    if min_severity:
+        floor = _SEVERITY_ORDER.get(min_severity.lower(), 0)
+        findings = [f for f in findings if _SEVERITY_ORDER.get(f["severity"], 0) >= floor]
+
     findings.sort(key=lambda f: (f["cvss_score"] or 0.0), reverse=True)
 
     counts = {sev: 0 for sev in _SEVERITY_ORDER}
@@ -146,8 +200,24 @@ async def _build_context(store: Store, scan_id: str, branding: dict | None) -> d
         },
         "findings": findings,
         "top_findings": findings[:5],
-        "branding": branding or {"name": "Project HYDRA", "color": "#0b7285"},
+        "branding": _resolve_branding(branding),
     }
+
+
+def _resolve_branding(branding: dict | None) -> dict:
+    resolved = {"name": "Project HYDRA", "color": "#0b7285"}
+    resolved.update(branding or {})
+    logo_path = resolved.pop("logo", None)
+    if logo_path and os.path.exists(logo_path):
+        ext = os.path.splitext(logo_path)[1].lstrip(".").lower() or "png"
+        try:
+            with open(logo_path, "rb") as fh:
+                resolved["logo_uri"] = (
+                    f"data:image/{ext};base64,{base64.b64encode(fh.read()).decode('ascii')}"
+                )
+        except OSError:
+            pass
+    return resolved
 
 
 def _render_html(context: dict[str, Any], template_name: str) -> str:
@@ -190,9 +260,10 @@ async def generate_report(
     output: str = "hydra_report",
     template: str = "technical",
     branding: dict | None = None,
+    min_severity: str | None = None,
 ) -> str:
     fmt = fmt.lower()
-    context = await _build_context(store, scan_id, branding)
+    context = await _build_context(store, scan_id, branding, min_severity)
 
     if fmt == "json":
         path = _with_ext(output, "json")

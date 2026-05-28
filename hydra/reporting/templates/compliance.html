@@ -14,21 +14,30 @@
 
 <h2>Finding-to-Standard Mapping</h2>
 <table>
-  <tr><th>Severity</th><th>Issue</th><th>OWASP 2021</th><th>CWE</th><th>CVSS</th></tr>
+  <tr>
+    <th>Severity</th><th>Issue</th><th>CWE</th><th>OWASP 2021</th>
+    <th>PCI-DSS</th><th>NIST CSF</th><th>MITRE ATT&amp;CK</th>
+    <th>CVSS v3.1</th><th>CVSS v4.0</th>
+  </tr>
   {% for f in findings %}
   <tr>
     <td><span class="sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
     <td>{{ f.title }}</td>
-    <td>{{ f.owasp }}</td>
     <td>{{ f.cwe or "—" }}</td>
+    <td>{{ f.owasp }}</td>
+    <td>{{ f.pci_dss }}</td>
+    <td>{{ f.nist_csf }}</td>
+    <td>{{ f.mitre_attack }}</td>
     <td class="cvss">{{ "%.1f"|format(f.cvss_score or 0) }}</td>
+    <td class="cvss">{{ "%.1f"|format(f.cvss_v4_score or 0) }}</td>
   </tr>
   {% else %}
-  <tr><td colspan="5">No findings.</td></tr>
+  <tr><td colspan="9">No findings.</td></tr>
   {% endfor %}
 </table>
 <p style="font-size:12px;color:#666">
-  CWE = Common Weakness Enumeration. OWASP categories per the 2021 Top 10.
-  PCI-DSS / NIST CSF / MITRE ATT&CK mappings are planned extensions.
+  CWE = Common Weakness Enumeration; OWASP 2021 Top 10; PCI-DSS v4.0 requirement
+  references; NIST CSF function/category; MITRE ATT&amp;CK techniques.
+  CVSS v4.0 numeric is an approximation (vector is exact); v3.1 is authoritative.
 </p>
 {% endblock %}

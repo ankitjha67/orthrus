@@ -18,16 +18,16 @@ full PRD vision.
 |------|-------|
 | Core: config, scope engine, HTTP client, rate limiter, event bus | Implemented |
 | Database (SQLAlchemy 2.0, SQLite dev) | Implemented |
-| Recon: crawler, fingerprint, JS analysis (endpoints/secrets/ws), content discovery, subdomain enum (DNS + crt.sh) | Implemented |
-| Scanners (24): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf, prototype-pollution, cve, exposed-file, websocket | Implemented |
+| Recon: crawler, fingerprint, JS analysis, content discovery, subdomain enum, WAF detect, DNS enum + AXFR, API discovery, Wayback, Nmap port scan | Implemented |
+| Scanners (26): security-headers, cors, reflected/dom/stored xss, sqli, ssti, lfi, cmd-injection, open-redirect, csrf, auth-session, deserialization, idor, cache-poisoning, graphql, xxe, jwt, tls, ssrf, prototype-pollution, cve, exposed-file, websocket, race-condition, default-credentials | Implemented |
 | Headless browser engine (Playwright/Chromium, scope-enforced) | Implemented |
 | OOB callback server (local fallback listener) | Implemented |
-| CVE matching via NVD (cached) | Implemented |
 | Exploitation confirmation (ssrf, sqli, lfi, cmd, ssti, open-redirect, xxe, xss) | Implemented |
-| Reporting: JSON, CSV, HTML + PDF (executive/technical/compliance), CVSS v3.1, OWASP/CWE mapping | Implemented |
-| Production: PostgreSQL (+ Alembic migrations), distributed scanning (Celery/Redis), Docker Compose stack | Implemented |
-| Scanners: race condition | Deferred (app-aware, high false-positive) |
-| Recon: port scan (Nmap), Shodan/Censys passive recon | Planned next |
+| Reporting: JSON/CSV/HTML/PDF (exec/technical/compliance), CVSS v3.1 + v4.0, OWASP/CWE/PCI-DSS/NIST-CSF/MITRE mapping, severity filter, logo branding | Implemented |
+| Plugin system (auto-discovered scanner/exploit/recon/reporter plugins) | Implemented |
+| Production: PostgreSQL (+ Alembic), distributed scanning (Celery/Redis), Docker Compose | Implemented |
+| OpSec: AES-256-GCM evidence-at-rest encryption, operator audit log, HAR export | Implemented |
+| Recon: Shodan/Censys/VirusTotal passive recon | Planned (needs API keys) |
 
 ## Requirements
 

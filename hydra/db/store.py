@@ -21,14 +21,16 @@ from hydra.db.models import Exploitation as ExploitationRow
 from hydra.db.models import Finding as FindingRow
 from hydra.db.models import Scan as ScanRow
 from hydra.db.models import ScanLog as ScanLogRow
+from hydra.utils import crypto
 
 
 class Store:
-    def __init__(self, db_url: str) -> None:
+    def __init__(self, db_url: str, encryption_key: str | None = None) -> None:
         self.engine = create_async_engine(db_url, future=True)
         self._session_factory = async_sessionmaker(
             self.engine, expire_on_commit=False, class_=AsyncSession
         )
+        self._enc_key = encryption_key
 
     async def init(self) -> None:
         async with self.engine.begin() as conn:
@@ -182,9 +184,9 @@ class Store:
                 finding_id=finding_id,
                 technique=result.technique,
                 success=result.success,
-                extracted_data=result.extracted_data,
-                request_raw=result.evidence.request_raw,
-                response_raw=result.evidence.response_raw,
+                extracted_data=crypto.protect(result.extracted_data, self._enc_key),
+                request_raw=crypto.protect(result.evidence.request_raw, self._enc_key),
+                response_raw=crypto.protect(result.evidence.response_raw, self._enc_key),
                 screenshot_path=result.evidence.screenshot_path,
                 callback_id=result.callback_id,
             )

@@ -101,6 +101,50 @@ DEFAULT_VECTORS: dict[str, str] = {
 }
 
 
+def _v3_to_v4_vector(v3_vector: str) -> str:
+    """Build a CVSS:4.0 base vector from a v3.1 vector (metric remap)."""
+    m = parse_vector(v3_vector)
+    subseq = "L" if m.get("S") == "C" else "N"
+    return (
+        "CVSS:4.0"
+        f"/AV:{m.get('AV', 'N')}/AC:{m.get('AC', 'L')}/AT:N"
+        f"/PR:{m.get('PR', 'N')}/UI:{m.get('UI', 'N')}"
+        f"/VC:{m.get('C', 'N')}/VI:{m.get('I', 'N')}/VA:{m.get('A', 'N')}"
+        f"/SC:{subseq}/SI:{subseq}/SA:{subseq}"
+    )
+
+
+def base_score_v4(vector: str) -> float:
+    """Approximate CVSS v4.0 base score.
+
+    Maps v4.0 metrics back onto the v3.1 formula as a documented approximation —
+    the official CVSS-B v4.0 MacroVector lookup tables are not implemented. The
+    v4.0 *vector* is exact; this numeric is an estimate (v3.1 stays authoritative).
+    """
+    m = parse_vector(vector)
+    if "VC" not in m:
+        return base_score(vector)
+    subseq_changed = any(m.get(x, "N") != "N" for x in ("SC", "SI", "SA"))
+    v3_equiv = (
+        "CVSS:3.1"
+        f"/AV:{m.get('AV', 'N')}/AC:{m.get('AC', 'L')}"
+        f"/PR:{m.get('PR', 'N')}/UI:{m.get('UI', 'N')}"
+        f"/S:{'C' if subseq_changed else 'U'}"
+        f"/C:{m.get('VC', 'N')}/I:{m.get('VI', 'N')}/A:{m.get('VA', 'N')}"
+    )
+    return base_score(v3_equiv)
+
+
+DEFAULT_VECTORS_V4: dict[str, str] = {
+    vuln_type: _v3_to_v4_vector(vector) for vuln_type, vector in DEFAULT_VECTORS.items()
+}
+
+
+def v4_for(vuln_type: str) -> tuple[str | None, float | None]:
+    vector = DEFAULT_VECTORS_V4.get(vuln_type)
+    return (vector, base_score_v4(vector)) if vector else (None, None)
+
+
 def assign_cvss(finding: Finding) -> Finding:
     """Populate cvss_vector/score on a finding from defaults if missing."""
     if finding.cvss_score is not None and finding.cvss_vector:
@@ -117,8 +161,11 @@ def assign_cvss(finding: Finding) -> Finding:
 
 __all__ = [
     "base_score",
+    "base_score_v4",
     "parse_vector",
     "severity_for_score",
     "assign_cvss",
+    "v4_for",
     "DEFAULT_VECTORS",
+    "DEFAULT_VECTORS_V4",
 ]

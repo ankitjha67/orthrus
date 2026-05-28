@@ -134,8 +134,12 @@ def cli() -> None:
     "report_format",
     default="json",
     type=click.Choice(["json", "html", "pdf", "csv"]),
-    help="Report format (html/pdf land in Roadmap Phase 4).",
+    help="Report format.",
 )
+@click.option("--template", default="technical", help="Report template: executive/technical/compliance.")
+@click.option("--min-severity", "min_severity", default=None, help="Only report findings >= this severity.")
+@click.option("--logo", default=None, help="Logo image embedded in HTML/PDF reports.")
+@click.option("--har", default=None, help="Record a browser HAR to this path (evidence).")
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
     target: str,
@@ -162,6 +166,10 @@ def scan(
     scan_id: str | None,
     output: str,
     report_format: str,
+    template: str,
+    min_severity: str | None,
+    logo: str | None,
+    har: str | None,
     verbose: str,
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
@@ -196,8 +204,12 @@ def scan(
         callback=callback,
         no_exploit=no_exploit,
         use_browser=browser,
+        har_path=har,
         output=output,
         report_format=report_format,
+        report_template=template,
+        min_severity=min_severity,
+        branding_logo=logo,
     )
     config.rate_limit.requests_per_second = rate_limit
     _log_scope(scope)
@@ -406,21 +418,40 @@ async def _run_exploit(scan_id: str) -> None:
     help="Report format.",
 )
 @click.option("--template", default="technical", help="Template: executive/technical/compliance.")
-@click.option("--branding", default=None, help="Logo/branding asset path (deferred).")
+@click.option("--logo", default=None, help="Logo image embedded in HTML/PDF reports.")
+@click.option("--min-severity", "min_severity", default=None, help="Only report findings >= this severity.")
 @click.option("--output", "-o", default="hydra_report", help="Output file path.")
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def report(
-    scan_id: str, fmt: str, template: str, branding: str | None, output: str, verbose: str
+    scan_id: str,
+    fmt: str,
+    template: str,
+    logo: str | None,
+    min_severity: str | None,
+    output: str,
+    verbose: str,
 ) -> None:
     """Generate a report from an existing scan."""
     configure_logging(verbose)
-    asyncio.run(_run_report(scan_id, fmt, output, template))
+    asyncio.run(_run_report(scan_id, fmt, output, template, logo, min_severity))
 
 
-async def _run_report(scan_id: str, fmt: str, output: str, template: str = "technical") -> None:
-    store = Store(get_settings().db_url)
+async def _run_report(
+    scan_id: str,
+    fmt: str,
+    output: str,
+    template: str = "technical",
+    logo: str | None = None,
+    min_severity: str | None = None,
+) -> None:
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
     try:
-        path = await generate_report(store, scan_id, fmt, output, template=template)
+        branding = {"logo": logo} if logo else None
+        path = await generate_report(
+            store, scan_id, fmt, output, template=template,
+            branding=branding, min_severity=min_severity,
+        )
         logger.info("report written to %s", path)
     finally:
         await store.close()
