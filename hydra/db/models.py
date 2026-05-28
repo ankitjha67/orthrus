@@ -111,6 +111,7 @@ class Finding(Base):
     confidence: Mapped[str] = mapped_column(String(16), default="tentative")
     url: Mapped[str] = mapped_column(Text)
     parameter: Mapped[str | None] = mapped_column(Text, nullable=True)
+    param_location: Mapped[str | None] = mapped_column(String(16), nullable=True)
     description: Mapped[str] = mapped_column(Text, default="")
     remediation: Mapped[str] = mapped_column(Text, default="")
     cwe: Mapped[str | None] = mapped_column(String(32), nullable=True)

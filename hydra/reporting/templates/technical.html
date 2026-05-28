@@ -29,6 +29,7 @@
   </div>
   <div class="kv">URL: <code>{{ f.url }}</code>
     {% if f.parameter %}&nbsp;·&nbsp; parameter: <code>{{ f.parameter }}</code>{% endif %}
+    {% if f.param_location %}&nbsp;·&nbsp; in: <code>{{ f.param_location }}</code>{% endif %}
   </div>
   <p>{{ f.description }}</p>
   {% if f.evidence.request_raw %}

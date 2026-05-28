@@ -135,6 +135,7 @@ class Store:
                 confidence=finding.confidence.value,
                 url=finding.url,
                 parameter=finding.parameter,
+                param_location=finding.param_location.value if finding.param_location else None,
                 description=finding.description,
                 remediation=finding.remediation,
                 cwe=finding.cwe,

@@ -137,6 +137,7 @@ def _finding_dict(
         "confidence": row.confidence,
         "url": row.url,
         "parameter": row.parameter,
+        "param_location": row.param_location,
         "cwe": row.cwe,
         "owasp": OWASP_2021.get(row.vuln_type, "Unmapped"),
         "pci_dss": PCI_DSS.get(row.vuln_type, "—"),
@@ -234,12 +235,14 @@ def _write_csv(findings: list[dict[str, Any]]) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(
-        ["severity", "confidence", "cvss", "vuln_type", "title", "url", "parameter", "cwe", "owasp"]
+        ["severity", "confidence", "cvss", "vuln_type", "title", "url",
+         "parameter", "param_location", "cwe", "owasp"]
     )
     for f in findings:
         writer.writerow([
             f["severity"], f["confidence"], f["cvss_score"], f["vuln_type"],
-            f["title"], f["url"], f["parameter"] or "", f["cwe"] or "", f["owasp"],
+            f["title"], f["url"], f["parameter"] or "", f["param_location"] or "",
+            f["cwe"] or "", f["owasp"],
         ])
     return buf.getvalue()
 
