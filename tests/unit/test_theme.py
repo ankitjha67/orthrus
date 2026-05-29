@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import Progress
 from rich.table import Table
 
 from hydra.utils import theme
@@ -120,3 +121,16 @@ def test_findings_table_sorts_by_severity_descending():
 def test_findings_table_handles_empty():
     out = _render(lambda c: c.print(theme.findings_table([])))
     assert "FINDINGS" in out
+
+
+# ---------------------------------------------------------------- progress
+def test_make_progress_returns_progress_and_renders():
+    buf = io.StringIO()
+    console = Console(file=buf, force_terminal=True, width=80, theme=theme.HYDRA_THEME)
+    progress = theme.make_progress(console)
+    assert isinstance(progress, Progress)
+    # Drive a short lifecycle to confirm it renders without raising.
+    with progress:
+        task = progress.add_task("scan · sqli", total=2)
+        progress.advance(task)
+        progress.advance(task)

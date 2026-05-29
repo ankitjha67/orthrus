@@ -16,6 +16,13 @@ from __future__ import annotations
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
@@ -140,6 +147,26 @@ def section(console: Console, title: str) -> None:
     console.print(Rule(Text(title, style="hydra.accent"), style="hydra.accent", align="left"))
 
 
+def make_progress(console: Console) -> Progress:
+    """A themed, transient progress bar for phase work (recon/scan).
+
+    Replaces the stream of per-module log lines with one live bar that shows the
+    current module, completion count and elapsed time. ``transient=True`` leaves
+    no scrollback once the phase finishes. Callers should gate on
+    ``console.is_terminal`` (and not --quiet) so piped output / CI keeps the
+    plain log-line path instead of a half-rendered bar.
+    """
+    return Progress(
+        SpinnerColumn(style="hydra.accent"),
+        TextColumn("[hydra.muted]{task.description}"),
+        BarColumn(complete_style="hydra.accent", finished_style="status.completed"),
+        TextColumn("[hydra.muted]{task.completed}/{task.total}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    )
+
+
 def _fmt(value: object) -> str:
     if isinstance(value, (list, tuple)):
         return ", ".join(str(v) for v in value) if value else "(none)"
@@ -181,6 +208,7 @@ __all__ = [
     "HYDRA_THEME",
     "confidence_style",
     "findings_table",
+    "make_progress",
     "render_banner",
     "scope_panel",
     "section",

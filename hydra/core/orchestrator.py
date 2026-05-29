@@ -8,6 +8,7 @@ pipeline runs end-to-end today and grows without structural change.
 
 from __future__ import annotations
 
+import contextlib
 from time import perf_counter
 from uuid import uuid4
 
@@ -46,7 +47,7 @@ from hydra.reporting.generator import generate_report
 from hydra.scanners.registry import get_scanners
 from hydra.utils.logger import console, get_logger
 from hydra.utils.scope import ScopeValidator
-from hydra.utils.theme import findings_table, section, severity_style
+from hydra.utils.theme import findings_table, make_progress, section, severity_style
 
 logger = get_logger("orchestrator")
 
@@ -240,6 +241,11 @@ class Orchestrator:
         if not self.config.quiet:
             section(console, title)
 
+    def _use_progress(self) -> bool:
+        """Show a live progress bar only on an interactive TTY (never in --quiet
+        or when output is piped/CI, where it would render as broken fragments)."""
+        return console.is_terminal and not self.config.quiet
+
     # ----------------------------------------------------------- phase: recon
     async def run_recon(self, which: set[str] | None = None) -> tuple[int, int]:
         assert self.ctx is not None
@@ -293,23 +299,30 @@ class Orchestrator:
         modules.extend(get_recon_plugins())  # recon plugins run alongside built-ins
 
         seen_endpoints: set[tuple[str, str]] = set()
-        for module in modules:
-            if not module.applicable(self.ctx):
-                continue
-            logger.info("recon: running %s", module.name)
-            async for item in module.discover(self.ctx):
-                if isinstance(item, schemas.Asset):
-                    self.ctx.assets.append(item)
-                    await self.store.add_asset(self.scan_id, item)
-                    await self.event_bus.emit(EventType.ASSET_DISCOVERED, fqdn=item.fqdn)
-                elif isinstance(item, schemas.Endpoint):
-                    key = (item.method.value, item.url)
-                    if key in seen_endpoints:
-                        continue
-                    seen_endpoints.add(key)
-                    self.ctx.endpoints.append(item)
-                    await self.store.add_endpoint(self.scan_id, item)
-                    await self.event_bus.emit(EventType.ENDPOINT_DISCOVERED, url=item.url)
+        progress = make_progress(console) if self._use_progress() else None
+        with progress or contextlib.nullcontext():
+            task = progress.add_task("recon", total=len(modules)) if progress else None
+            for module in modules:
+                if progress is not None:
+                    progress.update(task, description=f"recon · {module.name}")
+                if module.applicable(self.ctx):
+                    if progress is None:
+                        logger.info("recon: running %s", module.name)
+                    async for item in module.discover(self.ctx):
+                        if isinstance(item, schemas.Asset):
+                            self.ctx.assets.append(item)
+                            await self.store.add_asset(self.scan_id, item)
+                            await self.event_bus.emit(EventType.ASSET_DISCOVERED, fqdn=item.fqdn)
+                        elif isinstance(item, schemas.Endpoint):
+                            key = (item.method.value, item.url)
+                            if key in seen_endpoints:
+                                continue
+                            seen_endpoints.add(key)
+                            self.ctx.endpoints.append(item)
+                            await self.store.add_endpoint(self.scan_id, item)
+                            await self.event_bus.emit(EventType.ENDPOINT_DISCOVERED, url=item.url)
+                if progress is not None:
+                    progress.advance(task)
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="recon")
         await self.store.set_scan_phase(self.scan_id, "recon")  # checkpoint for --resume
@@ -341,45 +354,60 @@ class Orchestrator:
 
         configured_rank = _AGGRESSIVENESS_RANK[self.config.aggressiveness]
         total = 0
-        for scanner in scanners:
-            if not scanner.applicable(self.ctx):
-                continue
-            if _AGGRESSIVENESS_RANK[scanner.min_aggressiveness] > configured_rank:
-                logger.info(
-                    "scan: skipping %s (requires %s aggressiveness)",
-                    scanner.name,
-                    scanner.min_aggressiveness.value,
-                )
-                continue
-            logger.info("scan: running %s", scanner.name)
-            metric = ScannerMetric(name=scanner.name)
-            start = perf_counter()
-            start_requests = self.ctx.http.requests_sent
-            await scanner.setup(self.ctx)
-            try:
-                async for finding in scanner.scan(self.ctx):
-                    db_id = await self.store.add_finding(self.scan_id, finding)
-                    self.ctx.findings.append(finding)
-                    self.ctx.finding_ids[finding.id] = db_id
-                    await self.event_bus.emit(
-                        EventType.FINDING_RAISED,
-                        vuln_type=finding.vuln_type,
-                        severity=finding.severity.value,
-                        url=finding.url,
-                    )
-                    metric.findings += 1
-                    total += 1
-            except Exception as exc:
-                # Isolate scanner failures: one crashing module must not abort the
-                # whole phase. Record it on the metric and keep going.
-                metric.error = type(exc).__name__
-                logger.exception("scanner %s crashed; continuing with the rest", scanner.name)
-            finally:
-                await scanner.teardown(self.ctx)
-                metric.duration_s = perf_counter() - start
-                metric.requests = self.ctx.http.requests_sent - start_requests
-                self.scanner_metrics.append(metric)
-                await self.store.log(self.scan_id, "info", "metrics", metric.summary_line())
+        progress = make_progress(console) if self._use_progress() else None
+        with progress or contextlib.nullcontext():
+            task = progress.add_task("scan", total=len(scanners)) if progress else None
+            for scanner in scanners:
+                if progress is not None:
+                    progress.update(task, description=f"scan · {scanner.name}")
+                try:
+                    if not scanner.applicable(self.ctx):
+                        continue
+                    if _AGGRESSIVENESS_RANK[scanner.min_aggressiveness] > configured_rank:
+                        if progress is None:
+                            logger.info(
+                                "scan: skipping %s (requires %s aggressiveness)",
+                                scanner.name,
+                                scanner.min_aggressiveness.value,
+                            )
+                        continue
+                    if progress is None:
+                        logger.info("scan: running %s", scanner.name)
+                    metric = ScannerMetric(name=scanner.name)
+                    start = perf_counter()
+                    start_requests = self.ctx.http.requests_sent
+                    await scanner.setup(self.ctx)
+                    try:
+                        async for finding in scanner.scan(self.ctx):
+                            db_id = await self.store.add_finding(self.scan_id, finding)
+                            self.ctx.findings.append(finding)
+                            self.ctx.finding_ids[finding.id] = db_id
+                            await self.event_bus.emit(
+                                EventType.FINDING_RAISED,
+                                vuln_type=finding.vuln_type,
+                                severity=finding.severity.value,
+                                url=finding.url,
+                            )
+                            metric.findings += 1
+                            total += 1
+                    except Exception as exc:
+                        # Isolate scanner failures: one crashing module must not abort
+                        # the whole phase. Record it on the metric and keep going.
+                        metric.error = type(exc).__name__
+                        logger.exception(
+                            "scanner %s crashed; continuing with the rest", scanner.name
+                        )
+                    finally:
+                        await scanner.teardown(self.ctx)
+                        metric.duration_s = perf_counter() - start
+                        metric.requests = self.ctx.http.requests_sent - start_requests
+                        self.scanner_metrics.append(metric)
+                        await self.store.log(
+                            self.scan_id, "info", "metrics", metric.summary_line()
+                        )
+                finally:
+                    if progress is not None:
+                        progress.advance(task)
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="scan")
         await self.store.set_scan_phase(self.scan_id, "scan")  # checkpoint for --resume
