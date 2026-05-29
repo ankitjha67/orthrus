@@ -12,6 +12,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from hydra import main
+from hydra.core.config import ScanConfig, ScopeConfig
 from hydra.core.schemas import Aggressiveness
 
 
@@ -35,6 +36,23 @@ def test_resolve_plan_module_selection_narrows():
     assert "sqli" in plan["will_run"]
     # A single-module selection is far smaller than the full suite.
     assert len(plan["will_run"]) + len(plan["gated"]) < 20
+
+
+def test_dry_run_plan_escapes_bracketed_target():
+    # A target with bracketed query text must render literally, not be swallowed
+    # by Rich as a markup tag.
+    from hydra.utils.logger import console
+
+    config = ScanConfig(
+        target="http://t.example/?f=[active]",
+        scope=ScopeConfig(domains=["t.example"]),
+        modules=["sqli"],
+    )
+    with console.capture() as cap:
+        main._print_scan_plan(config)
+    out = cap.get()
+    assert "[active]" in out  # preserved verbatim
+    assert "sqli" in out  # the resolved plan rendered
 
 
 def test_dry_run_does_not_execute_scan():

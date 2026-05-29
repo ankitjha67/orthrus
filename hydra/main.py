@@ -195,16 +195,20 @@ def _resolve_plan(module_list: list[str], aggressiveness: Aggressiveness) -> dic
 
 def _print_scan_plan(config: ScanConfig) -> None:
     """Render the dry-run plan: which modules run, and the key run settings."""
+    from rich.markup import escape
+
     plan = _resolve_plan(config.modules, config.aggressiveness)
     section(console, "DRY RUN · SCAN PLAN")
+    # Escape operator-supplied values: a target URL or output path can contain
+    # bracketed text Rich would otherwise consume as markup.
     console.print(
-        f"[hydra.muted]Target:[/] {config.target}    "
+        f"[hydra.muted]Target:[/] {escape(config.target or '')}    "
         f"[hydra.muted]Aggressiveness:[/] {config.aggressiveness.value}    "
         f"[hydra.muted]Exploit:[/] {'off' if config.no_exploit else 'on'}    "
         f"[hydra.muted]Browser:[/] {'on' if config.use_browser else 'off'}"
     )
     console.print(
-        f"[hydra.muted]Report:[/] {config.report_format} -> {config.output}    "
+        f"[hydra.muted]Report:[/] {config.report_format} -> {escape(config.output)}    "
         f"[hydra.muted]Rate limit:[/] {config.rate_limit.requests_per_second:g} req/s"
     )
     will_run = plan["will_run"]
