@@ -792,6 +792,40 @@ def _print_modules(scanners: list[dict], exploits: list[dict]) -> None:
     console.print(etable)
 
 
+# Hint lines (stdout, prepended as comments) so an operator who runs the command
+# interactively learns how to install the script instead of just seeing a blob.
+_COMPLETION_INSTALL = {
+    "bash": "Add to ~/.bashrc:  eval \"$(hydra completion bash)\"",
+    "zsh": "Add to ~/.zshrc:  eval \"$(hydra completion zsh)\"",
+    "fish": "Save to file:  hydra completion fish > ~/.config/fish/completions/hydra.fish",
+}
+
+
+@cli.command(name="completion")
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
+def completion(shell: str) -> None:
+    """Output a tab-completion script for SHELL (bash, zsh, or fish).
+
+    The script is written to stdout so it can be sourced or saved, e.g.:
+
+    \b
+      eval "$(hydra completion bash)"        # current shell
+      hydra completion bash >> ~/.bashrc     # persist (bash)
+      hydra completion zsh  >> ~/.zshrc      # persist (zsh)
+      hydra completion fish > ~/.config/fish/completions/hydra.fish
+    """
+    from click.shell_completion import get_completion_class
+
+    comp_cls = get_completion_class(shell)
+    if comp_cls is None:  # defensive: Choice already constrains shell
+        raise click.ClickException(f"unsupported shell: {shell}")
+    # complete_var follows Click's PROG_COMPLETE convention so the generated
+    # script and the runtime completion handshake agree on the trigger env var.
+    comp = comp_cls(cli, {}, "hydra", "_HYDRA_COMPLETE")
+    click.echo(f"# {_COMPLETION_INSTALL[shell]}")
+    click.echo(comp.source())
+
+
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
 @click.option(
