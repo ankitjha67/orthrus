@@ -1537,6 +1537,27 @@ def doctor(as_json: bool) -> None:
     _print_diagnostics(diag)
 
 
+@cli.command(name="update")
+def update() -> None:
+    """Refresh threat-intel feeds (CISA KEV) used to enrich CVE findings.
+
+    Fetches the CISA Known Exploited Vulnerabilities catalog from cisa.gov (a
+    trusted data source, not the target) and rewrites the bundled seed so CVE
+    findings are flagged when actively exploited in the wild.
+    """
+    import httpx
+
+    from orthrus.intel.cve_intel import CISA_KEV_FEED, refresh_kev
+
+    try:
+        resp = httpx.get(CISA_KEV_FEED, timeout=30.0, follow_redirects=True)
+        resp.raise_for_status()
+        count = refresh_kev(resp.json())
+    except (httpx.HTTPError, ValueError) as exc:
+        raise click.ClickException(f"KEV update failed: {type(exc).__name__}: {exc}") from exc
+    click.echo(f"Updated CISA KEV catalog: {count} known-exploited CVEs.")
+
+
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
 @click.option(

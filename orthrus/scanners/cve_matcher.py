@@ -19,6 +19,7 @@ import httpx
 from orthrus.core.config import get_settings
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Confidence, Evidence, Finding, Severity
+from orthrus.intel.cve_intel import enrich, escalate_severity, summary
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.logger import get_logger
@@ -183,14 +184,19 @@ class CveMatcher(BaseScanner):
                         continue
 
                     for m in match_cves(tech.name, tech.version, nvd_json)[:MAX_CVES_PER_COMPONENT]:
+                        intel = enrich(m.cve_id)
+                        tag = summary(intel)
                         yield Finding(
                             vuln_type="cve",
-                            title=f"{m.cve_id} affects {tech.name} {tech.version}",
-                            severity=m.severity,
-                            confidence=Confidence.TENTATIVE,
+                            title=f"{m.cve_id} affects {tech.name} {tech.version}"
+                            + (" [KEV]" if intel.kev else ""),
+                            severity=escalate_severity(m.severity, intel),
+                            # Known-exploited CVEs are firm prioritisation signals, not tentative.
+                            confidence=Confidence.FIRM if intel.kev else Confidence.TENTATIVE,
                             url=ctx.config.target,
                             description=(
-                                f"Fingerprinted {tech.name} {tech.version} matches {m.cve_id}: "
+                                (f"{tag} " if tag else "")
+                                + f"Fingerprinted {tech.name} {tech.version} matches {m.cve_id}: "
                                 f"{m.description[:300]}"
                             ),
                             remediation=f"Upgrade {tech.name} to a patched version; review {m.cve_id}.",
@@ -198,7 +204,10 @@ class CveMatcher(BaseScanner):
                             cvss_score=m.score,
                             cvss_vector=m.vector,
                             scanner=SCANNER_NAME,
-                            evidence=Evidence(matched_at=m.cve_id, notes=f"NVD match for {key}"),
+                            evidence=Evidence(
+                                matched_at=m.cve_id,
+                                notes=f"NVD match for {key}" + (f" {tag}" if tag else ""),
+                            ),
                         )
 
         _save_cache(settings.data_dir, cache)
