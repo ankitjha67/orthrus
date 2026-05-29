@@ -7,12 +7,12 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 26 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 29 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
-produces JSON / CSV / HTML / PDF reports with CVSS v3.1 + v4.0 scoring and
-OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
+produces JSON / CSV / HTML / PDF / SARIF / Markdown reports with CVSS v3.1 + v4.0
+scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 
 ![Orthrus terminal output: the banner, the AUTHORIZED SCOPE panel, the scan summary, OWASP Top-10 coverage, and the colour-coded findings table](docs/screenshot.png)
 
@@ -73,20 +73,21 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 
 ## ✨ Features
 
-**Reconnaissance (10 modules)**
+**Reconnaissance (12 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
+- Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
 - JavaScript analysis (endpoint + secret extraction), content discovery
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (28)**
+**Vulnerability scanners (29)**
 
 | Category | Scanners |
 |---|---|
 | Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE |
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
-| Access / logic | IDOR, CSRF, open redirect, race conditions |
+| Access / logic | IDOR, CSRF, open redirect, race conditions, business-logic (parameter tampering / HTTP parameter pollution) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
 | Auth / session | Auth-session analysis, default credentials, JWT analysis |
 | Server-side | SSRF (out-of-band + metadata), deserialization, prototype pollution |
@@ -105,7 +106,7 @@ redirect, XXE, and XSS (browser-executed). Confirmation works on both
 query-string **and** POST form-body parameters.
 
 **Reporting**
-- Formats: **JSON, CSV, HTML, PDF**
+- Formats: **JSON, CSV, HTML, PDF, SARIF, Markdown**
 - Templates: **executive**, **technical**, **compliance**
 - **CVSS v3.1 + v4.0** scoring; **OWASP Top 10 / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK** mappings
 - Severity filtering, logo branding, embedded screenshots & raw request/response evidence
@@ -258,7 +259,11 @@ targets:
 
 ## 📖 Usage guide
 
-ORTHRUS exposes four sub-commands: `recon`, `scan`, `exploit`, `report`.
+ORTHRUS's core sub-commands are `recon`, `scan`, `exploit`, and `report`, plus
+utility commands: `doctor` (environment readiness), `modules` (module inventory),
+`findings` (terminal triage view), `diff` (compare two scans), `scans` (list past
+scans), `benchmark` (detection-accuracy harness), and `completion` (shell
+completion). Run `orthrus --help` for the full list.
 
 ### `orthrus scan` — the full pipeline
 
@@ -355,6 +360,9 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
 - **HTML** — styled report; `technical` includes raw request/response evidence and
   screenshots, `executive` is a summary, `compliance` emphasises framework mappings.
 - **PDF** — the HTML report rendered to PDF via headless Chromium (needs `[browser]`).
+- **SARIF** — Static Analysis Results Interchange Format for CI / code-scanning
+  dashboards (e.g. GitHub code scanning); pair with `--fail-on` to gate a pipeline.
+- **Markdown** — portable plain-text report for tickets, pull requests, and wikis.
 
 Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
 10, CWE, PCI-DSS, NIST-CSF, and MITRE ATT&CK.
@@ -394,10 +402,10 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 ```
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
-  recon/       crawler, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    26 scanners + base interface + registry
+  recon/       crawler, dynamic/SPA crawl, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
+  scanners/    29 scanners + base interface + registry
   exploits/    8 confirmation modules + base interface + registry
-  reporting/   JSON/CSV/HTML/PDF generator, CVSS engine, Jinja2 templates
+  reporting/   JSON/CSV/HTML/PDF/SARIF/Markdown generator, CVSS engine, Jinja2 templates
   db/          SQLAlchemy 2.0 models, async store, Alembic migrations
   distributed/ Celery app, tasks, target dispatcher
   utils/       logger, scope validator, rate limiter, encoding
