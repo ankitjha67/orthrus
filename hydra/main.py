@@ -14,6 +14,7 @@ import json
 import re
 import sys
 import tomllib
+from collections.abc import Callable
 from urllib.parse import urlsplit
 
 import click
@@ -280,6 +281,13 @@ def cli(no_banner: bool) -> None:
     help="Load scan options from a TOML file ([scan] table); CLI flags override it.",
 )
 @click.option("--target", "-t", default=None, help="Target URL (required unless --resume).")
+@click.option(
+    "--target-file",
+    "target_file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="File of targets (one per line; '#' comments allowed) for sequential batch scanning.",
+)
 @click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
 @click.option("--modules", default="all", help="Comma-separated scanner modules.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
@@ -367,6 +375,7 @@ def cli(no_banner: bool) -> None:
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
     target: str | None,
+    target_file: str | None,
     scope_str: str,
     modules: str,
     aggressive: bool,
@@ -427,13 +436,22 @@ def scan(
         _apply_fail_on(counts, fail_on)
         return
 
-    if not target:
-        raise click.UsageError("--target is required (or use --resume with --scan-id)")
+    if not target and not target_file:
+        raise click.UsageError(
+            "provide --target or --target-file (or use --resume with --scan-id)"
+        )
+    if target and target_file:
+        raise click.UsageError("use either --target or --target-file, not both")
 
     module_list = [m.strip() for m in modules.split(",") if m.strip()]
     aggressiveness = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
 
     if distributed:
+        if target_file:
+            raise click.UsageError(
+                "--target-file is for local sequential batch; in --distributed mode "
+                "pass the target list to --target"
+            )
         _run_distributed(
             target, scope_str, exclude_paths, module_list, aggressiveness,
             crawl_depth, max_pages, timeout, no_exploit, browser, report_format,
@@ -441,47 +459,115 @@ def scan(
         )
         return
 
-    scope = build_scope(scope_str, target, exclude_paths)
-    config = ScanConfig(
-        scan_id=scan_id,
-        target=target,
-        scope=scope,
-        modules=module_list,
-        aggressiveness=aggressiveness,
-        crawl_depth=crawl_depth,
-        max_pages=max_pages,
-        timeout=timeout,
-        concurrency=threads,
-        proxy=proxy,
-        user_agent=user_agent,
-        extra_headers=_parse_headers(headers),
-        auth_cookie=auth_cookie,
-        auth_script=auth_script,
-        login_url=login_url,
-        login_data=login_data,
-        login_token_field=login_token_field,
-        login_check=login_check,
-        import_spec=import_spec,
-        templates=templates,
-        callback=callback,
-        no_exploit=no_exploit,
-        use_browser=browser,
-        har_path=har,
-        output=output,
-        report_format=report_format,
-        report_template=template,
-        min_severity=min_severity,
-        branding_logo=logo,
-        quiet=quiet,
-    )
-    config.rate_limit.requests_per_second = rate_limit
-    _log_scope(scope)
+    def _config_for(t: str) -> ScanConfig:
+        # Each target gets its own scope — auto-derived per target unless an
+        # explicit --scope was given — so the engagement boundary is correct for
+        # every host, single or batch. Mirrors the per-target build in
+        # _run_distributed.
+        cfg = ScanConfig(
+            scan_id=scan_id,
+            target=t,
+            scope=build_scope(scope_str, t, exclude_paths),
+            modules=module_list,
+            aggressiveness=aggressiveness,
+            crawl_depth=crawl_depth,
+            max_pages=max_pages,
+            timeout=timeout,
+            concurrency=threads,
+            proxy=proxy,
+            user_agent=user_agent,
+            extra_headers=_parse_headers(headers),
+            auth_cookie=auth_cookie,
+            auth_script=auth_script,
+            login_url=login_url,
+            login_data=login_data,
+            login_token_field=login_token_field,
+            login_check=login_check,
+            import_spec=import_spec,
+            templates=templates,
+            callback=callback,
+            no_exploit=no_exploit,
+            use_browser=browser,
+            har_path=har,
+            output=output,
+            report_format=report_format,
+            report_template=template,
+            min_severity=min_severity,
+            branding_logo=logo,
+            quiet=quiet,
+        )
+        cfg.rate_limit.requests_per_second = rate_limit
+        return cfg
+
+    if target_file:
+        _run_target_file(target_file, _config_for, dry_run, fail_on)
+        return
+
+    config = _config_for(target)
+    _log_scope(config.scope)
     if dry_run:
         # Preview only: show the resolved plan and stop before any packet leaves.
         _print_scan_plan(config)
         return
     counts = asyncio.run(_run_scan(config))
     _apply_fail_on(counts, fail_on)
+
+
+def _read_targets(path: str) -> list[str]:
+    """Targets from a file: one per line, '#' comments and blank lines ignored."""
+    out: list[str] = []
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            token = line.strip()
+            if token and not token.startswith("#"):
+                out.append(token)
+    return out
+
+
+def _batch_output(output: str, target: str) -> str:
+    """Per-target report path for batch scans, so reports don't overwrite.
+
+    Stdout ('-') is preserved as-is; otherwise a filesystem-safe slug of the
+    target host is appended before the generator adds the extension.
+    """
+    if output == "-":
+        return "-"
+    host = urlsplit(target if "://" in target else f"//{target}").hostname or target
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", host).strip("_") or "target"
+    return f"{output}_{slug}"
+
+
+def _run_target_file(
+    target_file: str,
+    config_for: Callable[[str], ScanConfig],
+    dry_run: bool,
+    fail_on: str | None,
+) -> None:
+    """Scan every target in a file sequentially, each with its own scope/report.
+
+    Per-target reports go to distinct paths (the target host is appended to
+    --output) so a batch never overwrites itself, and each target is its own
+    scan (fresh id). The --fail-on gate is applied once over the combined
+    severity tally, so any target breaching the threshold fails the whole run.
+    """
+    targets = _read_targets(target_file)
+    if not targets:
+        raise click.UsageError(f"no targets found in {target_file}")
+    logger.info("batch: %d target(s) from %s", len(targets), target_file)
+    aggregate: dict[str, int] = {}
+    for t in targets:
+        cfg = config_for(t)
+        cfg.scan_id = None  # each target is its own scan; never share an id
+        cfg.output = _batch_output(cfg.output, t)
+        _log_scope(cfg.scope)
+        if dry_run:
+            _print_scan_plan(cfg)
+            continue
+        counts = asyncio.run(_run_scan(cfg))
+        for sev, n in counts.items():
+            aggregate[sev] = aggregate.get(sev, 0) + n
+    if not dry_run:
+        _apply_fail_on(aggregate, fail_on)
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
