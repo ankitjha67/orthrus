@@ -96,6 +96,36 @@ def _log_scope(scope: ScopeConfig) -> None:
     )
 
 
+# --fail-on severity gating (CI pipelines). Mirrors the report-time severity
+# ordering in hydra.reporting.generator so the threshold means the same thing
+# everywhere. Process exits with this code when the gate trips, distinct from
+# Click's usage-error code (2) so a pipeline can tell "vulns found" from
+# "bad invocation".
+_FAIL_ON_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+FAIL_ON_EXIT_CODE = 3
+
+
+def _gate_breached(counts: dict[str, int], threshold: str) -> bool:
+    """True if any severity bucket at or above ``threshold`` has a finding."""
+    floor = _FAIL_ON_ORDER.get(threshold.lower(), 0)
+    return any(
+        n > 0 and _FAIL_ON_ORDER.get(sev, 0) >= floor for sev, n in counts.items()
+    )
+
+
+def _apply_fail_on(counts: dict[str, int], fail_on: str | None) -> None:
+    """Exit non-zero when the severity gate is breached (no-op if disabled)."""
+    if not fail_on:
+        return
+    if _gate_breached(counts, fail_on):
+        logger.error(
+            "fail-on gate: findings at or above '%s' severity present; exiting %d",
+            fail_on.lower(),
+            FAIL_ON_EXIT_CODE,
+        )
+        raise SystemExit(FAIL_ON_EXIT_CODE)
+
+
 @click.group()
 @click.version_option(__version__, prog_name="hydra")
 def cli() -> None:
@@ -169,6 +199,14 @@ def cli() -> None:
 @click.option("--min-severity", "min_severity", default=None, help="Only report findings >= this severity.")
 @click.option("--logo", default=None, help="Logo image embedded in HTML/PDF reports.")
 @click.option("--har", default=None, help="Record a browser HAR to this path (evidence).")
+@click.option(
+    "--fail-on",
+    "fail_on",
+    default=None,
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help=f"Exit {FAIL_ON_EXIT_CODE} if any finding at or above this severity is found "
+    "(CI gating). Applies to single-target scans.",
+)
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
     target: str | None,
@@ -206,6 +244,7 @@ def scan(
     min_severity: str | None,
     logo: str | None,
     har: str | None,
+    fail_on: str | None,
     verbose: str,
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
@@ -223,7 +262,8 @@ def scan(
             "min_severity": min_severity,
             "branding_logo": logo,
         }
-        asyncio.run(_resume_scan(scan_id, report_overrides))
+        counts = asyncio.run(_resume_scan(scan_id, report_overrides))
+        _apply_fail_on(counts, fail_on)
         return
 
     if not target:
@@ -274,14 +314,17 @@ def scan(
     )
     config.rate_limit.requests_per_second = rate_limit
     _log_scope(scope)
-    asyncio.run(_run_scan(config))
+    counts = asyncio.run(_run_scan(config))
+    _apply_fail_on(counts, fail_on)
 
 
-async def _run_scan(config: ScanConfig, *, resume: bool = False) -> None:
+async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
+    """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from hydra.core.orchestrator import Orchestrator
 
     orch = Orchestrator(config, get_settings(), resume=resume)
     status = "completed"
+    counts: dict[str, int] = {}
     try:
         await orch.setup()
         await orch.run_recon()
@@ -289,22 +332,31 @@ async def _run_scan(config: ScanConfig, *, resume: bool = False) -> None:
         await orch.run_exploit()
         await orch.run_report(config.report_format, config.output)
         await orch.print_summary()
+        # Capture before teardown closes the store; the gate is applied by the caller.
+        counts = await orch.store.severity_counts(orch.scan_id)
     except Exception:
         status = "failed"
         logger.exception("scan aborted")
     finally:
         await orch.teardown(status)
+    return counts
 
 
-async def _resume_scan(scan_id: str, report_overrides: dict[str, str | None]) -> None:
-    """Reload a previous scan's config from the DB and re-run it from its checkpoint."""
+async def _resume_scan(
+    scan_id: str, report_overrides: dict[str, str | None]
+) -> dict[str, int]:
+    """Reload a previous scan's config from the DB and re-run it from its checkpoint.
+
+    Returns the final severity-count tally (empty if the scan id is unknown) so
+    the caller can apply the --fail-on gate.
+    """
     settings = get_settings()
     store = Store(settings.db_url, encryption_key=settings.encryption_key)
     try:
         scan = await store.get_scan(scan_id)
         if scan is None:
             logger.error("no such scan to resume: %s", scan_id)
-            return
+            return {}
         config = ScanConfig.model_validate(scan.config_json)
         config.scan_id = scan_id
     finally:
@@ -318,7 +370,7 @@ async def _resume_scan(scan_id: str, report_overrides: dict[str, str | None]) ->
 
     _log_scope(config.scope)
     logger.info("resuming scan %s against %s", scan_id, config.target)
-    await _run_scan(config, resume=True)
+    return await _run_scan(config, resume=True)
 
 
 def _run_distributed(
