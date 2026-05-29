@@ -135,6 +135,11 @@ def cli() -> None:
     default=None,
     help="Import an OpenAPI/Swagger/GraphQL/HAR/Postman spec (file path or in-scope URL).",
 )
+@click.option(
+    "--templates",
+    default=None,
+    help="Run declarative templates: 'builtin' for the bundled set, or a file/directory path.",
+)
 @click.option("--user-agent", default="random", help="User-Agent string or 'random'.")
 @click.option("--callback", default=None, help="Callback server URL for OOB detection.")
 @click.option("--no-exploit", is_flag=True, help="Skip exploitation confirmation phase.")
@@ -176,6 +181,7 @@ def scan(
     login_token_field: str | None,
     login_check: str | None,
     import_spec: str | None,
+    templates: str | None,
     user_agent: str,
     callback: str | None,
     no_exploit: bool,
@@ -229,6 +235,7 @@ def scan(
         login_token_field=login_token_field,
         login_check=login_check,
         import_spec=import_spec,
+        templates=templates,
         callback=callback,
         no_exploit=no_exploit,
         use_browser=browser,

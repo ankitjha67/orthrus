@@ -125,6 +125,10 @@ class ScanConfig(BaseModel):
     # declared operations are imported as endpoints with typed params (§5.2).
     import_spec: str | None = None
 
+    # Declarative (Nuclei-style) templates: 'builtin' for the bundled set, or a
+    # path to a template file / directory. When set, the template scanner runs.
+    templates: str | None = None
+
     callback: str | None = None
     no_exploit: bool = False
     use_browser: bool = True  # use Playwright for DOM/stored XSS + confirmation when available

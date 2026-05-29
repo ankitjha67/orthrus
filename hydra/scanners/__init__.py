@@ -33,3 +33,4 @@ from hydra.scanners import (  # noqa: F401  (registration side-effects)
     xss,
     xxe,
 )
+from hydra.templates import scanner as _template_scanner  # noqa: F401  (registers TemplateScanner)

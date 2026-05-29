@@ -1,0 +1,39 @@
+id: exposed-env-file
+info:
+  name: Exposed .env Environment File
+  author: hydra
+  severity: high
+  description: >-
+    An application .env file is publicly readable. These commonly contain
+    database credentials, API keys, and framework secrets.
+  remediation: >-
+    Deny access to dotfiles at the web server/CDN and remove the file from the
+    web root. Rotate any exposed secrets.
+  tags:
+    - exposure
+    - config
+  reference:
+    - https://owasp.org/www-project-web-security-testing-guide/
+  cwe: CWE-538
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.env"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        condition: or
+        regex:
+          - "(?m)^[A-Z0-9_]+=.*"
+          - "(DB_|DATABASE_|SECRET|API_KEY|APP_KEY|AWS_)"
+    extractors:
+      - type: regex
+        name: secret_key
+        part: body
+        regex:
+          - "(?:SECRET_KEY|APP_KEY)=([^\\n\\r]+)"
+        group: 1
