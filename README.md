@@ -7,7 +7,7 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 39 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 41 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -82,7 +82,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (39)**
+**Vulnerability scanners (41)**
 
 | Category | Scanners |
 |---|---|
@@ -97,6 +97,8 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 | Supply chain | SCA — known-vulnerable JS libraries (retire.js-style) |
 | Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
 | Intelligence | CVE matcher (version → known-CVE) enriched with CISA KEV + EPSS (`orthrus update`) |
+| AI / LLM | Prompt injection + system-prompt / sensitive-info disclosure (OWASP LLM Top 10) |
+| Services / infra | Unauthenticated service exposure (Redis, Memcached) via native protocol probes |
 
 Active injection scanners share a **WAF-evasion encoder library** (URL / double-URL /
 mixed-case / comment-spacing / HTML-entity / unicode); transport-surviving
@@ -120,6 +122,12 @@ query-string **and** POST form-body parameters.
 - Pluggable scanner/exploit/recon/reporter modules auto-discovered at startup
 - SQLite (dev) or **PostgreSQL** (+ Alembic migrations); optional **distributed** scanning via Celery/Redis
 - OpSec: AES-256-GCM evidence-at-rest encryption, operator audit log, HAR export
+
+**Platform & integrations**
+- **REST API** (`orthrus serve`, FastAPI) with auto Swagger docs at `/docs`, plus a served **web dashboard**
+- **MCP server** (`orthrus mcp`) exposing scans/findings as tools for AI agents
+- **External-tool orchestration** (`--tools nuclei`) — runs best-of-breed CLIs and normalizes their output into ORTHRUS findings
+- **IaC misconfiguration audit** (`orthrus iac`) — Dockerfile / docker-compose / Terraform, fully offline
 
 ## 🔁 How it works
 
@@ -265,7 +273,9 @@ ORTHRUS's core sub-commands are `recon`, `scan`, `exploit`, and `report`, plus
 utility commands: `doctor` (environment readiness), `modules` (module inventory),
 `findings` (terminal triage view), `diff` (compare two scans), `scans` (list past
 scans), `benchmark` (detection-accuracy harness), `update` (refresh CISA-KEV
-intel), and `completion` (shell completion). Run `orthrus --help` for the full list.
+intel), `serve` (REST API + dashboard), `mcp` (MCP server for AI agents), `iac`
+(Infrastructure-as-Code audit), and `completion` (shell completion). Run
+`orthrus --help` for the full list.
 
 ### `orthrus scan` — the full pipeline
 
@@ -445,9 +455,12 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    39 scanners + base interface + registry
+  scanners/    41 scanners + base interface + registry
   exploits/    8 confirmation modules + base interface + registry
+  integrations/ external-tool adapters (nuclei, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
+  iac/         Infrastructure-as-Code misconfig analyzer (Dockerfile/compose/Terraform)
+  api/         FastAPI REST API + web dashboard;  mcp_server.py = MCP server
   reporting/   JSON/CSV/HTML/PDF/SARIF/Markdown generator, CVSS engine, Jinja2 templates
   db/          SQLAlchemy 2.0 models, async store, Alembic migrations
   distributed/ Celery app, tasks, target dispatcher
