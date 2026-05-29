@@ -378,6 +378,12 @@ def cli(no_banner: bool) -> None:
 @click.option("--interactsh-token", default=None, help="Auth token for a self-hosted Interactsh server.")
 @click.option("--no-exploit", is_flag=True, help="Skip exploitation confirmation phase.")
 @click.option("--browser/--no-browser", default=True, help="Use headless browser (DOM/stored XSS).")
+@click.option(
+    "--waf-adapt/--no-waf-adapt",
+    default=True,
+    help="On a WAF block/challenge, rotate request identity and retry once "
+    "(and report scan-reliability).",
+)
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
 @click.option("--headers", default=None, help="Extra headers as JSON object.")
 @click.option("--threads", default=10, type=int, help="Concurrent scanner threads.")
@@ -468,6 +474,7 @@ def scan(
     interactsh_token: str | None,
     no_exploit: bool,
     browser: bool,
+    waf_adapt: bool,
     exclude_paths: str | None,
     headers: str | None,
     threads: int,
@@ -549,6 +556,7 @@ def scan(
             proxy=proxy,
             user_agent=user_agent,
             extra_headers=_parse_headers(headers),
+            waf_adapt=waf_adapt,
             auth_cookie=auth_cookie,
             auth_script=auth_script,
             login_url=login_url,

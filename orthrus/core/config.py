@@ -113,6 +113,12 @@ class ScanConfig(BaseModel):
     user_agent: str = "random"
     extra_headers: dict[str, str] = Field(default_factory=dict)
 
+    # Adaptive WAF / anti-automation resilience: detect block/challenge responses
+    # (429, JS/CAPTCHA interstitials, vendor block pages) and, on a block, rotate
+    # the request identity (User-Agent + browser header set) and retry once.
+    # Per-host block rates are tracked and surfaced as a scan-reliability signal.
+    waf_adapt: bool = True
+
     auth_cookie: str | None = None
     auth_script: str | None = None
 

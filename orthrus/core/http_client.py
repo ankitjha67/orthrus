@@ -8,6 +8,7 @@ than raw httpx so the safety boundary cannot be bypassed.
 
 from __future__ import annotations
 
+import asyncio
 import random
 from types import TracebackType
 from urllib.parse import urlsplit
@@ -15,6 +16,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from orthrus.core.auth import DEFAULT_REAUTH_MARKERS, looks_unauthenticated
+from orthrus.core.block_detect import BlockMonitor, detect_block
 from orthrus.core.config import ScanConfig
 from orthrus.core.event_bus import EventBus, EventType
 from orthrus.core.session import Session
@@ -35,6 +37,17 @@ USER_AGENTS = [
     "(KHTML, like Gecko) Version/17.4 Safari/605.1.15",
 ]
 
+# Cap the body slice handed to block detection — the signatures live near the
+# top of a block page, and a full multi-MB body would be wasteful to scan.
+_BLOCK_BODY_LIMIT = 20_000
+
+
+def _body_of(response: httpx.Response) -> str:
+    try:
+        return response.text[:_BLOCK_BODY_LIMIT]
+    except Exception:  # noqa: BLE001  (decoding must never break block detection)
+        return ""
+
 
 class HttpClient:
     def __init__(
@@ -51,6 +64,7 @@ class HttpClient:
         verify_tls: bool = False,
         http2: bool = True,
         max_redirects: int = 5,
+        waf_adapt: bool = True,
     ) -> None:
         self.scope = scope
         self.rate_limiter = rate_limiter
@@ -67,6 +81,16 @@ class HttpClient:
         # Body markers that signal a dropped session; the orchestrator overrides
         # this from --reauth-marker. Only consulted when a reauth hook is set.
         self.reauth_markers: tuple[str, ...] = DEFAULT_REAUTH_MARKERS
+
+        # Adaptive WAF / anti-automation resilience: classify each response for a
+        # block/challenge, track the per-host block rate (scan-reliability signal),
+        # and on a block rotate the request identity and retry once. The guard
+        # stops the retry from itself triggering another evasion attempt.
+        self.waf_adapt = waf_adapt
+        self.block_monitor = BlockMonitor()
+        self._evading = False
+        self._last_ua: str | None = None
+        self.block_backoff: tuple[float, float] = (0.4, 1.2)  # randomized cool-off range
 
         self._client = httpx.AsyncClient(
             follow_redirects=False,  # we follow manually to scope-check each hop
@@ -102,19 +126,70 @@ class HttpClient:
             user_agent=config.user_agent,
             extra_headers=config.extra_headers,
             verify_tls=config.verify_tls,
+            waf_adapt=config.waf_adapt,
         )
 
     def _pick_user_agent(self) -> str:
-        if self.user_agent and self.user_agent != "random":
-            return self.user_agent
-        return random.choice(USER_AGENTS)
+        ua = self.user_agent if (self.user_agent and self.user_agent != "random") \
+            else random.choice(USER_AGENTS)
+        self._last_ua = ua
+        return ua
+
+    def _rotate_user_agent(self) -> str:
+        """Pick a UA different from the one last used (identity rotation on block)."""
+        last = getattr(self, "_last_ua", None)
+        pool = [ua for ua in USER_AGENTS if ua != last] or list(USER_AGENTS)
+        ua = random.choice(pool)
+        self._last_ua = ua
+        return ua
+
+    @staticmethod
+    def _browser_headers(ua: str) -> dict[str, str]:
+        """Realistic, UA-consistent default headers so requests don't read as a bot.
+
+        Accept-Encoding is intentionally left to httpx (it advertises only what it
+        can transparently decompress).
+        """
+        headers = {
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Upgrade-Insecure-Requests": "1",
+        }
+        if "Chrome/" in ua and "Firefox" not in ua:  # Chromium client-hints + fetch metadata
+            platform = '"Windows"' if "Windows" in ua else (
+                '"macOS"' if "Mac OS" in ua else '"Linux"')
+            headers.update(
+                {
+                    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124", '
+                    '"Not-A.Brand";v="99"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": platform,
+                    "Sec-Fetch-Site": "none",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-User": "?1",
+                    "Sec-Fetch-Dest": "document",
+                }
+            )
+        return headers
 
     def _merge_headers(self, headers: dict[str, str] | None) -> dict[str, str]:
-        merged = dict(self.session.default_headers())
+        ua = self._pick_user_agent()
+        merged = self._browser_headers(ua)  # lowest priority: realistic browser defaults
+        merged.update(self.session.default_headers())
         merged.update(self.extra_headers)
-        merged["User-Agent"] = self._pick_user_agent()
+        merged["User-Agent"] = ua
         if headers:
             merged.update(headers)
+        return merged
+
+    def _evasion_headers(self, headers: dict[str, str] | None) -> dict[str, str]:
+        """Header set for a block-retry: a fresh UA + matching browser headers."""
+        ua = self._rotate_user_agent()
+        merged = self._browser_headers(ua)
+        if headers:
+            merged.update(headers)
+        merged["User-Agent"] = ua  # force the rotated identity even over caller headers
         return merged
 
     async def _enforce_scope(self, url: str, *, is_redirect: bool = False) -> None:
@@ -161,7 +236,59 @@ class HttpClient:
                 response = await self._send(
                     method, url, follow_redirects=follow_redirects, headers=headers, **kwargs
                 )
+        response = await self._maybe_evade_block(
+            method, url, response, follow_redirects=follow_redirects, headers=headers, kwargs=kwargs
+        )
         return response
+
+    async def _maybe_evade_block(
+        self,
+        method: str,
+        url: str,
+        response: httpx.Response,
+        *,
+        follow_redirects: bool,
+        headers: dict[str, str] | None,
+        kwargs: dict[str, object],
+    ) -> httpx.Response:
+        """Record the WAF block signal and, if blocked, retry once with a new identity."""
+        monitor = getattr(self, "block_monitor", None)
+        if monitor is None:  # bare/legacy client without the monitor wired
+            return response
+        host = urlsplit(url).hostname or ""
+        verdict = detect_block(response.status_code, dict(response.headers), _body_of(response))
+        monitor.record(host, verdict)
+        if not (verdict and verdict.blocked):
+            return response
+        if verdict.kind == "rate_limit":
+            # A 429 means "slow down" — the rate limiter already backs off (AIMD +
+            # Retry-After). Retrying with a new identity would only add load.
+            return response
+        if not getattr(self, "waf_adapt", False) or self._evading:
+            logger.debug("WAF block on %s (%s); adaptation off or recursing", url, verdict.reason)
+            return response
+
+        logger.info("WAF block on %s: %s — rotating identity and retrying", url, verdict.reason)
+        if self.event_bus is not None:
+            await self.event_bus.emit(
+                "waf.block", url=url, vendor=verdict.vendor, reason=verdict.reason
+            )
+        self._evading = True
+        try:
+            lo, hi = self.block_backoff
+            if hi > 0:
+                await asyncio.sleep(random.uniform(lo, hi))  # brief randomized cool-off
+            retried = await self._send(
+                method, url, follow_redirects=follow_redirects,
+                headers=self._evasion_headers(headers), **kwargs
+            )
+        finally:
+            self._evading = False
+        retry_verdict = detect_block(retried.status_code, dict(retried.headers), _body_of(retried))
+        monitor.record(host, retry_verdict)
+        if not (retry_verdict and retry_verdict.blocked):
+            logger.info("evaded WAF block on %s after identity rotation", url)
+        return retried
 
     async def _send(
         self,

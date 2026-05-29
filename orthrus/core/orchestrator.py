@@ -500,8 +500,35 @@ class Orchestrator:
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="scan")
         await self.store.set_scan_phase(self.scan_id, "scan")  # checkpoint for --resume
+        await self._report_block_reliability()
         logger.info("scan complete: %d finding(s)", total)
         return total
+
+    async def _report_block_reliability(self) -> None:
+        """Warn when a WAF blocked enough of the scan that findings are incomplete."""
+        assert self.ctx is not None
+        monitor = getattr(self.ctx.http, "block_monitor", None)
+        if monitor is None:
+            return
+        summary = monitor.summary()
+        if monitor.degraded():
+            vendors = ", ".join(summary["vendors"]) or "a WAF/anti-automation layer"
+            logger.warning(
+                "scan reliability degraded: %.0f%% of requests (%d/%d) were blocked by %s "
+                "— some vulnerabilities may have been masked",
+                summary["block_rate"] * 100,
+                summary["blocked"],
+                summary["total"],
+                vendors,
+            )
+            await self.event_bus.emit("waf.degraded", **summary)
+        elif summary["blocked"]:
+            logger.info(
+                "WAF interference: %d/%d request(s) blocked%s",
+                summary["blocked"],
+                summary["total"],
+                f" ({', '.join(summary['vendors'])})" if summary["vendors"] else "",
+            )
 
     # --------------------------------------------------------- phase: exploit
     async def run_exploit(self) -> int:
