@@ -2,12 +2,15 @@
 
 Holds cookies, default headers, and bearer tokens for an engagement so that
 authenticated crawling and scanning replay the operator-provided session.
-Automated login (Playwright ``--auth-script``) is deferred; the hooks here cover
-cookie- and token-based pre-authentication today.
+Cookie-, token-, form-, OAuth2- and CSRF/MFA-based pre-authentication is handled
+by :mod:`orthrus.core.auth`; this object carries the resulting state plus an
+optional ``reauth`` hook the HTTP client calls to silently re-establish a
+session that expired mid-scan.
 """
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from http.cookies import SimpleCookie
 
 
@@ -21,6 +24,11 @@ class Session:
         self.cookies: dict[str, str] = cookies or {}
         self.headers: dict[str, str] = headers or {}
         self.bearer_token = bearer_token
+        # Set by the orchestrator when --reauth is enabled: an idempotent
+        # coroutine that re-runs the login flow and returns True on success.
+        # The HTTP client invokes it (once per request) when a response looks
+        # unauthenticated, then retries the original request.
+        self.reauth: Callable[[], Awaitable[bool]] | None = None
 
     @classmethod
     def from_cookie_string(cls, raw: str | None) -> Session:

@@ -311,6 +311,48 @@ def cli(no_banner: bool) -> None:
 )
 @click.option("--login-check", default=None, help="Substring proving the session is authenticated.")
 @click.option(
+    "--csrf-field",
+    default=None,
+    help="Anti-CSRF form field to harvest from the login page and replay in the login body.",
+)
+@click.option("--csrf-header", default=None, help="Request header to mirror the harvested CSRF token into.")
+@click.option(
+    "--csrf-url",
+    default=None,
+    help="Page to GET for the CSRF token (default: --login-url).",
+)
+@click.option("--totp-secret", default=None, help="Base32 MFA secret; a TOTP code is submitted with login.")
+@click.option("--totp-field", default="otp", help="Login body field for the TOTP code (default: otp).")
+@click.option("--oauth2-token-url", default=None, help="OAuth2 token endpoint to acquire a bearer token from.")
+@click.option(
+    "--oauth2-grant",
+    default="password",
+    type=click.Choice(["password", "client_credentials", "refresh_token"]),
+    help="OAuth2 grant type (default: password).",
+)
+@click.option("--oauth2-client-id", default=None, help="OAuth2 client id.")
+@click.option("--oauth2-client-secret", default=None, help="OAuth2 client secret.")
+@click.option("--oauth2-username", default=None, help="OAuth2 password-grant username.")
+@click.option("--oauth2-password", default=None, help="OAuth2 password-grant password.")
+@click.option("--oauth2-scope", default=None, help="OAuth2 requested scope.")
+@click.option("--oauth2-refresh-token", default=None, help="OAuth2 refresh token (refresh_token grant).")
+@click.option(
+    "--oauth2-token-field",
+    default="access_token",
+    help="Dotted path to the token in the OAuth2 JSON response (default: access_token).",
+)
+@click.option(
+    "--reauth",
+    is_flag=True,
+    help="Silently re-run the login flow and retry when a response looks unauthenticated mid-scan.",
+)
+@click.option(
+    "--reauth-marker",
+    "reauth_markers",
+    multiple=True,
+    help="Body substring that signals a dropped session (repeatable; overrides defaults).",
+)
+@click.option(
     "--import",
     "import_spec",
     default=None,
@@ -390,6 +432,22 @@ def scan(
     login_data: str | None,
     login_token_field: str | None,
     login_check: str | None,
+    csrf_field: str | None,
+    csrf_header: str | None,
+    csrf_url: str | None,
+    totp_secret: str | None,
+    totp_field: str,
+    oauth2_token_url: str | None,
+    oauth2_grant: str,
+    oauth2_client_id: str | None,
+    oauth2_client_secret: str | None,
+    oauth2_username: str | None,
+    oauth2_password: str | None,
+    oauth2_scope: str | None,
+    oauth2_refresh_token: str | None,
+    oauth2_token_field: str,
+    reauth: bool,
+    reauth_markers: tuple[str, ...],
     import_spec: str | None,
     templates: str | None,
     user_agent: str,
@@ -483,6 +541,22 @@ def scan(
             login_data=login_data,
             login_token_field=login_token_field,
             login_check=login_check,
+            csrf_field=csrf_field,
+            csrf_header=csrf_header,
+            csrf_url=csrf_url,
+            totp_secret=totp_secret,
+            totp_field=totp_field,
+            oauth2_token_url=oauth2_token_url,
+            oauth2_grant=oauth2_grant,
+            oauth2_client_id=oauth2_client_id,
+            oauth2_client_secret=oauth2_client_secret,
+            oauth2_username=oauth2_username,
+            oauth2_password=oauth2_password,
+            oauth2_scope=oauth2_scope,
+            oauth2_refresh_token=oauth2_refresh_token,
+            oauth2_token_field=oauth2_token_field,
+            reauth=reauth,
+            reauth_markers=list(reauth_markers),
             import_spec=import_spec,
             templates=templates,
             callback=callback,

@@ -124,6 +124,35 @@ class ScanConfig(BaseModel):
     login_token_field: str | None = None  # dotted path into a JSON login response
     login_check: str | None = None  # substring proving the session is authenticated
 
+    # Rotating anti-CSRF tokens: GET csrf_url (default: login_url) before logging
+    # in, harvest the token from a hidden field / <meta> / double-submit cookie,
+    # and replay it in the login body field and/or a request header.
+    csrf_url: str | None = None
+    csrf_field: str | None = None  # form field name to inject the harvested token into
+    csrf_header: str | None = None  # request header name to mirror the token into
+
+    # MFA (TOTP): base32 shared secret; a fresh RFC 6238 code is computed and
+    # submitted with the credentials under totp_field. Never logged.
+    totp_secret: str | None = None
+    totp_field: str = "otp"
+
+    # OAuth2 / OIDC bearer acquisition from a token endpoint (RFC 6749).
+    oauth2_token_url: str | None = None
+    oauth2_grant: str = "password"  # password | client_credentials | refresh_token
+    oauth2_client_id: str | None = None
+    oauth2_client_secret: str | None = None
+    oauth2_username: str | None = None
+    oauth2_password: str | None = None
+    oauth2_scope: str | None = None
+    oauth2_refresh_token: str | None = None
+    oauth2_token_field: str = "access_token"  # dotted path to the token in the JSON response
+
+    # Silent session refresh: when the session drops mid-scan (401 / login marker),
+    # re-run the login flow once and replay the request. reauth_markers overrides
+    # the default body substrings that signal an expired session.
+    reauth: bool = False
+    reauth_markers: list[str] = Field(default_factory=list)
+
     # Spec-driven API discovery: a local file path or in-scope URL to an
     # OpenAPI/Swagger, GraphQL introspection, HAR, or Postman document. Its
     # declared operations are imported as endpoints with typed params (§5.2).

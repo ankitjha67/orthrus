@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from orthrus.core.auth import DEFAULT_REAUTH_MARKERS, looks_unauthenticated
 from orthrus.core.config import ScanConfig
 from orthrus.core.event_bus import EventBus, EventType
 from orthrus.core.session import Session
@@ -61,6 +62,11 @@ class HttpClient:
 
         self.requests_sent = 0
         self.scope_violations = 0
+        # Guard so a reauth hook (which itself issues requests) can't recurse.
+        self._reauthing = False
+        # Body markers that signal a dropped session; the orchestrator overrides
+        # this from --reauth-marker. Only consulted when a reauth hook is set.
+        self.reauth_markers: tuple[str, ...] = DEFAULT_REAUTH_MARKERS
 
         self._client = httpx.AsyncClient(
             follow_redirects=False,  # we follow manually to scope-check each hop
@@ -125,6 +131,39 @@ class HttpClient:
         raise ScopeViolation(url, decision.reason)
 
     async def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        follow_redirects: bool = True,
+        headers: dict[str, str] | None = None,
+        **kwargs: object,
+    ) -> httpx.Response:
+        response = await self._send(
+            method, url, follow_redirects=follow_redirects, headers=headers, **kwargs
+        )
+        # Silent session refresh: if the response looks unauthenticated and the
+        # orchestrator installed a reauth hook, re-establish the session once and
+        # replay the original request. The guard stops the hook's own login
+        # requests from triggering another reauth (infinite recursion).
+        if (
+            self.session.reauth is not None
+            and not self._reauthing
+            and looks_unauthenticated(response.status_code, response.text, self.reauth_markers)
+        ):
+            self._reauthing = True
+            try:
+                refreshed = await self.session.reauth()
+            finally:
+                self._reauthing = False
+            if refreshed:
+                logger.info("session refreshed after unauthenticated response; retrying %s", url)
+                response = await self._send(
+                    method, url, follow_redirects=follow_redirects, headers=headers, **kwargs
+                )
+        return response
+
+    async def _send(
         self,
         method: str,
         url: str,

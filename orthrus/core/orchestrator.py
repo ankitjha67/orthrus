@@ -16,7 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from orthrus.core import schemas
-from orthrus.core.auth import perform_login
+from orthrus.core.auth import LoginResult, acquire_oauth2_token, perform_login
 from orthrus.core.baseline import build_baseline
 from orthrus.core.browser import BrowserManager
 from orthrus.core.callback import LocalCallbackServer
@@ -180,7 +180,7 @@ class Orchestrator:
             logger.info("scan [bold]%s[/] started against %s", self.scan_id, self.config.target)
 
         # Authenticate before recon so the entire scan replays the session.
-        if self.config.login_url and self.config.login_data:
+        if self.config.oauth2_token_url or (self.config.login_url and self.config.login_data):
             await self._authenticate(http, session)
 
     async def _rehydrate_state(self) -> None:
@@ -198,20 +198,57 @@ class Orchestrator:
             len(self.ctx.findings),
         )
 
-    async def _authenticate(self, http: HttpClient, session: Session) -> None:
-        """Log in before recon so the whole scan runs authenticated (§3.4)."""
+    async def _run_login(self, http: HttpClient, session: Session) -> LoginResult:
+        """Perform the configured login flow once (OAuth2, or form/JSON).
+
+        Factored out so the same flow drives both the initial pre-recon login and
+        the silent mid-scan re-authentication hook. Returns the outcome; never
+        logs credentials or token values.
+        """
+        if self.config.oauth2_token_url:
+            if not self.scope.is_allowed(self.config.oauth2_token_url):
+                logger.warning("OAuth2 token URL is out of scope; continuing unauthenticated")
+                return LoginResult(ok=False, reason="token-url-out-of-scope")
+            return await acquire_oauth2_token(
+                http,
+                session,
+                token_url=self.config.oauth2_token_url,
+                grant_type=self.config.oauth2_grant,
+                client_id=self.config.oauth2_client_id,
+                client_secret=self.config.oauth2_client_secret,
+                username=self.config.oauth2_username,
+                password=self.config.oauth2_password,
+                scope=self.config.oauth2_scope,
+                refresh_token=self.config.oauth2_refresh_token,
+                token_field=self.config.oauth2_token_field,
+            )
         assert self.config.login_url is not None and self.config.login_data is not None
         if not self.scope.is_allowed(self.config.login_url):
             logger.warning("login URL is out of scope; continuing unauthenticated")
-            return
-        result = await perform_login(
+            return LoginResult(ok=False, reason="login-url-out-of-scope")
+        return await perform_login(
             http,
             session,
             login_url=self.config.login_url,
             login_data=self.config.login_data,
             token_field=self.config.login_token_field,
             success_marker=self.config.login_check,
+            csrf_url=self.config.csrf_url,
+            csrf_field=self.config.csrf_field,
+            csrf_header=self.config.csrf_header,
+            totp_secret=self.config.totp_secret,
+            totp_field=self.config.totp_field,
         )
+
+    async def _authenticate(self, http: HttpClient, session: Session) -> None:
+        """Establish the session before recon so the whole scan runs authenticated (§3.4).
+
+        Dispatches to OAuth2 token acquisition or a form/JSON login (with optional
+        rotating-CSRF capture and TOTP MFA). When ``--reauth`` is enabled, installs
+        a hook the HTTP client calls to silently re-establish a session that drops
+        mid-scan.
+        """
+        result = await self._run_login(http, session)
         # Never log the credentials or the token value — only the outcome.
         status_msg = f"status={result.status} token={'set' if result.token_set else 'none'}"
         if result.ok:
@@ -224,6 +261,29 @@ class Orchestrator:
                 result.reason or "no-success-signal",
             )
             await self.store.log(self.scan_id, "warning", "auth", f"login failed {status_msg}")
+
+        # Silent session refresh: install a reauth hook the HTTP client invokes
+        # when a later response looks unauthenticated (PRD §3.4).
+        if self.config.reauth and result.ok:
+            if self.config.reauth_markers:
+                http.reauth_markers = tuple(self.config.reauth_markers)
+
+            async def _reauth() -> bool:
+                refreshed = await self._run_login(http, session)
+                kind = "ok" if refreshed.ok else "failed"
+                await self.store.log(
+                    self.scan_id,
+                    "audit" if refreshed.ok else "warning",
+                    "auth",
+                    f"session re-auth {kind} status={refreshed.status}",
+                )
+                if refreshed.ok:
+                    logger.info("session re-authenticated mid-scan")
+                else:
+                    logger.warning("session re-authentication failed mid-scan")
+                return refreshed.ok
+
+            session.reauth = _reauth
 
     def _wire_events(self) -> None:
         async def on_scope_violation(event: Event) -> None:
