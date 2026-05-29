@@ -30,25 +30,25 @@ SCANNER_NAME = "subdomain-takeover"
 MAX_HOSTS = 25
 
 # (service, distinctive "unclaimed" response phrases). Lowercased at match time.
+# Each phrase MUST be provider-specific — generic 404 strings ("404 not found",
+# "the requested url was not found on this server", "web site not found") are
+# deliberately excluded because they false-positive on any ordinary 404 page.
 TAKEOVER_FINGERPRINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("GitHub Pages", ("there isn't a github pages site here", "for root urls (like http://example.com/)")),
+    ("GitHub Pages", ("there isn't a github pages site here",)),
     ("AWS S3", ("nosuchbucket", "the specified bucket does not exist")),
-    ("Heroku", ("no such app", "herokucdn.com/error-pages/no-such-app.html")),
+    ("Heroku", ("herokucdn.com/error-pages/no-such-app.html", "no such app")),
     ("Fastly", ("fastly error: unknown domain",)),
     ("Shopify", ("sorry, this shop is currently unavailable",)),
-    ("Bitbucket", ("repository not found", "the page you have requested does not exist")),
+    ("Bitbucket", ("repository not found",)),
     ("Surge.sh", ("project not found",)),
-    ("Cargo", ("404 not found", "if you're moving your domain away from cargo")),
+    ("Cargo", ("if you're moving your domain away from cargo",)),
     ("Pantheon", ("the gods are wise, but do not know of the site which you seek",)),
     ("Tumblr", ("whatever you were looking for doesn't currently exist at this address",)),
-    ("Zendesk", ("help center closed", "this help center no longer exists")),
-    ("Unbounce", ("the requested url was not found on this server",)),
+    ("Zendesk", ("this help center no longer exists",)),
     ("Ghost", ("the thing you were looking for is no longer here",)),
-    ("Microsoft Azure", ("404 web site not found", "error 404 - web app not found")),
-    ("Acquia", ("web site not found",)),
+    ("Microsoft Azure", ("error 404 - web app not found",)),
     ("Readme.io", ("project doesnt exist... yet!",)),
     ("HelpScout", ("no settings were found for this company",)),
-    ("AWS/Cloud", ("the specified bucket does not exist",)),
 )
 
 

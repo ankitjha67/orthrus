@@ -18,6 +18,14 @@ def test_match_fingerprints() -> None:
     assert match_takeover_fingerprint("Welcome to my normal homepage") is None
 
 
+def test_generic_404_pages_do_not_false_positive() -> None:
+    # Regression: a plain 404 (WebLogic, nginx, Apache default) must NOT match.
+    assert match_takeover_fingerprint("<html><title>404 Not Found</title></html>") is None
+    assert match_takeover_fingerprint("The requested URL was not found on this server.") is None
+    assert match_takeover_fingerprint("404 - Web Site not found") is None
+    assert match_takeover_fingerprint("Error 404--Not Found (WebLogic)") is None
+
+
 class FakeResp:
     def __init__(self, text: str) -> None:
         self.text = text
