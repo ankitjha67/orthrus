@@ -1466,6 +1466,12 @@ def _collect_diagnostics() -> dict:
             "install nuclei (ProjectDiscovery), e.g. 'winget install ProjectDiscovery.Nuclei'",
         ),
         (
+            "REST API server (FastAPI)",
+            _has("fastapi"),
+            "serve scans/findings over HTTP via 'orthrus serve'",
+            "pip install 'orthrus-framework[api]'",
+        ),
+        (
             "python-nmap",
             _has("nmap"),
             "parse nmap output",
@@ -1585,6 +1591,27 @@ def update() -> None:
     except (httpx.HTTPError, ValueError) as exc:
         raise click.ClickException(f"KEV update failed: {type(exc).__name__}: {exc}") from exc
     click.echo(f"Updated CISA KEV catalog: {count} known-exploited CVEs.")
+
+
+@cli.command(name="serve")
+@click.option("--host", default="127.0.0.1", help="Bind address for the API server.")
+@click.option("--port", default=8000, type=int, help="Port for the API server.")
+def serve(host: str, port: int) -> None:
+    """Run the ORTHRUS REST API (read access to scans/findings over HTTP).
+
+    Needs the [api] extra (fastapi + uvicorn). Endpoints: /health, /api/scans,
+    /api/scans/{id}, /api/scans/{id}/findings, /api/scans/{id}/report.
+    """
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise click.ClickException(
+            "the API server needs the [api] extra: pip install 'orthrus-framework[api]'"
+        ) from exc
+    from orthrus.api import create_app
+
+    click.echo(f"ORTHRUS API on http://{host}:{port}  (docs at /docs)")
+    uvicorn.run(create_app(), host=host, port=port)
 
 
 @cli.command()
