@@ -1421,6 +1421,13 @@ def _collect_diagnostics() -> dict:
             "pip install 'orthrus-framework[browser]' && playwright install chromium",
         ),
         (
+            "OOB collaborator (Interactsh)",
+            _has("cryptography"),
+            "blind/out-of-band detection (XXE, SSRF) via --interactsh; "
+            "falls back to a local listener when absent",
+            "pip install cryptography  (bundled with the default install)",
+        ),
+        (
             "nmap binary",
             shutil.which("nmap") is not None,
             "service/port discovery during recon",
