@@ -17,6 +17,7 @@ from collections.abc import AsyncIterator
 
 from hydra.core.context import ScanContext
 from hydra.core.schemas import Aggressiveness, Confidence, Evidence, Finding, Severity
+from hydra.scanners._evasion import transport_safe_variants
 from hydra.scanners._injection import InjectionPoint, injection_points, send, used_url
 from hydra.scanners.base_scanner import BaseScanner
 from hydra.scanners.registry import register
@@ -166,7 +167,7 @@ class SqlInjectionScanner(BaseScanner):
 
             finding = await self._error_based(ctx, point, value)
             if finding is None:
-                finding = await self._boolean_based(ctx, point, value, baseline_text)
+                finding = await self._boolean_based(ctx, point, value, baseline_text, aggressive)
             if finding is None and aggressive:
                 finding = await self._time_based(ctx, point, value, baseline_elapsed)
 
@@ -193,23 +194,43 @@ class SqlInjectionScanner(BaseScanner):
         return None
 
     async def _boolean_based(
-        self, ctx: ScanContext, point: InjectionPoint, value: str, baseline_text: str
+        self,
+        ctx: ScanContext,
+        point: InjectionPoint,
+        value: str,
+        baseline_text: str,
+        aggressive: bool = False,
     ) -> Finding | None:
-        true_payload = f"{value}' AND '1'='1"
-        false_payload = f"{value}' AND '1'='2"
-        true_resp = await send(ctx, point, true_payload)
-        false_resp = await send(ctx, point, false_payload)
-        if true_resp is None or false_resp is None:
-            return None
-        if boolean_injectable(baseline_text, true_resp.text, false_resp.text):
-            return _finding(
-                point,
-                f"SQL injection (boolean-based blind) in parameter '{point.param}'",
-                "boolean-based blind injection",
-                Confidence.TENTATIVE,
-                true_payload,
-                "TRUE payload matched baseline while FALSE payload diverged",
-            )
+        true_base = f"{value}' AND '1'='1"
+        false_base = f"{value}' AND '1'='2"
+        # Each pair is (evasion-label, TRUE payload, FALSE payload). The raw pair
+        # is always tried first; under AGGRESSIVE we additionally try transport-
+        # surviving evasions (mixed case, comment spacing) of the same clause so a
+        # signature WAF that blocks the plain "AND '1'='1" can't mask the finding.
+        pairs: list[tuple[str, str, str]] = [("raw", true_base, false_base)]
+        if aggressive:
+            t_vars = transport_safe_variants(true_base)
+            f_vars = transport_safe_variants(false_base)
+            for (label, t_enc), (_, f_enc) in zip(t_vars[1:], f_vars[1:], strict=False):
+                pairs.append((label, t_enc, f_enc))
+
+        for label, true_payload, false_payload in pairs:
+            true_resp = await send(ctx, point, true_payload)
+            false_resp = await send(ctx, point, false_payload)
+            if true_resp is None or false_resp is None:
+                continue
+            if boolean_injectable(baseline_text, true_resp.text, false_resp.text):
+                note = "TRUE payload matched baseline while FALSE payload diverged"
+                if label != "raw":
+                    note += f" (via {label} WAF-evasion encoding)"
+                return _finding(
+                    point,
+                    f"SQL injection (boolean-based blind) in parameter '{point.param}'",
+                    "boolean-based blind injection",
+                    Confidence.TENTATIVE,
+                    true_payload,
+                    note,
+                )
         return None
 
     async def _time_based(

@@ -21,6 +21,7 @@ from hydra.scanners import (  # noqa: F401  (registration side-effects)
     idor,
     jwt_analyzer,
     lfi,
+    mass_assignment,
     open_redirect,
     prototype_pollution,
     race_condition,

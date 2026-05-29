@@ -27,6 +27,7 @@
     {"vuln_type": "jwt", "url_contains": "", "note": "JWT signed with the weak secret 'secret'"},
     {"vuln_type": "exposed-file", "url_contains": "/.env", "note": "sensitive dotfile served"},
     {"vuln_type": "exposed-file", "url_contains": "/.git/HEAD", "note": "exposed VCS metadata"},
+    {"vuln_type": "mass-assignment", "url_contains": "/api/account", "note": "autobinds arbitrary privileged fields (role/is_admin/...)"},
 
     {"vuln_type": "idor", "url_contains": "/api/users", "param": "id", "note": "BOLA via REST path id — needs spec --import to annotate", "optional": true},
     {"vuln_type": "xss", "url_contains": "/dom", "note": "DOM XSS via innerHTML — needs a real browser", "optional": true},

@@ -70,6 +70,22 @@ def detect_reflection(marker: str, body: str) -> tuple[bool, set[str]]:
     return reflected, survived
 
 
+def is_html_context(content_type: str | None) -> bool:
+    """Whether a reflected payload could execute as HTML in this response.
+
+    Reflecting ``<script>`` into an ``application/json`` (or other non-HTML)
+    response is not XSS — browsers don't render it as markup — so we only treat
+    HTML-ish content types (and a missing/empty type, which can be sniffed) as
+    an XSS context. This suppresses false positives on JSON API echoes.
+    """
+    if not content_type:
+        return True  # no/empty type: may be content-sniffed as HTML
+    ct = content_type.lower()
+    if "json" in ct:
+        return False
+    return "html" in ct or "xml" in ct or ct.startswith("text/")
+
+
 def classify(survived: set[str]) -> tuple[Severity, Confidence, str] | None:
     if "<" in survived and ">" in survived:
         return Severity.HIGH, Confidence.FIRM, "HTML body (tag injection possible)"
@@ -140,6 +156,8 @@ class ReflectedXssScanner(BaseScanner):
         except httpx.HTTPError as exc:
             logger.debug("xss GET probe failed for %s: %s", target, exc)
             return None
+        if not is_html_context(resp.headers.get("content-type")):
+            return None
         reflected, survived = detect_reflection(marker, resp.text)
         if not reflected:
             return None
@@ -161,6 +179,8 @@ class ReflectedXssScanner(BaseScanner):
             return None
         except httpx.HTTPError as exc:
             logger.debug("xss POST probe failed for %s: %s", endpoint.url, exc)
+            return None
+        if not is_html_context(resp.headers.get("content-type")):
             return None
         reflected, survived = detect_reflection(marker, resp.text)
         if not reflected:
@@ -204,6 +224,7 @@ class ReflectedXssScanner(BaseScanner):
 __all__ = [
     "ReflectedXssScanner",
     "detect_reflection",
+    "is_html_context",
     "build_payload",
     "classify",
     "execution_payloads",

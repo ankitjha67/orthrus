@@ -10,12 +10,14 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /ping?host=    OS command injection          cookies        missing flags / serialized / weak JWT
   /download?file=LFI (/etc/passwd, win.ini)    X-Forwarded-Host reflection -> cache poisoning
   /fetch?url=    SSRF (GET + POST body)         /api/users/<id> IDOR / BOLA via REST path id
+  /api/account(POST) mass assignment (autobind)
 
 Run: python reflecting_target.py [port]
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 import threading
@@ -58,6 +60,8 @@ HOME = (
     '<input name="text"><input name="email"><button>send</button></form>'
     '<form action="/fetch" method="post">'
     '<input name="url"><button>fetch</button></form>'
+    '<form action="/api/account" method="post">'
+    '<input name="name" value="guest"><button>save</button></form>'
     "</body></html>"
 )
 
@@ -173,6 +177,21 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+    def _json(self, obj: dict) -> None:
+        self._raw(json.dumps(obj).encode("utf-8"), "application/json")
+
+    @staticmethod
+    def _parse_fields(body: str) -> dict[str, str]:
+        """Body fields as a flat str->str dict, accepting JSON or urlencoded."""
+        text = body.strip()
+        if text.startswith("{"):
+            try:
+                obj = json.loads(text)
+            except ValueError:
+                return {}
+            return {k: str(v) for k, v in obj.items()} if isinstance(obj, dict) else {}
+        return {k: v[0] for k, v in parse_qs(text, keep_blank_values=True).items()}
 
     def _body(self) -> str:
         length = int(self.headers.get("Content-Length", "0") or 0)
@@ -303,6 +322,12 @@ class Handler(BaseHTTPRequestHandler):
         elif parts.path == "/fetch":
             url = parse_qs(body).get("url", [""])[0]  # server-side fetch of body param -> SSRF (POST)
             self._html(f"<html><body>fetch result: {fetch_url(url)}</body></html>")
+        elif parts.path == "/api/account":
+            # Naive autobind: every supplied field is merged onto the account
+            # object, so a client can set server-controlled props -> mass assignment.
+            account = {"id": "1", "name": "guest", "role": "user", "verified": "false"}
+            account.update(self._parse_fields(body))
+            self._json(account)
         else:
             self.do_GET()
 

@@ -6,7 +6,13 @@ import html
 
 from hydra.core.schemas import Confidence, Severity
 from hydra.scanners.stored_xss import _payload as stored_payload
-from hydra.scanners.xss import build_payload, classify, detect_reflection, execution_payloads
+from hydra.scanners.xss import (
+    build_payload,
+    classify,
+    detect_reflection,
+    execution_payloads,
+    is_html_context,
+)
 
 
 def test_verbatim_reflection_detects_all_chars():
@@ -58,3 +64,17 @@ def test_execution_payloads_use_marker_namespaced_global():
 def test_stored_payload_matches_global_contract():
     marker = "M0d3"
     assert f"__hx_{marker}" in stored_payload(marker)
+
+
+def test_is_html_context_suppresses_json():
+    # Reflecting markup into a JSON response is not XSS (not rendered as HTML).
+    assert is_html_context("application/json") is False
+    assert is_html_context("application/vnd.api+json; charset=utf-8") is False
+
+
+def test_is_html_context_allows_html_and_sniffable():
+    assert is_html_context("text/html; charset=utf-8") is True
+    assert is_html_context("application/xhtml+xml") is True
+    assert is_html_context("text/plain") is True  # sniffable
+    assert is_html_context(None) is True  # missing type -> may be sniffed
+    assert is_html_context("") is True

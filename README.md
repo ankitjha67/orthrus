@@ -74,18 +74,24 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (26)**
+**Vulnerability scanners (28)**
 
 | Category | Scanners |
 |---|---|
-| Injection | SQLi (error / boolean / time-based), command injection, SSTI, LFI, XXE |
-| XSS | Reflected, DOM-based, stored (browser-verified) |
+| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE |
+| XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
 | Access / logic | IDOR, CSRF, open redirect, race conditions |
+| API (OWASP API Top 10) | Mass assignment / object-property injection |
 | Auth / session | Auth-session analysis, default credentials, JWT analysis |
 | Server-side | SSRF (out-of-band + metadata), deserialization, prototype pollution |
 | Config / transport | Security headers, CORS, TLS analysis, exposed files, cache poisoning |
 | Protocol / API | GraphQL, WebSocket |
+| Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
 | Intelligence | CVE matcher (version → known-CVE correlation) |
+
+Active injection scanners share a **WAF-evasion encoder library** (URL / double-URL /
+mixed-case / comment-spacing / HTML-entity / unicode); transport-surviving
+variants are tried automatically under `--aggressive`.
 
 **Exploitation confirmation (8 modules)** — re-proves findings to upgrade their
 confidence to `confirmed`: SSRF, SQLi, LFI, command injection, SSTI, open
