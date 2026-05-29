@@ -270,6 +270,16 @@ def _apply_fail_on(counts: dict[str, int], fail_on: str | None) -> None:
         raise SystemExit(FAIL_ON_EXIT_CODE)
 
 
+def _install_uvloop() -> None:
+    """Use uvloop's faster event loop when available (POSIX); a no-op otherwise."""
+    try:
+        import uvloop
+
+        uvloop.install()
+    except ImportError:
+        pass
+
+
 @click.group()
 @click.version_option(__version__, prog_name="orthrus")
 @click.option(
@@ -283,6 +293,7 @@ def cli(no_banner: bool) -> None:
 
     For authorized security testing only.
     """
+    _install_uvloop()
     if not no_banner:
         render_banner(console, __version__)
 

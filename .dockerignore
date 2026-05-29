@@ -1,0 +1,33 @@
+.git
+.github
+.venv
+venv
+env
+__pycache__
+*.py[cod]
+*.egg-info
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+# Runtime artifacts / local data — never bake into the image
+reports/
+scan_data/
+evidence/
+screenshots/
+*.sqlite3
+*.sqlite
+*.db
+*.har
+# Docs / tests not needed at runtime
+docs/
+examples/
+tests/
+*.md
+!README.md
+# Secrets / local config
+.env
+.env.*
+*.key
+.claude/

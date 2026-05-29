@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import os
 
-from orthrus.main import build_scope
+from orthrus.main import _install_uvloop, build_scope
 from orthrus.reporting.generator import _safe_output_path
 from orthrus.utils.scope import ScopeValidator
+
+
+def test_install_uvloop_is_safe() -> None:
+    # No-op on Windows / when uvloop is absent; must never raise either way.
+    _install_uvloop()
 
 
 # ----------------------------------------------------------------- scope

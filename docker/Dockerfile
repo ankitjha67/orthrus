@@ -12,8 +12,11 @@ RUN apt-get update \
 COPY pyproject.toml README.md ./
 COPY orthrus ./orthrus
 
-RUN pip install --no-cache-dir -e ".[scanners,reporting,browser,distributed,postgres]" \
+RUN pip install --no-cache-dir -e ".[scanners,reporting,browser,distributed,postgres,api,mcp,perf]" \
     && python -m playwright install --with-deps chromium
+
+# Expose the REST API / dashboard port (used when run as: docker run ... serve --host 0.0.0.0)
+EXPOSE 8000
 
 ENTRYPOINT ["orthrus"]
 CMD ["--help"]

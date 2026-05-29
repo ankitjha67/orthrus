@@ -1,0 +1,34 @@
+# Example workflow — copy/adapt into your own repo to scan an authorized target
+# and publish findings to the GitHub Security tab (code scanning) as SARIF.
+#
+# ⚠️ Only scan systems you OWN or are explicitly AUTHORIZED to test.
+# This template is manual (workflow_dispatch) on purpose so it never scans
+# anything automatically.
+name: ORTHRUS scan (example)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Authorized target URL (e.g. https://staging.example.com)"
+        required: true
+      scope:
+        description: "Scope (bare host/CIDR) or 'auto'"
+        required: false
+        default: "auto"
+
+permissions:
+  contents: read
+  security-events: write   # required to upload SARIF
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ORTHRUS scan
+        uses: ankitjha67/orthrus@main
+        with:
+          target: ${{ github.event.inputs.target }}
+          scope: ${{ github.event.inputs.scope }}
+          fail_on: ""          # set e.g. "high" to fail the job on high+ findings
+          args: "--rate-limit 10 --crawl-depth 3"
