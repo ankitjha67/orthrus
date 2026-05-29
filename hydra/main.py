@@ -954,6 +954,140 @@ def completion(shell: str) -> None:
     click.echo(comp.source())
 
 
+def _collect_diagnostics() -> dict:
+    """Report optional-integration readiness without touching the network.
+
+    Each capability is detected by an import or binary lookup only (never by
+    connecting out), so ``hydra doctor`` is safe to run anywhere and tells the
+    operator which features are active vs. which extra would enable them.
+    """
+    import importlib.util
+    import platform
+    import shutil
+
+    from hydra.core.browser import BrowserManager
+
+    def _has(module: str) -> bool:
+        try:
+            return importlib.util.find_spec(module) is not None
+        except (ImportError, ValueError):
+            return False
+
+    # (label, available, purpose, how-to-enable)
+    checks = [
+        (
+            "browser engine (Playwright)",
+            BrowserManager.is_available(),
+            "DOM/stored-XSS detection + JS-rendered crawling",
+            "pip install 'hydra-framework[browser]' && playwright install chromium",
+        ),
+        (
+            "nmap binary",
+            shutil.which("nmap") is not None,
+            "service/port discovery during recon",
+            "install nmap via your OS package manager",
+        ),
+        (
+            "python-nmap",
+            _has("nmap"),
+            "parse nmap output",
+            "pip install 'hydra-framework[recon]'",
+        ),
+        (
+            "uvloop",
+            _has("uvloop"),
+            "faster asyncio event loop (POSIX)",
+            "pip install uvloop  (not available on Windows)",
+        ),
+        (
+            "Redis client",
+            _has("redis"),
+            "distributed task broker (--distributed)",
+            "pip install 'hydra-framework[distributed]'",
+        ),
+        (
+            "Celery",
+            _has("celery"),
+            "distributed scan workers (--distributed)",
+            "pip install 'hydra-framework[distributed]'",
+        ),
+        (
+            "asyncpg",
+            _has("asyncpg"),
+            "PostgreSQL result store (production scale)",
+            "pip install 'hydra-framework[postgres]'",
+        ),
+        (
+            "WeasyPrint",
+            _has("weasyprint"),
+            "alternate PDF backend (default PDF uses Chromium)",
+            "pip install 'hydra-framework[reporting]'",
+        ),
+    ]
+    return {
+        "hydra_version": __version__,
+        "python": platform.python_version(),
+        "platform": platform.platform(),
+        "capabilities": [
+            {"name": name, "available": ok, "purpose": purpose, "enable": enable}
+            for name, ok, purpose, enable in checks
+        ],
+    }
+
+
+def _print_diagnostics(diag: dict) -> None:
+    from rich.markup import escape
+    from rich.table import Table
+
+    section(console, "ENVIRONMENT")
+    console.print(
+        f"[hydra.muted]HYDRA:[/] {diag['hydra_version']}    "
+        f"[hydra.muted]Python:[/] {diag['python']}    "
+        f"[hydra.muted]Platform:[/] {escape(diag['platform'])}"
+    )
+
+    caps = diag["capabilities"]
+    active = sum(1 for c in caps if c["available"])
+    section(console, f"OPTIONAL INTEGRATIONS · {active}/{len(caps)} active")
+    table = Table(title="[hydra.accent]Capabilities[/]")
+    table.add_column("Integration", style="bold")
+    table.add_column("Status")
+    table.add_column("Enables", style="hydra.muted")
+    for cap in caps:
+        if cap["available"]:
+            status = "[status.completed]available[/]"
+        else:
+            status = "[hydra.muted]not installed[/]"
+        # Escape dynamic text: enable-hints contain extras like "[recon]" that
+        # Rich would otherwise parse (and silently drop) as markup tags.
+        table.add_row(escape(cap["name"]), status, escape(cap["purpose"]))
+    console.print(table)
+
+    missing = [c for c in caps if not c["available"]]
+    if missing:
+        section(console, "ENABLE MORE")
+        for cap in missing:
+            console.print(f"[hydra.muted]{escape(cap['name'])}:[/] {escape(cap['enable'])}")
+    # The core scan engine never depends on these; absence only narrows coverage.
+    console.print("\n[hydra.muted]Core scanning works without any of the above.[/]")
+
+
+@cli.command(name="doctor")
+@click.option("--json", "as_json", is_flag=True, help="Emit diagnostics as JSON (stdout).")
+def doctor(as_json: bool) -> None:
+    """Check which optional integrations are available in this environment.
+
+    A read-only, network-free environment probe: it reports the active vs.
+    missing optional capabilities (browser engine, nmap, distributed broker,
+    Postgres, ...) and how to enable each. Always exits 0.
+    """
+    diag = _collect_diagnostics()
+    if as_json:
+        click.echo(json.dumps(diag, indent=2))
+        return
+    _print_diagnostics(diag)
+
+
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
 @click.option(
