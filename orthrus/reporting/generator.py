@@ -67,6 +67,8 @@ OWASP_2021 = {
     "web-cache-deception": "A05:2021 - Security Misconfiguration",
     "nosql-injection": "A03:2021 - Injection",
     "subdomain-takeover": "A05:2021 - Security Misconfiguration",
+    "crlf-injection": "A03:2021 - Injection",
+    "file-upload": "A04:2021 - Insecure Design",
     "example": "A05:2021 - Security Misconfiguration",
 }
 
@@ -83,6 +85,7 @@ PCI_DSS = {
     "host-header-injection": "6.2.4", "framework-debug": "6.4.1",
     "vulnerable-component": "6.3.3", "web-cache-deception": "6.4.1",
     "nosql-injection": "6.2.4", "subdomain-takeover": "6.4.1",
+    "crlf-injection": "6.2.4", "file-upload": "6.2.4",
 }
 
 # NIST Cybersecurity Framework function/category.

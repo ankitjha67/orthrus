@@ -15,6 +15,8 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /actuator/env       exposed Spring Boot Actuator env  /server-status  Apache status -> framework debug
   /account            /account/*.css returns the page verbatim -> web cache deception
   /nosql?user=        reflects a MongoServerError on operator/quote chars -> NoSQL injection
+  /upload (POST)      accepts any multipart file with no validation -> unrestricted upload
+  /redirect?url=      reflects url into Location verbatim -> open redirect + CRLF response split
 
 Run: python reflecting_target.py [port]
 """
@@ -61,6 +63,7 @@ HOME = (
     '<li><a href="/password-reset">reset</a></li>'
     '<li><a href="/account">account</a></li>'
     '<li><a href="/nosql?user=guest">nosql</a></li>'
+    '<li><a href="/upload">upload</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
@@ -370,6 +373,14 @@ class Handler(BaseHTTPRequestHandler):
             account = {"id": "1", "name": "guest", "role": "user", "verified": "false"}
             account.update(self._parse_fields(body))
             self._json(account)
+        elif parts.path == "/upload":
+            # No extension/content validation -> accepts any file (unrestricted upload).
+            m = re.search(r'filename="([^"]+)"', body)
+            fname = m.group(1) if m else ""
+            if fname:
+                self._html(f"<html><body>File uploaded to /uploads/{fname}</body></html>")
+            else:
+                self._html("<html><body>no file provided</body></html>")
         else:
             self.do_GET()
 
