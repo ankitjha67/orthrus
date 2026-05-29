@@ -837,6 +837,84 @@ async def _list_scans(status: str | None, limit: int) -> None:
         logger.info("resume an interrupted scan with: hydra scan --resume --scan-id <id>")
 
 
+def _finding_summary(row: object) -> dict:
+    """A compact, JSON-serialisable triage view of a finding row.
+
+    Deliberately omits raw evidence (request/response/extracted data): this is a
+    triage listing, and that material can carry sensitive payloads — it stays in
+    the encrypted store and the full report, never on stdout.
+    """
+    return {
+        "vuln_type": row.vuln_type,
+        "title": row.title,
+        "severity": row.severity,
+        "confidence": row.confidence,
+        "url": row.url,
+        "parameter": row.parameter,
+        "cwe": row.cwe,
+        "cvss_score": row.cvss_score,
+        "scanner": row.scanner,
+    }
+
+
+@cli.command(name="findings")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--severity",
+    default=None,
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only show findings at or above this severity.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit findings as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def findings(scan_id: str, severity: str | None, as_json: bool, verbose: str) -> None:
+    """Show a stored scan's findings as a triage table (or JSON).
+
+    A read-only, network-free view of what a previous scan found — the quick
+    triage list (severity, type, where, how sure) without regenerating a full
+    report. Use --severity to focus on the high-risk end and --json to pipe the
+    findings into other tools (stdout is reserved for that JSON; chrome is stderr).
+    """
+    configure_logging(verbose)
+    asyncio.run(_list_findings(scan_id, severity, as_json))
+
+
+async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> None:
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `hydra scans`)", scan_id)
+        return
+
+    if severity:
+        floor = _FAIL_ON_ORDER.get(severity.lower(), 0)
+        rows = [r for r in rows if _FAIL_ON_ORDER.get(r.severity, 0) >= floor]
+    # Highest severity first, then by type, so the riskiest findings lead — the
+    # same ordering the human table uses, kept consistent for the JSON view too.
+    rows.sort(key=lambda r: (-_FAIL_ON_ORDER.get(r.severity, 0), r.vuln_type))
+
+    if as_json:
+        click.echo(json.dumps([_finding_summary(r) for r in rows], indent=2, default=str))
+        return
+
+    if not rows:
+        scope_note = f" at or above '{severity}'" if severity else ""
+        logger.info("no findings for scan %s%s", scan_id, scope_note)
+        return
+
+    from hydra.utils.theme import findings_table
+
+    section(console, f"FINDINGS · {scan_id}")
+    console.print(findings_table(rows))
+
+
 @cli.command(name="modules")
 @click.argument("name", required=False)
 @click.option("--json", "as_json", is_flag=True, help="Emit the inventory as JSON (stdout).")
