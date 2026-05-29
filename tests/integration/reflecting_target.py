@@ -11,6 +11,7 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /download?file=LFI (/etc/passwd, win.ini)    X-Forwarded-Host reflection -> cache poisoning
   /fetch?url=    SSRF (GET + POST body)         /api/users/<id> IDOR / BOLA via REST path id
   /api/account(POST) mass assignment (autobind)
+  /password-reset     Host/X-Forwarded-Host reflected into reset link -> host-header injection
 
 Run: python reflecting_target.py [port]
 """
@@ -54,6 +55,7 @@ HOME = (
     '<li><a href="/pp?a=1">pp</a></li>'
     '<li><a href="/redeem">redeem</a></li>'
     '<li><a href="/login">login</a></li>'
+    '<li><a href="/password-reset">reset</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
@@ -277,6 +279,15 @@ class Handler(BaseHTTPRequestHandler):
             self._raw(GIT_HEAD.encode(), "text/plain")
         elif parts.path == "/guestbook":
             self._html(self._guestbook())
+        elif parts.path == "/password-reset":
+            # Builds the reset link from the (attacker-controllable) host header
+            # -> host header injection / password-reset poisoning.
+            host = self.headers.get("X-Forwarded-Host") or self.headers.get("Host") or "localhost"
+            link = f"https://{host}/reset?token=SECRET-RESET-TOKEN"
+            self._html(
+                f'<html><body>Password reset link emailed: '
+                f'<a href="{link}">reset your password</a></body></html>'
+            )
         else:
             self._html(HOME, cookies=True)
 

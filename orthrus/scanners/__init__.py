@@ -19,6 +19,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     exposed_files,
     graphql,
     headers,
+    host_header,
     idor,
     jwt_analyzer,
     lfi,
