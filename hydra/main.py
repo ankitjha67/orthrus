@@ -13,6 +13,7 @@ import ipaddress
 import json
 import re
 import sys
+import tomllib
 from urllib.parse import urlsplit
 
 import click
@@ -126,6 +127,52 @@ def _log_scope(scope: ScopeConfig) -> None:
     )
 
 
+# Config-file keys are the long option names with hyphens (e.g. "rate-limit");
+# they normalise to the Click parameter dest. A couple of options have a dest
+# that differs from their flag, so alias those explicitly.
+_CONFIG_KEY_ALIASES = {"scope": "scope_str", "redis": "redis_url"}
+# Options whose CLI form is a single comma-separated string; a TOML array is a
+# friendlier way to express them, so join lists back to the expected string.
+_CONFIG_CSV_KEYS = {"modules", "exclude_paths"}
+
+
+def _config_to_default_map(data: dict) -> dict:
+    """Translate a parsed TOML config into a Click ``default_map``.
+
+    Accepts either a top-level ``[scan]`` table or a flat document. Keys are
+    normalised (hyphens -> underscores, plus the dest aliases) and TOML arrays
+    for comma-separated options are joined back to a string.
+    """
+    section_data = data.get("scan", data)
+    if not isinstance(section_data, dict):
+        raise click.BadParameter("config '[scan]' section must be a table")
+    out: dict = {}
+    for key, value in section_data.items():
+        name = _CONFIG_KEY_ALIASES.get(key.replace("-", "_"), key.replace("-", "_"))
+        if name in _CONFIG_CSV_KEYS and isinstance(value, list):
+            value = ",".join(str(v) for v in value)
+        out[name] = value
+    return out
+
+
+def _load_config_file(ctx: click.Context, _param: object, value: str | None) -> str | None:
+    """Eager --config callback: merge file defaults so CLI flags still win.
+
+    Values flow into ``ctx.default_map``, which Click consults only for options
+    the operator did *not* pass explicitly — so the command line overrides the
+    file, and the file overrides built-in defaults.
+    """
+    if not value:
+        return value
+    try:
+        with open(value, "rb") as fh:
+            data = tomllib.load(fh)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise click.BadParameter(f"could not load config '{value}': {exc}") from exc
+    ctx.default_map = {**(ctx.default_map or {}), **_config_to_default_map(data)}
+    return value
+
+
 def _resolve_plan(module_list: list[str], aggressiveness: Aggressiveness) -> dict[str, list[str]]:
     """Scanners that would run vs. be gated out at this aggressiveness.
 
@@ -218,6 +265,16 @@ def cli(no_banner: bool) -> None:
 
 
 @cli.command()
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    callback=_load_config_file,
+    is_eager=True,
+    expose_value=False,
+    help="Load scan options from a TOML file ([scan] table); CLI flags override it.",
+)
 @click.option("--target", "-t", default=None, help="Target URL (required unless --resume).")
 @click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
 @click.option("--modules", default="all", help="Comma-separated scanner modules.")
