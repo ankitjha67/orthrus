@@ -162,7 +162,7 @@ def cli() -> None:
     "--format",
     "report_format",
     default="json",
-    type=click.Choice(["json", "html", "pdf", "csv"]),
+    type=click.Choice(["json", "html", "pdf", "csv", "sarif"]),
     help="Report format.",
 )
 @click.option("--template", default="technical", help="Report template: executive/technical/compliance.")
@@ -528,7 +528,7 @@ async def _run_exploit(scan_id: str) -> None:
     "--format",
     "fmt",
     default="json",
-    type=click.Choice(["json", "html", "pdf", "csv"]),
+    type=click.Choice(["json", "html", "pdf", "csv", "sarif"]),
     help="Report format.",
 )
 @click.option("--template", default="technical", help="Template: executive/technical/compliance.")

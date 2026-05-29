@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import csv
+import hashlib
 import io
 import json
 import os
@@ -18,6 +19,7 @@ from typing import Any
 
 import aiofiles
 
+from hydra import __version__
 from hydra.core.config import get_settings
 from hydra.db.models import Exploitation as ExploitationRow
 from hydra.db.models import Finding as FindingRow
@@ -247,6 +249,121 @@ def _write_csv(findings: list[dict[str, Any]]) -> str:
     return buf.getvalue()
 
 
+# ------------------------------------------------------------------------ SARIF
+# SARIF 2.1.0 is the lingua franca for CI security dashboards (GitHub code
+# scanning, Azure DevOps, etc.). GitHub derives its severity bucket from the
+# numeric `security-severity` property; `level` is the coarse error/warning/note.
+HYDRA_URI = "https://github.com/anthropics/hydra"
+_SARIF_LEVEL = {
+    "critical": "error",
+    "high": "error",
+    "medium": "warning",
+    "low": "note",
+    "info": "note",
+}
+# Fallback numeric severity (0-10) when a finding has no CVSS score, so a SARIF
+# consumer can still bucket it (>=9 critical, >=7 high, >=4 medium, >=0.1 low).
+_SEVERITY_SCORE = {"critical": 9.5, "high": 8.0, "medium": 5.0, "low": 3.0, "info": 0.0}
+
+
+def _security_severity(f: dict[str, Any]) -> str:
+    score = f.get("cvss_score")
+    if score is None:
+        score = _SEVERITY_SCORE.get(f["severity"], 0.0)
+    return f"{float(score):.1f}"
+
+
+def _rule_name(vuln_type: str) -> str:
+    """Opaque PascalCase rule name, e.g. 'security-headers' -> 'SecurityHeaders'."""
+    return "".join(part.capitalize() for part in vuln_type.replace("_", "-").split("-"))
+
+
+def _cwe_tag(cwe: str | None) -> str | None:
+    """GitHub recognizes `external/cwe/cwe-NN` tags for taxonomy mapping."""
+    if not cwe:
+        return None
+    digits = "".join(ch for ch in cwe if ch.isdigit())
+    return f"external/cwe/cwe-{digits}" if digits else None
+
+
+def _finding_fingerprint(f: dict[str, Any]) -> str:
+    """Stable hash so a consumer can track the same finding across runs."""
+    raw = f"{f['vuln_type']}|{f['url']}|{f.get('parameter') or ''}|{f.get('param_location') or ''}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+
+
+def _write_sarif(context: dict[str, Any]) -> str:
+    findings = context["findings"]
+    rules: list[dict[str, Any]] = []
+    rule_index: dict[str, int] = {}
+    results: list[dict[str, Any]] = []
+
+    for f in findings:
+        vt = f["vuln_type"]
+        level = _SARIF_LEVEL.get(f["severity"], "warning")
+        if vt not in rule_index:
+            rule_index[vt] = len(rules)
+            tags = ["security"]
+            cwe_tag = _cwe_tag(f.get("cwe"))
+            if cwe_tag:
+                tags.append(cwe_tag)
+            if f.get("owasp") and f["owasp"] != "Unmapped":
+                tags.append(f["owasp"])
+            rules.append({
+                "id": vt,
+                "name": _rule_name(vt),
+                "shortDescription": {"text": (f.get("title") or vt)[:300]},
+                "fullDescription": {"text": (f.get("description") or f.get("title") or vt)[:1000]},
+                "defaultConfiguration": {"level": level},
+                "properties": {"tags": tags, "security-severity": _security_severity(f)},
+            })
+
+        message = f.get("title") or vt
+        if f.get("parameter"):
+            message += f" (parameter: {f['parameter']})"
+        message += f" at {f['url']}"
+        props: dict[str, Any] = {
+            "security-severity": _security_severity(f),
+            "confidence": f.get("confidence"),
+            "scanner": f.get("scanner"),
+            "owasp": f.get("owasp"),
+        }
+        if f.get("cwe"):
+            props["cwe"] = f["cwe"]
+        if f.get("parameter"):
+            props["parameter"] = f["parameter"]
+        results.append({
+            "ruleId": vt,
+            "ruleIndex": rule_index[vt],
+            "level": level,
+            "message": {"text": message},
+            "locations": [
+                {"physicalLocation": {"artifactLocation": {"uri": f["url"]}}}
+            ],
+            "partialFingerprints": {"hydraFindingHash/v1": _finding_fingerprint(f)},
+            "properties": props,
+        })
+
+    sarif = {
+        "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+        "version": "2.1.0",
+        "runs": [
+            {
+                "tool": {
+                    "driver": {
+                        "name": "HYDRA",
+                        "informationUri": HYDRA_URI,
+                        "version": __version__,
+                        "rules": rules,
+                    }
+                },
+                "results": results,
+            }
+        ],
+    }
+    return json.dumps(sarif, indent=2, ensure_ascii=False, default=str)
+
+
 def _with_ext(output: str, ext: str) -> str:
     return output if output.endswith(f".{ext}") else f"{output}.{ext}"
 
@@ -276,6 +393,11 @@ async def generate_report(
     if fmt == "csv":
         path = _with_ext(output, "csv")
         await _awrite(path, _write_csv(context["findings"]))
+        return path
+
+    if fmt == "sarif":
+        path = _with_ext(output, "sarif")
+        await _awrite(path, _write_sarif(context))
         return path
 
     if fmt in ("html", "pdf"):
