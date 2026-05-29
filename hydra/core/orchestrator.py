@@ -8,6 +8,7 @@ pipeline runs end-to-end today and grows without structural change.
 
 from __future__ import annotations
 
+from time import perf_counter
 from uuid import uuid4
 
 from rich.table import Table
@@ -21,6 +22,7 @@ from hydra.core.config import ScanConfig, Settings
 from hydra.core.context import ScanContext
 from hydra.core.event_bus import Event, EventBus, EventType
 from hydra.core.http_client import HttpClient
+from hydra.core.metrics import ScannerMetric, top_scanners, totals
 from hydra.core.schemas import Aggressiveness, Confidence
 from hydra.core.session import Session
 from hydra.db.store import Store
@@ -62,6 +64,7 @@ class Orchestrator:
         self.scope = ScopeValidator(config.scope)
         self.store = Store(settings.db_url, encryption_key=settings.encryption_key)
         self.ctx: ScanContext | None = None
+        self.scanner_metrics: list[ScannerMetric] = []
 
     async def setup(self) -> None:
         load_plugins(self.settings.plugins_dir)
@@ -265,6 +268,9 @@ class Orchestrator:
                 )
                 continue
             logger.info("scan: running %s", scanner.name)
+            metric = ScannerMetric(name=scanner.name)
+            start = perf_counter()
+            start_requests = self.ctx.http.requests_sent
             await scanner.setup(self.ctx)
             try:
                 async for finding in scanner.scan(self.ctx):
@@ -277,9 +283,19 @@ class Orchestrator:
                         severity=finding.severity.value,
                         url=finding.url,
                     )
+                    metric.findings += 1
                     total += 1
+            except Exception as exc:
+                # Isolate scanner failures: one crashing module must not abort the
+                # whole phase. Record it on the metric and keep going.
+                metric.error = type(exc).__name__
+                logger.exception("scanner %s crashed; continuing with the rest", scanner.name)
             finally:
                 await scanner.teardown(self.ctx)
+                metric.duration_s = perf_counter() - start
+                metric.requests = self.ctx.http.requests_sent - start_requests
+                self.scanner_metrics.append(metric)
+                await self.store.log(self.scan_id, "info", "metrics", metric.summary_line())
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="scan")
         logger.info("scan complete: %d finding(s)", total)
@@ -383,6 +399,35 @@ class Orchestrator:
             table.add_row("Confirmed findings", str(confirmed))
             table.add_row("Requests sent", str(self.ctx.http.requests_sent))
             table.add_row("Scope violations blocked", str(self.ctx.http.scope_violations))
+        console.print(table)
+        self._print_scanner_metrics()
+
+    def _print_scanner_metrics(self) -> None:
+        if not self.scanner_metrics:
+            return
+        table = Table(title="Per-scanner metrics")
+        table.add_column("Scanner", style="bold")
+        table.add_column("Findings", justify="right")
+        table.add_column("Requests", justify="right")
+        table.add_column("Time (s)", justify="right")
+        table.add_column("Status")
+        for m in top_scanners(self.scanner_metrics):
+            table.add_row(
+                m.name,
+                str(m.findings),
+                str(m.requests),
+                f"{m.duration_s:.2f}",
+                "[red]crashed[/]" if m.error else "ok",
+            )
+        agg = totals(self.scanner_metrics)
+        table.add_section()
+        table.add_row(
+            f"total ({len(self.scanner_metrics)} ran)",
+            str(agg.findings),
+            str(agg.requests),
+            f"{agg.duration_s:.2f}",
+            f"[red]{agg.error}[/]" if agg.error else "ok",
+        )
         console.print(table)
 
 
