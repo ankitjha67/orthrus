@@ -117,6 +117,18 @@ def cli() -> None:
 @click.option("--proxy", default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--auth-cookie", default=None, help="Pre-authenticated session cookie string.")
 @click.option("--auth-script", default=None, help="Playwright login script path (deferred).")
+@click.option("--login-url", default=None, help="URL to POST credentials to before scanning.")
+@click.option(
+    "--login-data",
+    default=None,
+    help="Login body: 'user=admin&password=admin' or a JSON object.",
+)
+@click.option(
+    "--login-token-field",
+    default=None,
+    help="Dotted path into a JSON login response to use as the bearer token.",
+)
+@click.option("--login-check", default=None, help="Substring proving the session is authenticated.")
 @click.option(
     "--import",
     "import_spec",
@@ -159,6 +171,10 @@ def scan(
     proxy: str | None,
     auth_cookie: str | None,
     auth_script: str | None,
+    login_url: str | None,
+    login_data: str | None,
+    login_token_field: str | None,
+    login_check: str | None,
     import_spec: str | None,
     user_agent: str,
     callback: str | None,
@@ -208,6 +224,10 @@ def scan(
         extra_headers=_parse_headers(headers),
         auth_cookie=auth_cookie,
         auth_script=auth_script,
+        login_url=login_url,
+        login_data=login_data,
+        login_token_field=login_token_field,
+        login_check=login_check,
         import_spec=import_spec,
         callback=callback,
         no_exploit=no_exploit,
@@ -318,6 +338,18 @@ def _run_distributed(
 @click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
 @click.option("--proxy", default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--auth-cookie", default=None, help="Pre-authenticated session cookie string.")
+@click.option("--login-url", default=None, help="URL to POST credentials to before recon.")
+@click.option(
+    "--login-data",
+    default=None,
+    help="Login body: 'user=admin&password=admin' or a JSON object.",
+)
+@click.option(
+    "--login-token-field",
+    default=None,
+    help="Dotted path into a JSON login response to use as the bearer token.",
+)
+@click.option("--login-check", default=None, help="Substring proving the session is authenticated.")
 @click.option(
     "--import",
     "import_spec",
@@ -347,6 +379,10 @@ def recon(
     timeout: float,
     proxy: str | None,
     auth_cookie: str | None,
+    login_url: str | None,
+    login_data: str | None,
+    login_token_field: str | None,
+    login_check: str | None,
     import_spec: str | None,
     exclude_paths: str | None,
     scan_id: str | None,
@@ -365,6 +401,10 @@ def recon(
         timeout=timeout,
         proxy=proxy,
         auth_cookie=auth_cookie,
+        login_url=login_url,
+        login_data=login_data,
+        login_token_field=login_token_field,
+        login_check=login_check,
         import_spec=import_spec,
     )
     config.rate_limit.requests_per_second = rate_limit

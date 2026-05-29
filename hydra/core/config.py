@@ -112,6 +112,14 @@ class ScanConfig(BaseModel):
     auth_cookie: str | None = None
     auth_script: str | None = None
 
+    # Programmatic pre-scan login: POST credentials once before recon so the
+    # rest of the scan runs authenticated (cookies persist; an optional JSON
+    # token is attached to later requests). Credentials are never logged.
+    login_url: str | None = None
+    login_data: str | None = None  # "user=admin&password=admin" or a JSON object
+    login_token_field: str | None = None  # dotted path into a JSON login response
+    login_check: str | None = None  # substring proving the session is authenticated
+
     # Spec-driven API discovery: a local file path or in-scope URL to an
     # OpenAPI/Swagger, GraphQL introspection, HAR, or Postman document. Its
     # declared operations are imported as endpoints with typed params (§5.2).

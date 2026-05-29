@@ -13,6 +13,7 @@ from uuid import uuid4
 from rich.table import Table
 
 from hydra.core import schemas
+from hydra.core.auth import perform_login
 from hydra.core.browser import BrowserManager
 from hydra.core.callback import LocalCallbackServer
 from hydra.core.config import ScanConfig, Settings
@@ -130,6 +131,37 @@ class Orchestrator:
             f"exploit={not self.config.no_exploit} encryption={'on' if self.settings.encryption_key else 'off'}",
         )
         logger.info("scan [bold]%s[/] started against %s", self.scan_id, self.config.target)
+
+        # Authenticate before recon so the entire scan replays the session.
+        if self.config.login_url and self.config.login_data:
+            await self._authenticate(http, session)
+
+    async def _authenticate(self, http: HttpClient, session: Session) -> None:
+        """Log in before recon so the whole scan runs authenticated (§3.4)."""
+        assert self.config.login_url is not None and self.config.login_data is not None
+        if not self.scope.is_allowed(self.config.login_url):
+            logger.warning("login URL is out of scope; continuing unauthenticated")
+            return
+        result = await perform_login(
+            http,
+            session,
+            login_url=self.config.login_url,
+            login_data=self.config.login_data,
+            token_field=self.config.login_token_field,
+            success_marker=self.config.login_check,
+        )
+        # Never log the credentials or the token value — only the outcome.
+        status_msg = f"status={result.status} token={'set' if result.token_set else 'none'}"
+        if result.ok:
+            logger.info("authentication succeeded (%s)", status_msg)
+            await self.store.log(self.scan_id, "audit", "auth", f"login ok {status_msg}")
+        else:
+            logger.warning(
+                "authentication failed (%s reason=%s); continuing unauthenticated",
+                status_msg,
+                result.reason or "no-success-signal",
+            )
+            await self.store.log(self.scan_id, "warning", "auth", f"login failed {status_msg}")
 
     def _wire_events(self) -> None:
         async def on_scope_violation(event: Event) -> None:
