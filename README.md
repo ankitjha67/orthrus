@@ -1,4 +1,4 @@
-# Project HYDRA
+# Project ORTHRUS
 
 **Automated vulnerability discovery & exploitation-confirmation framework for authorized security testing.**
 
@@ -6,7 +6,7 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 
-HYDRA crawls a target, fingerprints its stack, runs 26 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 26 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -17,7 +17,7 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 
 > ## ⚠️ Legal & Ethical Use — read before running anything
 >
-> **HYDRA is an offensive security tool. It sends real attack payloads and, in
+> **ORTHRUS is an offensive security tool. It sends real attack payloads and, in
 > its confirmation phase, actively attempts to exploit findings.**
 >
 > - ✅ Use it **only** against systems you **own**, or for which you hold
@@ -32,11 +32,11 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 > - 🚫 The authors and contributors provide this tool **as-is, with no warranty**,
 >   and accept **no liability** for misuse or for any damage it causes.
 >
-> If you do not have written permission to test a target, **do not point HYDRA
+> If you do not have written permission to test a target, **do not point ORTHRUS
 > at it.** Use the bundled deliberately-vulnerable practice target or a
 > self-hosted lab instead (see [Try it safely](#-try-it-safely)).
 >
-> As a guardrail, HYDRA is **deny-by-default**: every outbound request is
+> As a guardrail, ORTHRUS is **deny-by-default**: every outbound request is
 > validated against your declared engagement scope before it is sent, and the
 > resolved scope is printed at the start of every run. This is a safety aid, **not**
 > a substitute for authorization. See [Scope enforcement](#-scope-enforcement-the-safety-boundary).
@@ -57,7 +57,7 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 - [Reporting](#-reporting)
 - [Production: PostgreSQL & distributed scanning](#-production-postgresql--distributed-scanning)
 - [Architecture & project layout](#-architecture--project-layout)
-- [Extending HYDRA (plugins)](#-extending-hydra-plugins)
+- [Extending ORTHRUS (plugins)](#-extending-orthrus-plugins)
 - [Development](#-development)
 - [Legal & Ethical Use](#-legal--ethical-use)
 - [Contributing](#-contributing)
@@ -114,7 +114,7 @@ query-string **and** POST form-body parameters.
 
 ## 🔁 How it works
 
-HYDRA runs a four-phase pipeline. Every network request — in every phase — goes
+ORTHRUS runs a four-phase pipeline. Every network request — in every phase — goes
 through the scope-enforced HTTP client.
 
 ```mermaid
@@ -145,9 +145,9 @@ flowchart LR
 
 ## 🛡️ Scope enforcement (the safety boundary)
 
-`hydra.utils.scope.ScopeValidator` is the load-bearing safety control. It is
+`orthrus.utils.scope.ScopeValidator` is the load-bearing safety control. It is
 **deny-by-default**: a host / port / path is only contacted if your
-`ScopeConfig` explicitly authorizes it. `hydra.core.http_client.HttpClient`
+`ScopeConfig` explicitly authorizes it. `orthrus.core.http_client.HttpClient`
 consults it **before every request** and **re-validates every redirect hop**, and
 the headless browser is bound by the same check. Scanner modules must use
 `HttpClient` rather than raw `httpx`, so the boundary cannot be bypassed.
@@ -205,14 +205,14 @@ playwright install chromium
 
 ```bash
 # Recon only, scope auto-derived from the target
-hydra recon -t https://example.com --crawl-depth 3
+orthrus recon -t https://example.com --crawl-depth 3
 
 # Full pipeline (recon → scan → confirm → report) → JSON
-hydra scan -t https://example.com -o report.json
+orthrus scan -t https://example.com -o report.json
 
 # See every option
-hydra --help
-hydra scan --help
+orthrus --help
+orthrus scan --help
 ```
 
 ## 🧪 Try it safely
@@ -225,7 +225,7 @@ targets:
 
   ```bash
   python tests/integration/reflecting_target.py 8731     # terminal 1
-  hydra scan -t http://127.0.0.1:8731 --aggressive -o report.json   # terminal 2
+  orthrus scan -t http://127.0.0.1:8731 --aggressive -o report.json   # terminal 2
   ```
 
 - **Self-hosted labs** (you own the instance): OWASP Juice Shop, DVWA, OWASP
@@ -235,42 +235,42 @@ targets:
   `demo.testfire.net` (IBM), `ginandjuice.shop` (PortSwigger).
 
 > ⚠️ Public exploit/CVE databases (e.g. Exploit-DB) catalog *vulnerabilities*,
-> **not authorized targets**. Never point HYDRA at a live system you found
+> **not authorized targets**. Never point ORTHRUS at a live system you found
 > listed somewhere; that is unauthorized access.
 
 ## 📖 Usage guide
 
-HYDRA exposes four sub-commands: `recon`, `scan`, `exploit`, `report`.
+ORTHRUS exposes four sub-commands: `recon`, `scan`, `exploit`, `report`.
 
-### `hydra scan` — the full pipeline
+### `orthrus scan` — the full pipeline
 
 ```bash
 # Explicit engagement scope (wildcard domains + CIDR), exclude sensitive paths
-hydra scan -t https://app.target.com \
+orthrus scan -t https://app.target.com \
   --scope "*.target.com,api.target.com,10.0.0.0/24" \
   --exclude-paths "/admin/delete/.*,/api/v1/payments" \
   -o report.html --format html --template technical
 
 # Run only specific scanner modules
-hydra scan -t https://app.target.com --modules sqli,xss,ssti,ssrf -o report.json
+orthrus scan -t https://app.target.com --modules sqli,xss,ssti,ssrf -o report.json
 
 # Aggressive mode also enables time-based blind tests (SQLi/cmd) and race conditions
-hydra scan -t https://app.target.com --aggressive -o report.json
+orthrus scan -t https://app.target.com --aggressive -o report.json
 
 # Authenticated scan (re-use a captured session cookie + extra headers)
-hydra scan -t https://app.target.com \
+orthrus scan -t https://app.target.com \
   --auth-cookie "session=abc123; csrf=def456" \
   --headers '{"Authorization": "Bearer eyJ..."}' \
   -o report.json
 
 # Route through a proxy (e.g. Burp), cap the request rate, raise the timeout
-hydra scan -t https://app.target.com --proxy http://127.0.0.1:8080 --rate-limit 10 --timeout 45
+orthrus scan -t https://app.target.com --proxy http://127.0.0.1:8080 --rate-limit 10 --timeout 45
 
 # Skip the confirmation phase (also disables the OOB callback server)
-hydra scan -t https://example.com --no-exploit -o report.json
+orthrus scan -t https://example.com --no-exploit -o report.json
 
 # Disable the headless browser (skips DOM/stored XSS + browser confirmation)
-hydra scan -t https://example.com --no-browser -o report.json
+orthrus scan -t https://example.com --no-browser -o report.json
 ```
 
 Common `scan` options: `--modules`, `--aggressive`, `--rate-limit`,
@@ -279,54 +279,54 @@ Common `scan` options: `--modules`, `--aggressive`, `--rate-limit`,
 `--exclude-paths`, `--headers`, `--threads`, `--scan-id`, `-o/--output`,
 `--format`, `--template`, `--min-severity`, `--logo`, `--har`, `-v/--verbose`.
 
-### `hydra recon` — reconnaissance only
+### `orthrus recon` — reconnaissance only
 
 ```bash
 # All recon modules (fingerprint, crawl, JS, content, WAF, API, DNS)
-hydra recon -t https://example.com -o recon.json
+orthrus recon -t https://example.com -o recon.json
 
 # Turn modules on/off; add subdomain enum (needs a *.domain scope) and Wayback
-hydra recon -t https://target.com --scope "*.target.com" \
+orthrus recon -t https://target.com --scope "*.target.com" \
   --subdomains --wayback --no-content --crawl-depth 5
 ```
 
-### `hydra report` — render an existing scan
+### `orthrus report` — render an existing scan
 
 ```bash
 # Reports are generated from the stored scan; pick format + template
-hydra report --scan-id scan-abcd1234 --format pdf --template executive -o exec_report
-hydra report --scan-id scan-abcd1234 --format csv -o findings
-hydra report --scan-id scan-abcd1234 --format html --template compliance --min-severity high -o audit
+orthrus report --scan-id scan-abcd1234 --format pdf --template executive -o exec_report
+orthrus report --scan-id scan-abcd1234 --format csv -o findings
+orthrus report --scan-id scan-abcd1234 --format html --template compliance --min-severity high -o audit
 ```
 
-### `hydra exploit`
+### `orthrus exploit`
 
 ```bash
-hydra exploit --scan-id scan-abcd1234
+orthrus exploit --scan-id scan-abcd1234
 ```
 
-> Note: confirmation runs automatically during `hydra scan`. Standalone
+> Note: confirmation runs automatically during `orthrus scan`. Standalone
 > replay-from-DB is not yet implemented — re-run the scan to (re-)confirm.
 
 ## ⚙️ Configuration
 
-Runtime settings are read from environment variables (prefix `HYDRA_`) or a
+Runtime settings are read from environment variables (prefix `ORTHRUS_`) or a
 `.env` file. None are required for a basic SQLite run.
 
 | Variable | Purpose | Default |
 |---|---|---|
-| `HYDRA_DB_URL` | Database URL (SQLite or PostgreSQL) | `sqlite+aiosqlite:///./hydra.sqlite3` |
-| `HYDRA_DATA_DIR` | Screenshots / scan artifacts directory | `./scan_data` |
-| `HYDRA_LOG_LEVEL` | Default log level | `info` |
-| `HYDRA_ENCRYPTION_KEY` | base64 AES-256 key; encrypts sensitive evidence at rest | _(off)_ |
-| `HYDRA_REDIS_URL` | Celery broker/backend (distributed mode) | `redis://localhost:6379/0` |
-| `HYDRA_PLUGINS_DIR` | External plugin directory auto-loaded at startup | _(none)_ |
-| `HYDRA_SHODAN_API_KEY`, `HYDRA_CENSYS_API_ID`/`_SECRET`, `HYDRA_VIRUSTOTAL_API_KEY`, `HYDRA_NVD_API_KEY`, `HYDRA_GITHUB_TOKEN` | Optional passive-recon / CVE-intel credentials | _(none)_ |
+| `ORTHRUS_DB_URL` | Database URL (SQLite or PostgreSQL) | `sqlite+aiosqlite:///./orthrus.sqlite3` |
+| `ORTHRUS_DATA_DIR` | Screenshots / scan artifacts directory | `./scan_data` |
+| `ORTHRUS_LOG_LEVEL` | Default log level | `info` |
+| `ORTHRUS_ENCRYPTION_KEY` | base64 AES-256 key; encrypts sensitive evidence at rest | _(off)_ |
+| `ORTHRUS_REDIS_URL` | Celery broker/backend (distributed mode) | `redis://localhost:6379/0` |
+| `ORTHRUS_PLUGINS_DIR` | External plugin directory auto-loaded at startup | _(none)_ |
+| `ORTHRUS_SHODAN_API_KEY`, `ORTHRUS_CENSYS_API_ID`/`_SECRET`, `ORTHRUS_VIRUSTOTAL_API_KEY`, `ORTHRUS_NVD_API_KEY`, `ORTHRUS_GITHUB_TOKEN` | Optional passive-recon / CVE-intel credentials | _(none)_ |
 
 ```bash
 # Example: PostgreSQL + at-rest encryption
-export HYDRA_DB_URL="postgresql+asyncpg://hydra:hydra@localhost:5432/hydra"
-export HYDRA_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64encode(os.urandom(32)).decode())')"
+export ORTHRUS_DB_URL="postgresql+asyncpg://orthrus:orthrus@localhost:5432/orthrus"
+export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64encode(os.urandom(32)).decode())')"
 ```
 
 ## 📑 Reporting
@@ -345,12 +345,12 @@ Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
 
 ```bash
 # PostgreSQL backend (needs [postgres]: asyncpg + alembic)
-export HYDRA_DB_URL="postgresql+asyncpg://hydra:hydra@localhost:5432/hydra"
+export ORTHRUS_DB_URL="postgresql+asyncpg://orthrus:orthrus@localhost:5432/orthrus"
 alembic upgrade head
 
 # Distributed scanning across Celery workers (needs [distributed] + Redis)
-celery -A hydra.distributed.celery_app worker --loglevel=info
-hydra scan --distributed --workers 4 --redis redis://localhost:6379/0 -t targets.txt
+celery -A orthrus.distributed.celery_app worker --loglevel=info
+orthrus scan --distributed --workers 4 --redis redis://localhost:6379/0 -t targets.txt
 
 # Or bring up the whole stack (app + workers + redis + postgres) with Docker
 docker compose -f docker/docker-compose.yml up -d --build
@@ -363,7 +363,7 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 ## 🧱 Architecture & project layout
 
 ```
-hydra/
+orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    26 scanners + base interface + registry
@@ -377,16 +377,16 @@ docker/        Dockerfile + docker-compose (app, workers, redis, postgres)
 tests/         unit tests + a bundled deliberately-vulnerable integration target
 ```
 
-## 🔌 Extending HYDRA (plugins)
+## 🔌 Extending ORTHRUS (plugins)
 
 Scanners, exploits, recon modules, and reporters are auto-discovered via
 decorators. Drop a module that subclasses the relevant base class and registers
-itself into `HYDRA_PLUGINS_DIR` (or the in-tree package) and it joins the
+itself into `ORTHRUS_PLUGINS_DIR` (or the in-tree package) and it joins the
 pipeline — no core changes needed. A new scanner is roughly:
 
 ```python
-from hydra.scanners.base_scanner import BaseScanner
-from hydra.scanners.registry import register
+from orthrus.scanners.base_scanner import BaseScanner
+from orthrus.scanners.registry import register
 
 @register
 class MyScanner(BaseScanner):
@@ -402,8 +402,8 @@ class MyScanner(BaseScanner):
 
 ```bash
 pip install -e ".[dev]"
-ruff check hydra tests
-mypy hydra
+ruff check orthrus tests
+mypy orthrus
 pytest -q
 ```
 
@@ -415,7 +415,7 @@ it does not touch the network or any external host.
 This software is provided for **authorized security testing, education, and
 research only.**
 
-- Only use HYDRA against systems you **own** or are **explicitly authorized in
+- Only use ORTHRUS against systems you **own** or are **explicitly authorized in
   writing** to test. Keep a copy of that authorization.
 - Define an accurate `--scope` and respect it. Scope enforcement is a safety aid,
   not legal cover.
@@ -425,7 +425,7 @@ research only.**
 - The software is provided **"AS IS", without warranty of any kind**. The authors
   and contributors are **not liable** for any misuse, damage, data loss, or legal
   consequence arising from its use.
-- By using HYDRA you accept full responsibility for your actions and confirm you
+- By using ORTHRUS you accept full responsibility for your actions and confirm you
   have the authorization required for every target you test.
 
 **If in doubt, don't.** Practice on the bundled target or a self-hosted lab.

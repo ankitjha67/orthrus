@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "hydra-framework"
+name = "orthrus-framework"
 version = "0.1.0"
 description = "Automated vulnerability discovery & exploitation confirmation framework (authorized security testing only)"
 readme = "README.md"
@@ -47,10 +47,10 @@ dev = [
 ]
 
 [project.scripts]
-hydra = "hydra.main:cli"
+orthrus = "orthrus.main:cli"
 
 [tool.hatch.build.targets.wheel]
-packages = ["hydra"]
+packages = ["orthrus"]
 
 [tool.ruff]
 line-length = 100

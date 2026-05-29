@@ -11,21 +11,21 @@ from rich.panel import Panel
 from rich.progress import Progress
 from rich.table import Table
 
-from hydra.utils import theme
+from orthrus.utils import theme
 
 
 def _render(renderable_or_fn, width: int = 80) -> str:
     # force_terminal=False strips ANSI colour so we can assert on plain text.
     buf = io.StringIO()
-    console = Console(file=buf, force_terminal=False, width=width, theme=theme.HYDRA_THEME)
+    console = Console(file=buf, force_terminal=False, width=width, theme=theme.ORTHRUS_THEME)
     renderable_or_fn(console)
     return buf.getvalue()
 
 
 # ------------------------------------------------------------------ tokens
 def test_theme_defines_core_styles():
-    names = set(theme.HYDRA_THEME.styles)
-    assert {"hydra.accent", "sev.critical", "sev.high", "status.failed"} <= names
+    names = set(theme.ORTHRUS_THEME.styles)
+    assert {"orthrus.accent", "sev.critical", "sev.high", "status.failed"} <= names
 
 
 def test_severity_style_maps_known_and_unknown():
@@ -51,7 +51,7 @@ def test_render_banner_falls_back_to_ascii(monkeypatch):
     # Terminals that can't encode the block glyphs get a plain-text wordmark.
     monkeypatch.setattr(theme, "_unicode_ok", lambda _console: False)
     out = _render(lambda c: theme.render_banner(c, "1.0"))
-    assert "H Y D R A" in out
+    assert "O R T H R U S" in out
 
 
 # ----------------------------------------------------------- section / scope
@@ -89,7 +89,7 @@ class _Finding:
 
 def test_confidence_style_maps_known_and_unknown():
     assert theme.confidence_style("confirmed") == "status.completed"
-    assert theme.confidence_style("TENTATIVE") == "hydra.muted"
+    assert theme.confidence_style("TENTATIVE") == "orthrus.muted"
     assert theme.confidence_style("???") == "default"
 
 
@@ -126,7 +126,7 @@ def test_findings_table_handles_empty():
 # ---------------------------------------------------------------- progress
 def test_make_progress_returns_progress_and_renders():
     buf = io.StringIO()
-    console = Console(file=buf, force_terminal=True, width=80, theme=theme.HYDRA_THEME)
+    console = Console(file=buf, force_terminal=True, width=80, theme=theme.ORTHRUS_THEME)
     progress = theme.make_progress(console)
     assert isinstance(progress, Progress)
     # Drive a short lifecycle to confirm it renders without raising.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.xxe import xxe_payloads
+from orthrus.scanners.xxe import xxe_payloads
 
 
 def test_payloads_declare_external_entities():

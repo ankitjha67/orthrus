@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.recon.js_analyzer import extract_endpoints, extract_secrets, extract_websockets
+from orthrus.recon.js_analyzer import extract_endpoints, extract_secrets, extract_websockets
 
 BASE = "http://target.com/app/page"
 

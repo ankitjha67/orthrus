@@ -6,15 +6,15 @@ import json
 
 import pytest
 
-from hydra.templates.loader import load_templates
-from hydra.templates.matchers import (
+from orthrus.templates.loader import load_templates
+from orthrus.templates.matchers import (
     MatchInput,
     eval_matcher,
     eval_request_matchers,
     run_extractors,
 )
-from hydra.templates.scanner import render
-from hydra.templates.schema import Matcher, Template
+from orthrus.templates.scanner import render
+from orthrus.templates.schema import Matcher, Template
 
 
 # ----------------------------------------------------------------- MatchInput

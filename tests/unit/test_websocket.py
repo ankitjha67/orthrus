@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Severity
-from hydra.scanners.websocket import classify_ws
+from orthrus.core.schemas import Severity
+from orthrus.scanners.websocket import classify_ws
 
 
 def test_foreign_origin_accepted_is_medium():

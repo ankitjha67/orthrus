@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Severity
-from hydra.scanners.cve_matcher import match_cves
+from orthrus.core.schemas import Severity
+from orthrus.scanners.cve_matcher import match_cves
 
 NVD_SAMPLE = {
     "vulnerabilities": [

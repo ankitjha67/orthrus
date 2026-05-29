@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from hydra.main import FAIL_ON_EXIT_CODE, _apply_fail_on, _gate_breached
+from orthrus.main import FAIL_ON_EXIT_CODE, _apply_fail_on, _gate_breached
 
 
 # ------------------------------------------------------------- gate predicate

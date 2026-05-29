@@ -1,4 +1,4 @@
-"""`hydra scan --dry-run`: resolve scope + scanner plan, send zero packets.
+"""`orthrus scan --dry-run`: resolve scope + scanner plan, send zero packets.
 
 Two halves: the pure ``_resolve_plan`` partitioning (modules selection +
 aggressiveness gate) and the CLI guarantee that --dry-run never executes the
@@ -11,9 +11,9 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from hydra import main
-from hydra.core.config import ScanConfig, ScopeConfig
-from hydra.core.schemas import Aggressiveness
+from orthrus import main
+from orthrus.core.config import ScanConfig, ScopeConfig
+from orthrus.core.schemas import Aggressiveness
 
 
 def test_resolve_plan_all_aggressive_runs_everything():
@@ -41,7 +41,7 @@ def test_resolve_plan_module_selection_narrows():
 def test_dry_run_plan_escapes_bracketed_target():
     # A target with bracketed query text must render literally, not be swallowed
     # by Rich as a markup tag.
-    from hydra.utils.logger import console
+    from orthrus.utils.logger import console
 
     config = ScanConfig(
         target="http://t.example/?f=[active]",

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.plugins import load_plugins
-from hydra.scanners.registry import SCANNER_REGISTRY
+from orthrus.plugins import load_plugins
+from orthrus.scanners.registry import SCANNER_REGISTRY
 
 
 def test_builtin_example_plugin_registers():
@@ -15,8 +15,8 @@ def test_builtin_example_plugin_registers():
 def test_external_plugin_dir(tmp_path):
     plugin = tmp_path / "my_plugin.py"
     plugin.write_text(
-        "from hydra.scanners.base_scanner import BaseScanner\n"
-        "from hydra.scanners.registry import register\n"
+        "from orthrus.scanners.base_scanner import BaseScanner\n"
+        "from orthrus.scanners.registry import register\n"
         "@register\n"
         "class MyPlugin(BaseScanner):\n"
         "    name = 'unit-test-plugin'\n"

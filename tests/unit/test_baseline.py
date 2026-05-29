@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from hydra.core.baseline import (
+from orthrus.core.baseline import (
     BaselineProfile,
     ResponseFingerprint,
     build_baseline,
@@ -38,7 +38,7 @@ def test_similar_via_word_line_counts_when_length_differs():
     # the absolute byte length shifts beyond the length tolerance.
     body = "\n".join(["line of words here"] * 50)  # 50 lines, 200 words
     base = ResponseFingerprint.from_response(200, body)
-    echoed = ResponseFingerprint.from_response(200, body + " /hydra-not-found-abc")
+    echoed = ResponseFingerprint.from_response(200, body + " /orthrus-not-found-abc")
     # length differs by only ~20 bytes here, but force the count-based path too:
     big = ResponseFingerprint(status=200, length=base.length + 9999, word_count=base.word_count + 1, line_count=base.line_count)
     assert echoed.similar_to(base) is True
@@ -119,7 +119,7 @@ async def test_build_baseline_profiles_a_catch_all():
     assert profile.catch_all is True
     # the catch-all response is recognised as not-a-real-hit
     assert profile.matches(200, "<html>home</html>") is True
-    assert all("hydra-not-found-" in u for u in http.calls)
+    assert all("orthrus-not-found-" in u for u in http.calls)
 
 
 async def test_build_baseline_skips_out_of_scope():

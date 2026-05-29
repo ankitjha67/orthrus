@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.cache_poisoning import MARKER, is_cacheable, reflects_marker
+from orthrus.scanners.cache_poisoning import MARKER, is_cacheable, reflects_marker
 
 
 def test_marker_in_body():

@@ -1,10 +1,10 @@
-# HYDRA distributed stack (PRD §15.2). Authorized testing only.
+# ORTHRUS distributed stack (PRD §15.2). Authorized testing only.
 #
 #   docker compose -f docker/docker-compose.yml up -d --build
 #   docker compose -f docker/docker-compose.yml run --rm app scan -t https://example.com
 #
 # `worker` runs Celery workers (scale with --scale worker=N); targets dispatched
-# via `hydra scan --distributed -t targets.txt` land on them through Redis and
+# via `orthrus scan --distributed -t targets.txt` land on them through Redis and
 # write to the shared Postgres database.
 
 services:
@@ -16,23 +16,23 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: hydra
-      POSTGRES_USER: hydra
-      POSTGRES_PASSWORD: hydra
+      POSTGRES_DB: orthrus
+      POSTGRES_USER: orthrus
+      POSTGRES_PASSWORD: orthrus
     volumes:
-      - hydra-pgdata:/var/lib/postgresql/data
+      - orthrus-pgdata:/var/lib/postgresql/data
 
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
     depends_on: [redis, postgres]
-    environment: &hydra-env
-      HYDRA_DB_URL: postgresql+asyncpg://hydra:hydra@postgres:5432/hydra
-      HYDRA_REDIS_URL: redis://redis:6379/0
-      HYDRA_DATA_DIR: /data
+    environment: &orthrus-env
+      ORTHRUS_DB_URL: postgresql+asyncpg://orthrus:orthrus@postgres:5432/orthrus
+      ORTHRUS_REDIS_URL: redis://redis:6379/0
+      ORTHRUS_DATA_DIR: /data
     volumes:
-      - hydra-data:/data
+      - orthrus-data:/data
     # CLI-driven: `docker compose run --rm app scan ...`
 
   worker:
@@ -40,10 +40,10 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     depends_on: [redis, postgres]
-    environment: *hydra-env
+    environment: *orthrus-env
     volumes:
-      - hydra-data:/data
-    entrypoint: ["celery", "-A", "hydra.distributed.celery_app", "worker", "--loglevel=info"]
+      - orthrus-data:/data
+    entrypoint: ["celery", "-A", "orthrus.distributed.celery_app", "worker", "--loglevel=info"]
 
   # OOB callbacks across distributed workers need a SHARED, externally-reachable
   # callback server. The in-process LocalCallbackServer only serves same-host
@@ -54,5 +54,5 @@ services:
   #   ports: ["53:53/udp", "80:80", "443:443"]
 
 volumes:
-  hydra-pgdata:
-  hydra-data:
+  orthrus-pgdata:
+  orthrus-data:

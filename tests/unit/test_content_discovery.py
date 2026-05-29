@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.recon.content_discovery import is_interesting, is_sensitive
+from orthrus.recon.content_discovery import is_interesting, is_sensitive
 
 
 def test_200_is_interesting_when_unlike_baseline():

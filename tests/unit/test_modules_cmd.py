@@ -1,4 +1,4 @@
-"""`hydra modules`: discoverability listing of scanner / exploit modules.
+"""`orthrus modules`: discoverability listing of scanner / exploit modules.
 
 The JSON path is the deterministic contract (stdout), so assertions key off it;
 the human table path is exercised for a clean exit.
@@ -10,7 +10,7 @@ import json
 
 from click.testing import CliRunner
 
-from hydra import main
+from orthrus import main
 
 
 def test_modules_json_lists_known_scanners():

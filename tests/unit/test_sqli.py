@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.sqli import boolean_injectable, detect_sql_error
+from orthrus.scanners.sqli import boolean_injectable, detect_sql_error
 
 
 def test_detect_mysql_error():

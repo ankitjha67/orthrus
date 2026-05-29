@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Severity
-from hydra.scanners.auth import cookie_issues
+from orthrus.core.schemas import Severity
+from orthrus.scanners.auth import cookie_issues
 
 
 def _titles(issues) -> set[str]:

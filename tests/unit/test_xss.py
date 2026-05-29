@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import html
 
-from hydra.core.schemas import Confidence, Severity
-from hydra.scanners.stored_xss import _payload as stored_payload
-from hydra.scanners.xss import (
+from orthrus.core.schemas import Confidence, Severity
+from orthrus.scanners.stored_xss import _payload as stored_payload
+from orthrus.scanners.xss import (
     build_payload,
     classify,
     detect_reflection,

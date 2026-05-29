@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hydra.core.browser import CapturedRequest
-from hydra.core.schemas import HttpMethod, ParamLocation
-from hydra.recon.browser_crawl import endpoint_from_capture
+from orthrus.core.browser import CapturedRequest
+from orthrus.core.schemas import HttpMethod, ParamLocation
+from orthrus.recon.browser_crawl import endpoint_from_capture
 
 
 def test_json_body_becomes_json_params():

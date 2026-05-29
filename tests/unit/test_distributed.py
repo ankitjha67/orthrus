@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.distributed.dispatcher import load_targets, partition_targets
+from orthrus.distributed.dispatcher import load_targets, partition_targets
 
 
 def test_partition_round_robin():

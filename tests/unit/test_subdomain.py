@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.recon.subdomain_enum import parse_crtsh
+from orthrus.recon.subdomain_enum import parse_crtsh
 
 
 def test_parse_crtsh_extracts_in_domain_subs():

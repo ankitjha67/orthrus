@@ -1,4 +1,4 @@
-"""Intentionally-vulnerable local target for HYDRA integration tests.
+"""Intentionally-vulnerable local target for ORTHRUS integration tests.
 
 Binds to 127.0.0.1 only. Each route/behaviour simulates one vuln class so the
 scanners can run end-to-end against a target we own. Do NOT deploy this.
@@ -126,7 +126,7 @@ APP_JS = (
     "const ws=new WebSocket('ws://127.0.0.1:8732/ws');"
     "const AWS_KEY='AKIAIOSFODNN7EXAMPLE';"
 )
-ENV_FILE = "SECRET_KEY=hydra-prod-123\nDATABASE_URL=postgres://u:p@db/app\n"
+ENV_FILE = "SECRET_KEY=orthrus-prod-123\nDATABASE_URL=postgres://u:p@db/app\n"
 GIT_HEAD = "ref: refs/heads/main\n"
 
 # Stored XSS: comments are rendered into HTML without sanitization.

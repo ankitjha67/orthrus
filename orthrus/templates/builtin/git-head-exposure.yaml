@@ -1,0 +1,30 @@
+id: git-head-exposure
+info:
+  name: Exposed .git/HEAD (Source Repository)
+  author: orthrus
+  severity: medium
+  description: >-
+    The .git/HEAD file is reachable, indicating an exposed Git repository. The
+    full source tree and history can often be reconstructed from it.
+  remediation: >-
+    Block access to the .git directory at the web server/CDN; never deploy the
+    VCS metadata to production.
+  tags:
+    - exposure
+    - git
+  cwe: CWE-538
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.git/HEAD"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "ref:"
+          - "refs/heads"
+        condition: and

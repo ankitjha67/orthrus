@@ -12,9 +12,9 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from hydra import main
-from hydra.core.config import ScanConfig, ScopeConfig, Settings
-from hydra.core.orchestrator import Orchestrator
+from orthrus import main
+from orthrus.core.config import ScanConfig, ScopeConfig, Settings
+from orthrus.core.orchestrator import Orchestrator
 
 
 def _make_orch(*, quiet: bool) -> Orchestrator:
@@ -28,14 +28,14 @@ def _make_orch(*, quiet: bool) -> Orchestrator:
 
 def test_section_suppressed_when_quiet():
     orch = _make_orch(quiet=True)
-    with patch("hydra.core.orchestrator.section") as sect:
+    with patch("orthrus.core.orchestrator.section") as sect:
         orch._section("PHASE · RECON")
     sect.assert_not_called()
 
 
 def test_section_printed_when_not_quiet():
     orch = _make_orch(quiet=False)
-    with patch("hydra.core.orchestrator.section") as sect:
+    with patch("orthrus.core.orchestrator.section") as sect:
         orch._section("PHASE · RECON")
     sect.assert_called_once()
 

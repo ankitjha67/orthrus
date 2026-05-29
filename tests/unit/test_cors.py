@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Severity
-from hydra.scanners.cors import analyze_cors
+from orthrus.core.schemas import Severity
+from orthrus.scanners.cors import analyze_cors
 
 URL = "https://api.target.com/data"
-EVIL = "https://hydra-arbitrary.example"
+EVIL = "https://orthrus-arbitrary.example"
 
 
 def test_no_acao_is_clean():

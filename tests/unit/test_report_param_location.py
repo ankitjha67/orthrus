@@ -6,13 +6,13 @@ either the ORM column or the generator dict is caught.
 
 from __future__ import annotations
 
-from hydra.core.schemas import Finding, ParamLocation, Severity
-from hydra.db.store import Store
-from hydra.reporting.generator import _build_context, _write_csv
+from orthrus.core.schemas import Finding, ParamLocation, Severity
+from orthrus.db.store import Store
+from orthrus.reporting.generator import _build_context, _write_csv
 
 
 async def test_report_surfaces_body_param_location(tmp_path):
-    store = Store(f"sqlite+aiosqlite:///{(tmp_path / 'hydra.db').as_posix()}")
+    store = Store(f"sqlite+aiosqlite:///{(tmp_path / 'orthrus.db').as_posix()}")
     await store.init()
     try:
         scan_id = "scan-1"

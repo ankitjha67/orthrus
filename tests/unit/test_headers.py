@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.headers import analyze_headers
+from orthrus.scanners.headers import analyze_headers
 
 
 def _titles(findings) -> set[str]:

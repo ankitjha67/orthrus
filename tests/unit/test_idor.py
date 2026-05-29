@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.idor import idor_signal
+from orthrus.scanners.idor import idor_signal
 
 ORIGINAL = "User profile: Alice, alice@example.com, member since 2020 " + "x" * 80
 NEIGHBOR = "User profile: Bob, bob@example.com, member since 2021 " + "y" * 80

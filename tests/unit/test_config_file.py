@@ -1,4 +1,4 @@
-"""`hydra scan --config file.toml`: file-supplied option defaults.
+"""`orthrus scan --config file.toml`: file-supplied option defaults.
 
 Two layers: the pure ``_config_to_default_map`` translation (key normalisation
 + array joining) and the Click wiring, where a config-supplied target satisfies
@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from hydra import main
+from orthrus import main
 
 
 # --------------------------------------------------------------- pure translation
@@ -44,7 +44,7 @@ def test_config_accepts_flat_document():
 
 # ------------------------------------------------------------------- CLI wiring
 def _write(tmp_path, body: str):
-    path = tmp_path / "hydra.toml"
+    path = tmp_path / "orthrus.toml"
     path.write_text(body, encoding="utf-8")
     return str(path)
 

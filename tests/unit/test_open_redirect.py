@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.open_redirect import ATTACKER_HOST, is_open_redirect
+from orthrus.scanners.open_redirect import ATTACKER_HOST, is_open_redirect
 
 
 def test_absolute_attacker_url():

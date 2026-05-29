@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from hydra.core.schemas import Severity
-from hydra.reporting.cvss import (
+from orthrus.core.schemas import Severity
+from orthrus.reporting.cvss import (
     DEFAULT_VECTORS,
     DEFAULT_VECTORS_V4,
     base_score,
@@ -66,7 +66,7 @@ def test_v4_for_returns_vector_and_score():
 
 
 def test_compliance_maps_cover_scanners():
-    from hydra.reporting.generator import MITRE_ATTACK, OWASP_2021, PCI_DSS
+    from orthrus.reporting.generator import MITRE_ATTACK, OWASP_2021, PCI_DSS
 
     for vt in ("sqli", "xss", "ssrf", "tls", "cve", "default-creds"):
         assert vt in OWASP_2021

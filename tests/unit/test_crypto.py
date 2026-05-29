@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.utils.crypto import decrypt, encrypt, generate_key, is_encrypted, protect
+from orthrus.utils.crypto import decrypt, encrypt, generate_key, is_encrypted, protect
 
 
 def test_roundtrip():

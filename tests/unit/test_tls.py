@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Severity
-from hydra.scanners.tls_analyzer import classify_tls
+from orthrus.core.schemas import Severity
+from orthrus.scanners.tls_analyzer import classify_tls
 
 
 def _titles(issues) -> set[str]:

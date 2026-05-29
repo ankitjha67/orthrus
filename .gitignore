@@ -9,11 +9,11 @@ dist/
 venv/
 env/
 
-# Hydra runtime artifacts
+# Orthrus runtime artifacts
 *.sqlite
 *.sqlite3
 *.db
-hydra_report*
+orthrus_report*
 scan_data/
 evidence/
 screenshots/
@@ -44,7 +44,7 @@ htmlcov/
 Thumbs.db
 
 # Internal spec / PRD — kept local, never published
-HYDRA_PRD_v1.0.docx
+ORTHRUS_PRD_v1.0.docx
 *.docx
 _prd_extracted.txt
 _prd_unpacked/

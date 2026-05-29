@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hydra.scanners.auth import is_session_cookie, shannon_entropy, token_strength_bits
-from hydra.scanners.default_creds import find_login_fields, looks_like_success
-from hydra.scanners.race_condition import race_signal
+from orthrus.scanners.auth import is_session_cookie, shannon_entropy, token_strength_bits
+from orthrus.scanners.default_creds import find_login_fields, looks_like_success
+from orthrus.scanners.race_condition import race_signal
 
 
 def test_race_signal_partial_success():

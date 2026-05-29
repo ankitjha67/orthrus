@@ -7,15 +7,15 @@ import time
 
 import httpx
 
-from hydra.core.config import ScopeConfig
-from hydra.core.http_client import HttpClient
-from hydra.utils.rate_limiter import (
+from orthrus.core.config import ScopeConfig
+from orthrus.core.http_client import HttpClient
+from orthrus.utils.rate_limiter import (
     AdaptiveRate,
     RateLimiter,
     TokenBucket,
     parse_retry_after,
 )
-from hydra.utils.scope import ScopeValidator
+from orthrus.utils.scope import ScopeValidator
 
 
 # --------------------------------------------------------- parse_retry_after

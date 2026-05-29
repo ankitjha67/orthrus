@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from hydra.core.config import ScopeConfig
-from hydra.utils.scope import ScopeValidator, ScopeViolation
+from orthrus.core.config import ScopeConfig
+from orthrus.utils.scope import ScopeValidator, ScopeViolation
 
 
 def make(**kwargs) -> ScopeValidator:

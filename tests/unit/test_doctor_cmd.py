@@ -1,4 +1,4 @@
-"""`hydra doctor`: read-only, network-free environment probe.
+"""`orthrus doctor`: read-only, network-free environment probe.
 
 The JSON path is the deterministic contract; the human table is exercised for a
 clean exit. Detection is by import/binary lookup only, so the command must
@@ -11,7 +11,7 @@ import json
 
 from click.testing import CliRunner
 
-from hydra import main
+from orthrus import main
 
 
 def test_doctor_json_reports_capabilities():
@@ -19,7 +19,7 @@ def test_doctor_json_reports_capabilities():
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
 
-    assert data["hydra_version"]
+    assert data["orthrus_version"]
     assert data["python"]
     caps = data["capabilities"]
     assert len(caps) >= 5

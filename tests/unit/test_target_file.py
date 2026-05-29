@@ -1,4 +1,4 @@
-"""`hydra scan --target-file`: local sequential batch scanning.
+"""`orthrus scan --target-file`: local sequential batch scanning.
 
 Two halves: the pure file/path helpers (target parsing, per-target report
 naming) and the CLI guarantees — each target becomes its own scan with its own
@@ -12,8 +12,8 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from hydra import main
-from hydra.core.config import ScanConfig, ScopeConfig
+from orthrus import main
+from orthrus.core.config import ScanConfig, ScopeConfig
 
 
 def test_read_targets_skips_comments_and_blanks(tmp_path):
@@ -30,7 +30,7 @@ def test_read_targets_skips_comments_and_blanks(tmp_path):
 
 
 def test_batch_output_appends_host_slug():
-    assert main._batch_output("hydra_report", "http://t.example/x?y=1") == "hydra_report_t.example"
+    assert main._batch_output("orthrus_report", "http://t.example/x?y=1") == "orthrus_report_t.example"
     assert main._batch_output("out", "10.0.0.5:8080") == "out_10.0.0.5"
     # Stdout is preserved untouched (the operator owns the concatenation).
     assert main._batch_output("-", "http://t.example/") == "-"
@@ -70,7 +70,7 @@ def test_batch_runs_each_target_with_own_scope_and_report(tmp_path):
     assert [c.target for c in seen] == ["http://a.example/", "http://b.example/"]
     # Each target is its own scan (no shared id) with a distinct report path.
     assert all(c.scan_id is None for c in seen)
-    assert [c.output for c in seen] == ["hydra_report_a.example", "hydra_report_b.example"]
+    assert [c.output for c in seen] == ["orthrus_report_a.example", "orthrus_report_b.example"]
     # Per-target scope: each scope is derived from its own host, not shared.
     assert "a.example" in seen[0].scope.domains
     assert "b.example" in seen[1].scope.domains
@@ -120,7 +120,7 @@ def test_batch_summary_rolls_up_per_target(tmp_path):
     # A pass-through asyncio.run returns _run_scan's value unchanged, so the
     # per-target counts flow into the roll-up. The summary renders to the shared
     # console (stderr), captured here as the other terminal-output tests do.
-    from hydra.utils.logger import console
+    from orthrus.utils.logger import console
 
     p = tmp_path / "targets.txt"
     p.write_text("http://a.example/\nhttp://b.example/\n", encoding="utf-8")
@@ -147,7 +147,7 @@ def test_batch_summary_rolls_up_per_target(tmp_path):
 
 
 def test_batch_summary_empty_is_noop():
-    from hydra.utils.logger import console
+    from orthrus.utils.logger import console
 
     with console.capture() as cap:
         main._print_batch_summary([])

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from hydra.core.schemas import (
+from orthrus.core.schemas import (
     Endpoint,
     Evidence,
     Finding,
@@ -13,13 +13,13 @@ from hydra.core.schemas import (
     ParamLocation,
     Severity,
 )
-from hydra.exploits._replay import (
+from orthrus.exploits._replay import (
     find_endpoint,
     payload_from_evidence,
     reissue,
     send_value,
 )
-from hydra.utils.encoding import with_query_param
+from orthrus.utils.encoding import with_query_param
 
 
 def _finding(**kw: object) -> Finding:

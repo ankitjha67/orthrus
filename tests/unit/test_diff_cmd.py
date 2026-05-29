@@ -1,4 +1,4 @@
-"""`hydra diff`: compare two scans of the same target (retest view).
+"""`orthrus diff`: compare two scans of the same target (retest view).
 
 Findings are matched across scans by type + URL + parameter, then partitioned
 into NEW (regressions), FIXED, and STILL-PRESENT. The JSON path is the machine
@@ -13,9 +13,9 @@ import json
 
 from click.testing import CliRunner
 
-from hydra import main
-from hydra.core.schemas import Finding, Severity
-from hydra.db.store import Store
+from orthrus import main
+from orthrus.core.schemas import Finding, Severity
+from orthrus.db.store import Store
 
 
 def _db_url(tmp_path) -> str:
@@ -43,7 +43,7 @@ async def _seed(db_url: str) -> None:
 def test_diff_json_partitions_new_fixed_persisting(tmp_path, monkeypatch):
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli, ["--no-banner", "diff", "--base", "base", "--against", "against", "--json"]
@@ -58,7 +58,7 @@ def test_diff_json_partitions_new_fixed_persisting(tmp_path, monkeypatch):
 def test_diff_fail_on_new_exits_nonzero(tmp_path, monkeypatch):
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli,
@@ -71,7 +71,7 @@ def test_diff_against_self_has_no_new(tmp_path, monkeypatch):
     # Diffing a scan against itself: nothing new, nothing fixed -> gate passes.
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli,
@@ -88,7 +88,7 @@ def test_diff_severity_filter_excludes_below_floor(tmp_path, monkeypatch):
     # longer reported as persisting.
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli,
@@ -105,7 +105,7 @@ def test_diff_severity_filter_excludes_below_floor(tmp_path, monkeypatch):
 def test_diff_unknown_scan_errors(tmp_path, monkeypatch):
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli, ["--no-banner", "diff", "--base", "base", "--against", "ghost", "--json"]
@@ -129,11 +129,11 @@ def test_partition_diff_is_pure():
 
 
 def test_diff_human_render(tmp_path, monkeypatch):
-    from hydra.utils.logger import console
+    from orthrus.utils.logger import console
 
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     base_rows, against_rows = asyncio.run(main._load_diff_rows("base", "against", None))
     parts = main._partition_diff(base_rows, against_rows)

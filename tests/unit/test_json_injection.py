@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from hydra.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
-from hydra.scanners._injection import injection_points, send, used_url
+from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
+from orthrus.scanners._injection import injection_points, send, used_url
 
 
 class FakeResp:

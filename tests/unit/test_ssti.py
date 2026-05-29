@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.ssti import ssti_evaluated
+from orthrus.scanners.ssti import ssti_evaluated
 
 
 def test_evaluated_product_present_expression_absent():

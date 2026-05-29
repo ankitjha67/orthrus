@@ -1,7 +1,7 @@
 """Report output to stdout (``-o -``): pipeline-friendly text reports.
 
 Text formats stream to stdout instead of a file when the output path is "-"
-(so ``hydra report --format json -o - | jq`` works); PDF, being binary, is
+(so ``orthrus report --format json -o - | jq`` works); PDF, being binary, is
 rejected. generate_report returns "-" to signal the report went to stdout.
 """
 
@@ -11,9 +11,9 @@ import json
 
 import pytest
 
-from hydra.core.schemas import Finding, Severity
-from hydra.db.store import Store
-from hydra.reporting.generator import generate_report
+from orthrus.core.schemas import Finding, Severity
+from orthrus.db.store import Store
+from orthrus.reporting.generator import generate_report
 
 
 async def _store_with_finding(tmp_path) -> Store:
@@ -49,7 +49,7 @@ async def test_markdown_report_streams_to_stdout(tmp_path, capsys):
 
     assert path == "-"
     out = capsys.readouterr().out
-    assert out.startswith("# HYDRA Security Report")
+    assert out.startswith("# ORTHRUS Security Report")
     assert "XSS finding" in out
 
 

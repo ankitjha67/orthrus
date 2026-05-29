@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.graphql import introspection_enabled, is_graphql_response
+from orthrus.scanners.graphql import introspection_enabled, is_graphql_response
 
 
 def test_introspection_enabled_from_schema():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import unquote
 
-from hydra.scanners._evasion import (
+from orthrus.scanners._evasion import (
     comment_spacing,
     double_url_encode,
     html_entity,

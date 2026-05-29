@@ -1,4 +1,4 @@
-# HYDRA application/worker image (PRD §15.2).
+# ORTHRUS application/worker image (PRD §15.2).
 # Uses Python 3.12 (broad wheel availability) — the code targets 3.11+.
 FROM python:3.12-slim
 
@@ -10,10 +10,10 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml README.md ./
-COPY hydra ./hydra
+COPY orthrus ./orthrus
 
 RUN pip install --no-cache-dir -e ".[scanners,reporting,browser,distributed,postgres]" \
     && python -m playwright install --with-deps chromium
 
-ENTRYPOINT ["hydra"]
+ENTRYPOINT ["orthrus"]
 CMD ["--help"]

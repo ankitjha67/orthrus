@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from hydra.recon.api_discovery import looks_like_api_spec
-from hydra.recon.port_scan import parse_nmap
-from hydra.recon.waf_detect import detect_waf
-from hydra.recon.wayback import parse_wayback
+from orthrus.recon.api_discovery import looks_like_api_spec
+from orthrus.recon.port_scan import parse_nmap
+from orthrus.recon.waf_detect import detect_waf
+from orthrus.recon.wayback import parse_wayback
 
 
 def test_detect_cloudflare_header():

@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import json
 
-from hydra.core.schemas import Confidence, Finding, ParamLocation, Severity
-from hydra.db.store import Store
-from hydra.reporting.generator import (
+from orthrus.core.schemas import Confidence, Finding, ParamLocation, Severity
+from orthrus.db.store import Store
+from orthrus.reporting.generator import (
     _build_context,
     _cwe_tag,
     _finding_fingerprint,
@@ -93,7 +93,7 @@ async def test_sarif_document_structure(tmp_path):
     assert doc["version"] == "2.1.0"
     assert doc["$schema"].endswith("sarif-2.1.0.json")
     run = doc["runs"][0]
-    assert run["tool"]["driver"]["name"] == "HYDRA"
+    assert run["tool"]["driver"]["name"] == "ORTHRUS"
 
     # Rules are deduplicated by vuln_type: {sqli, security-headers}.
     rules = run["tool"]["driver"]["rules"]
@@ -110,14 +110,14 @@ async def test_sarif_document_structure(tmp_path):
         assert results[0]["ruleId"] in {"sqli", "security-headers"}
         assert rules[res["ruleIndex"]]["id"] == res["ruleId"]
         assert res["locations"][0]["physicalLocation"]["artifactLocation"]["uri"]
-        assert res["partialFingerprints"]["hydraFindingHash/v1"]
+        assert res["partialFingerprints"]["orthrusFindingHash/v1"]
 
     sqli_results = [r for r in results if r["ruleId"] == "sqli"]
     assert len(sqli_results) == 2
     assert all(r["level"] == "error" for r in sqli_results)
     assert all(r["properties"]["security-severity"] == "9.8" for r in sqli_results)
     # distinct parameters -> distinct fingerprints
-    fps = {r["partialFingerprints"]["hydraFindingHash/v1"] for r in sqli_results}
+    fps = {r["partialFingerprints"]["orthrusFindingHash/v1"] for r in sqli_results}
     assert len(fps) == 2
 
     headers_result = next(r for r in results if r["ruleId"] == "security-headers")
@@ -125,7 +125,7 @@ async def test_sarif_document_structure(tmp_path):
 
 
 async def test_generate_report_writes_sarif_file(tmp_path):
-    from hydra.reporting.generator import generate_report
+    from orthrus.reporting.generator import generate_report
 
     store = Store(f"sqlite+aiosqlite:///{(tmp_path / 'h.db').as_posix()}")
     await store.init()

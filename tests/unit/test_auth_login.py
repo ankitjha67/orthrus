@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.auth import extract_token, parse_login_data, perform_login
-from hydra.core.session import Session
+from orthrus.core.auth import extract_token, parse_login_data, perform_login
+from orthrus.core.session import Session
 
 
 class FakeResp:

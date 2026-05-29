@@ -6,9 +6,9 @@ import json
 
 import pytest
 
-from hydra.benchmark.runner import load_truth
-from hydra.benchmark.scorer import BenchmarkReport, Expected, match, score
-from hydra.core.schemas import Finding, Severity
+from orthrus.benchmark.runner import load_truth
+from orthrus.benchmark.scorer import BenchmarkReport, Expected, match, score
+from orthrus.core.schemas import Finding, Severity
 
 
 def _finding(vuln_type: str, url: str, parameter: str | None = None) -> Finding:

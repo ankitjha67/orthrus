@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
-from hydra.core.config import ScanConfig, ScopeConfig, Settings
-from hydra.core.metrics import ScannerMetric, top_scanners, totals
-from hydra.core.orchestrator import Orchestrator
-from hydra.core.schemas import Aggressiveness
+from orthrus.core.config import ScanConfig, ScopeConfig, Settings
+from orthrus.core.metrics import ScannerMetric, top_scanners, totals
+from orthrus.core.orchestrator import Orchestrator
+from orthrus.core.schemas import Aggressiveness
 
 
 def test_requests_per_second():
@@ -162,7 +162,7 @@ async def test_run_scan_records_metrics_and_isolates_crash(monkeypatch):
     orch.ctx = SimpleNamespace(http=http, findings=[], finding_ids={})
     orch.store = _Store()
     monkeypatch.setattr(
-        "hydra.core.orchestrator.get_scanners",
+        "orthrus.core.orchestrator.get_scanners",
         lambda modules: [_GoodScanner(http), _CrashScanner(http)],
     )
 

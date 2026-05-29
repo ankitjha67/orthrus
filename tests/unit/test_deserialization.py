@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.deserialization import detect_serialized
+from orthrus.scanners.deserialization import detect_serialized
 
 
 def test_java_base64():

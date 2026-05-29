@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hydra.scanners.cmd_injection import cmd_executed
+from orthrus.scanners.cmd_injection import cmd_executed
 
-CANARY = "HYDRADEADBEEF"
+CANARY = "ORTHRUSDEADBEEF"
 
 
 def test_canary_as_output_is_execution():

@@ -1,5 +1,5 @@
 """Tests for resumable scans: phase checkpointing, DB rehydration, and the
-orchestrator's skip-completed-phases logic (`hydra scan --resume`)."""
+orchestrator's skip-completed-phases logic (`orthrus scan --resume`)."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from hydra.core import schemas
-from hydra.core.config import ScanConfig, ScopeConfig, Settings
-from hydra.core.orchestrator import Orchestrator
-from hydra.db.store import Store
+from orthrus.core import schemas
+from orthrus.core.config import ScanConfig, ScopeConfig, Settings
+from orthrus.core.orchestrator import Orchestrator
+from orthrus.db.store import Store
 
 
 def _db_url(tmp_path, name: str = "h.db") -> str:
@@ -152,7 +152,7 @@ async def test_resume_skips_completed_phases(tmp_path, monkeypatch):
     def _boom(_modules):
         raise AssertionError("get_scanners must not run for an already-completed scan phase")
 
-    monkeypatch.setattr("hydra.core.orchestrator.get_scanners", _boom)
+    monkeypatch.setattr("orthrus.core.orchestrator.get_scanners", _boom)
 
     orch = Orchestrator(config, Settings(db_url=db_url), resume=True)
     await orch.setup()
@@ -178,7 +178,7 @@ async def test_resume_runs_remaining_phase(tmp_path, monkeypatch):
     await _seed(seed, config, phase="recon")
     await seed.close()
 
-    monkeypatch.setattr("hydra.core.orchestrator.get_scanners", lambda _modules: [])
+    monkeypatch.setattr("orthrus.core.orchestrator.get_scanners", lambda _modules: [])
 
     orch = Orchestrator(config, Settings(db_url=db_url), resume=True)
     await orch.setup()
@@ -200,7 +200,7 @@ async def test_resume_missing_scan_raises(tmp_path):
     await orch.store.close()
 
 
-# ------------------------------------------------------- scan listing (hydra scans)
+# ------------------------------------------------------- scan listing (orthrus scans)
 async def test_list_scans_orders_and_counts(tmp_path):
     store = Store(_db_url(tmp_path))
     await store.init()

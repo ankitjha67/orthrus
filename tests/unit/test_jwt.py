@@ -6,8 +6,8 @@ import time
 
 import jwt
 
-from hydra.core.schemas import Severity
-from hydra.scanners.jwt_analyzer import analyze_jwt, find_jwts
+from orthrus.core.schemas import Severity
+from orthrus.scanners.jwt_analyzer import analyze_jwt, find_jwts
 
 
 def _titles(issues) -> str:

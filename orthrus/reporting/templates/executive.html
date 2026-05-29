@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Executive Summary{% endblock %}
+{% block heading %}Executive Summary{% endblock %}
+{% block content %}
+<h2>Risk Overview</h2>
+<p>
+  This assessment of <code>{{ scan.target }}</code> identified
+  <strong>{{ summary.total }}</strong> issues, of which
+  <strong>{{ summary.counts.critical + summary.counts.high }}</strong> are high-risk and
+  <strong>{{ summary.confirmed }}</strong> were actively confirmed (proven exploitable, not
+  theoretical). Confirmed high-risk issues warrant immediate remediation.
+</p>
+
+<h2>Severity Distribution</h2>
+{% for sev in ["critical", "high", "medium", "low", "info"] %}
+  {{ sevbar(sev, summary.counts[sev], summary.total) }}
+{% endfor %}
+
+<h2>Top Findings</h2>
+<table>
+  <tr><th>Severity</th><th>CVSS</th><th>Status</th><th>Issue</th><th>Affected</th></tr>
+  {% for f in top_findings %}
+  <tr>
+    <td><span class="sev sev-{{ f.severity }}">{{ f.severity }}</span></td>
+    <td class="cvss">{{ "%.1f"|format(f.cvss_score or 0) }}</td>
+    <td><span class="conf conf-{{ f.confidence }}">{{ f.confidence }}</span></td>
+    <td>{{ f.title }}</td>
+    <td><code>{{ f.url }}</code></td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No findings.</td></tr>
+  {% endfor %}
+</table>
+
+<h2>Recommended Priorities</h2>
+<ol>
+  {% if summary.counts.critical or summary.counts.high %}
+  <li>Remediate the {{ summary.counts.critical + summary.counts.high }} critical/high findings
+      first — these allow data theft, code execution, or account compromise.</li>
+  {% endif %}
+  <li>Validate fixes by re-running the assessment; ORTHRUS re-confirms each finding.</li>
+  <li>Address configuration weaknesses (security headers, TLS, cookies) as hardening.</li>
+</ol>
+{% endblock %}

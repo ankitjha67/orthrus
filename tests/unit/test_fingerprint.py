@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.recon.tech_fingerprint import extract_title, identify
+from orthrus.recon.tech_fingerprint import extract_title, identify
 
 
 def _names(techs) -> set[str]:

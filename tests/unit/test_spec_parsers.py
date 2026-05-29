@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import HttpMethod, ParamLocation
-from hydra.recon.spec_parsers import (
+from orthrus.core.schemas import HttpMethod, ParamLocation
+from orthrus.recon.spec_parsers import (
     detect_format,
     load_endpoints,
     parse_graphql_introspection,

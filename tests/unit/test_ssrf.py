@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.ssrf import detect_metadata_leak
+from orthrus.scanners.ssrf import detect_metadata_leak
 
 
 def test_aws_metadata_signature():

@@ -1,4 +1,4 @@
-"""`hydra findings`: read-only terminal triage view of a stored scan.
+"""`orthrus findings`: read-only terminal triage view of a stored scan.
 
 Complements ``scans`` (list scans) and ``report`` (file export): a quick,
 network-free look at what a scan found. The JSON path is the machine contract
@@ -13,9 +13,9 @@ import json
 
 from click.testing import CliRunner
 
-from hydra import main
-from hydra.core.schemas import Finding, Severity
-from hydra.db.store import Store
+from orthrus import main
+from orthrus.core.schemas import Finding, Severity
+from orthrus.db.store import Store
 
 
 def _db_url(tmp_path) -> str:
@@ -44,7 +44,7 @@ async def _seed(db_url: str) -> None:
 def test_findings_json_lists_all_severity_sorted(tmp_path, monkeypatch):
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(main.cli, ["--no-banner", "findings", "--scan-id", "s", "--json"])
     assert result.exit_code == 0, result.output
@@ -57,7 +57,7 @@ def test_findings_json_lists_all_severity_sorted(tmp_path, monkeypatch):
 def test_findings_severity_filter_drops_low(tmp_path, monkeypatch):
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     result = CliRunner().invoke(
         main.cli, ["--no-banner", "findings", "--scan-id", "s", "--severity", "high", "--json"]
@@ -71,11 +71,11 @@ def test_findings_severity_filter_drops_low(tmp_path, monkeypatch):
 def test_findings_human_table_renders(tmp_path, monkeypatch):
     # The themed table prints to the shared stderr console, which CliRunner can't
     # capture; use console.capture() (as the dry-run plan test does).
-    from hydra.utils.logger import console
+    from orthrus.utils.logger import console
 
     db_url = _db_url(tmp_path)
     asyncio.run(_seed(db_url))
-    monkeypatch.setenv("HYDRA_DB_URL", db_url)
+    monkeypatch.setenv("ORTHRUS_DB_URL", db_url)
 
     with console.capture() as cap:
         asyncio.run(main._list_findings("s", None, False))
@@ -88,7 +88,7 @@ def test_findings_human_table_renders(tmp_path, monkeypatch):
 def test_findings_unknown_scan_emits_no_json(tmp_path, monkeypatch):
     # No such scan: the JSON branch must not run, so stdout stays empty (the
     # error goes to stderr) and a consumer can tell "absent" from "[]" (no rows).
-    monkeypatch.setenv("HYDRA_DB_URL", _db_url(tmp_path))
+    monkeypatch.setenv("ORTHRUS_DB_URL", _db_url(tmp_path))
     result = CliRunner().invoke(
         main.cli, ["--no-banner", "findings", "--scan-id", "nope", "--json"]
     )

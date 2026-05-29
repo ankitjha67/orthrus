@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hydra.scanners.lfi import detect_lfi
+from orthrus.scanners.lfi import detect_lfi
 
 
 def test_detect_etc_passwd():

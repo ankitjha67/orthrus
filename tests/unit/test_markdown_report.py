@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Confidence, Finding, ParamLocation, Severity
-from hydra.db.store import Store
-from hydra.reporting.generator import _build_context, _md_cell, _write_markdown
+from orthrus.core.schemas import Confidence, Finding, ParamLocation, Severity
+from orthrus.db.store import Store
+from orthrus.reporting.generator import _build_context, _md_cell, _write_markdown
 
 
 def test_md_cell_escapes_pipes_and_newlines():
@@ -46,7 +46,7 @@ async def test_markdown_report_structure(tmp_path):
         await store.close()
 
     md = _write_markdown(context)
-    assert md.startswith("# HYDRA Security Report")
+    assert md.startswith("# ORTHRUS Security Report")
     assert "authorized security testing only" in md.lower()
     assert "## Summary" in md
     assert "## Findings" in md
@@ -73,7 +73,7 @@ async def test_markdown_report_empty_findings(tmp_path):
 
 
 async def test_generate_report_writes_markdown_file(tmp_path):
-    from hydra.reporting.generator import generate_report
+    from orthrus.reporting.generator import generate_report
 
     store = Store(f"sqlite+aiosqlite:///{(tmp_path / 'h.db').as_posix()}")
     await store.init()
@@ -90,5 +90,5 @@ async def test_generate_report_writes_markdown_file(tmp_path):
 
     assert path.endswith(".md")
     text = _read_text(path)
-    assert "# HYDRA Security Report" in text
+    assert "# ORTHRUS Security Report" in text
     assert "XSS" in text

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from hydra.core.schemas import Endpoint, HttpMethod, Param, ParamLocation, Severity
-from hydra.scanners.mass_assignment import (
+from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation, Severity
+from orthrus.scanners.mass_assignment import (
     PRIVILEGED_FIELDS,
     _base_body,
     _body_location,
@@ -13,23 +13,23 @@ from hydra.scanners.mass_assignment import (
 
 
 def test_detect_bound_fields_flags_reflected_nonces():
-    probes = {"role": "hydraAB0", "is_admin": "hydraAB1", "balance": "hydraAB2"}
+    probes = {"role": "orthrusAB0", "is_admin": "orthrusAB1", "balance": "orthrusAB2"}
     baseline = '{"id":"1","name":"guest","role":"user"}'
-    injected = '{"id":"1","name":"guest","role":"hydraAB0","is_admin":"hydraAB1"}'
+    injected = '{"id":"1","name":"guest","role":"orthrusAB0","is_admin":"orthrusAB1"}'
     bound = detect_bound_fields(probes, baseline, injected)
     assert set(bound) == {"role", "is_admin"}  # balance nonce not reflected
 
 
 def test_detect_bound_fields_ignores_nonces_present_in_baseline():
     # A nonce already in the baseline is not evidence of binding.
-    probes = {"role": "hydraXX0"}
-    baseline = "noise hydraXX0 noise"
-    injected = "noise hydraXX0 noise"
+    probes = {"role": "orthrusXX0"}
+    baseline = "noise orthrusXX0 noise"
+    injected = "noise orthrusXX0 noise"
     assert detect_bound_fields(probes, baseline, injected) == []
 
 
 def test_detect_bound_fields_empty_when_nothing_reflected():
-    probes = {"role": "hydraZZ0", "admin": "hydraZZ1"}
+    probes = {"role": "orthrusZZ0", "admin": "orthrusZZ1"}
     assert detect_bound_fields(probes, "baseline", "no privileged fields echoed") == []
 
 
