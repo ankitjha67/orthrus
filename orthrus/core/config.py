@@ -163,6 +163,13 @@ class ScanConfig(BaseModel):
     templates: str | None = None
 
     callback: str | None = None
+    # Out-of-band collaborator for blind/OOB detection (SSRF, blind XXE, etc.).
+    # When interactsh is on, register with a public/self-hosted Interactsh server
+    # so internet-reachable targets can call back; otherwise the local listener
+    # (reachable only by same-host targets) is used.
+    interactsh: bool = False
+    interactsh_server: str | None = None  # specific server host (else the public pool)
+    interactsh_token: str | None = None  # auth token for a self-hosted server
     no_exploit: bool = False
     use_browser: bool = True  # use Playwright for DOM/stored XSS + confirmation when available
     har_path: str | None = None  # if set, record a browser HAR for evidence (§7.3)

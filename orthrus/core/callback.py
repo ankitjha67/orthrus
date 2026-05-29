@@ -12,6 +12,10 @@ The architecture (CallbackClient) lets an Interactsh client drop in later.
 
 from __future__ import annotations
 
+import asyncio
+import base64
+import json
+import secrets
 import threading
 import time
 import uuid
@@ -22,6 +26,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from orthrus.utils.logger import get_logger
 
 logger = get_logger("callback")
+
+# xid-compatible alphabet for Interactsh correlation IDs / payload subdomains.
+_XID_ALPHABET = "0123456789abcdefghijklmnopqrstuv"
 
 
 @dataclass
@@ -139,4 +146,192 @@ class LocalCallbackServer(CallbackClient):
             self._httpd = None
 
 
-__all__ = ["CallbackClient", "LocalCallbackServer", "Interaction"]
+def _rand_id(length: int) -> str:
+    return "".join(secrets.choice(_XID_ALPHABET) for _ in range(length))
+
+
+class InteractshCallbackClient(CallbackClient):
+    """Real Interactsh OOB collaborator client (ProjectDiscovery protocol).
+
+    Registers an RSA public key with a public (oast.fun/oast.pro/...) or
+    self-hosted Interactsh server, mints a unique subdomain per payload, then
+    polls the server and decrypts the recorded interactions (DNS / HTTP / SMTP
+    callbacks). Each poll returns an AES key wrapped with our public key
+    (RSA-OAEP, SHA-256); the interactions are AES-128-CFB ciphertext.
+
+    Unlike :class:`LocalCallbackServer`, this reaches a real internet-resolvable
+    collaborator, so it detects blind/OOB vulns on targets that cannot route
+    back to the operator's host. It needs network egress to the server; when
+    registration fails the orchestrator falls back to the local listener.
+
+    Polling does not flow through the scope-enforced HttpClient by design: the
+    collaborator is operator infrastructure, not the engagement target.
+    """
+
+    DEFAULT_SERVERS = ("oast.fun", "oast.pro", "oast.site", "oast.online", "oast.me")
+
+    def __init__(
+        self,
+        server: str | None = None,
+        token: str | None = None,
+        *,
+        timeout: float = 20.0,
+    ) -> None:
+        self._servers = [server] if server else list(self.DEFAULT_SERVERS)
+        self._auth_token = token  # optional self-hosted server auth (-t)
+        self._timeout = timeout
+        self._domain = ""
+        self._correlation_id = _rand_id(20)
+        self._secret = str(uuid.uuid4())
+        self._private_key = None  # type: ignore[var-annotated]
+        self._registered = False
+        self._store: dict[str, list[Interaction]] = {}
+        self._lock = asyncio.Lock()
+        self._client = None  # type: ignore[var-annotated]
+
+    @property
+    def base_url(self) -> str:
+        return f"https://{self._domain}"
+
+    def new_token(self) -> tuple[str, str]:
+        # token == the 33-char subdomain label the server reports as unique-id.
+        host = f"{self._correlation_id}{_rand_id(13)}"
+        return host, f"https://{host}.{self._domain}"
+
+    async def start(self) -> None:
+        import httpx
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        self._private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        pub_pem = self._private_key.public_key().public_bytes(
+            serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo
+        )
+        pub_b64 = base64.b64encode(pub_pem).decode()
+        self._client = httpx.AsyncClient(timeout=self._timeout)
+        payload = {
+            "public-key": pub_b64,
+            "secret-key": self._secret,
+            "correlation-id": self._correlation_id,
+        }
+        headers = {"Content-Type": "application/json"}
+        if self._auth_token:
+            headers["Authorization"] = self._auth_token
+        for server in self._servers:
+            try:
+                resp = await self._client.post(
+                    f"https://{server}/register", json=payload, headers=headers
+                )
+            except httpx.HTTPError as exc:
+                logger.debug("interactsh register failed for %s: %s", server, exc)
+                continue
+            if resp.status_code == 200:
+                self._domain = server
+                self._registered = True
+                logger.info("registered with Interactsh collaborator %s", server)
+                return
+            logger.debug("interactsh %s register -> HTTP %s", server, resp.status_code)
+        await self._client.aclose()
+        self._client = None
+        raise RuntimeError("could not register with any Interactsh server")
+
+    @staticmethod
+    def _aes_decrypt(key: bytes, ciphertext: bytes) -> str:
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+
+        iv, body = ciphertext[:16], ciphertext[16:]
+        decryptor = Cipher(algorithms.AES(key), modes.CFB(iv)).decryptor()
+        return (decryptor.update(body) + decryptor.finalize()).decode("utf-8", "ignore")
+
+    def _decrypt_aes_key(self, wrapped_b64: str) -> bytes:
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+
+        return self._private_key.decrypt(  # type: ignore[union-attr]
+            base64.b64decode(wrapped_b64),
+            padding.OAEP(
+                mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                algorithm=hashes.SHA256(),
+                label=None,
+            ),
+        )
+
+    def _ingest(self, body: dict) -> None:
+        data = body.get("data") or []
+        wrapped = body.get("aes_key")
+        if not data or not wrapped:
+            return
+        aes_key = self._decrypt_aes_key(wrapped)
+        for item in data:
+            try:
+                obj = json.loads(self._aes_decrypt(aes_key, base64.b64decode(item)))
+            except (ValueError, TypeError):
+                continue
+            unique_id = obj.get("unique-id") or obj.get("full-id") or ""
+            self._store.setdefault(unique_id, []).append(
+                Interaction(
+                    token=unique_id,
+                    protocol=obj.get("protocol", "dns"),
+                    source_ip=obj.get("remote-address", ""),
+                    method=obj.get("q-type", ""),
+                    path=obj.get("full-id", ""),
+                    body=obj.get("raw-request", ""),
+                )
+            )
+
+    async def _drain(self) -> None:
+        import httpx
+
+        if not self._registered or self._client is None:
+            return
+        headers = {"Authorization": self._auth_token} if self._auth_token else {}
+        try:
+            resp = await self._client.get(
+                f"https://{self._domain}/poll",
+                params={"id": self._correlation_id, "secret": self._secret},
+                headers=headers,
+            )
+        except httpx.HTTPError as exc:
+            logger.debug("interactsh poll failed: %s", exc)
+            return
+        if resp.status_code != 200:
+            return
+        try:
+            self._ingest(resp.json())
+        except (ValueError, KeyError) as exc:
+            logger.debug("interactsh poll decode failed: %s", exc)
+
+    async def poll(self, token: str) -> list[Interaction]:
+        async with self._lock:
+            await self._drain()
+            hits = list(self._store.get(token, []))
+            if not hits:
+                # Tolerate unique-id vs full-id representation differences.
+                for key, items in self._store.items():
+                    if key and (token in key or key in token):
+                        hits.extend(items)
+            return hits
+
+    async def stop(self) -> None:
+        import httpx
+
+        if self._client is None:
+            return
+        try:
+            await self._client.post(
+                f"https://{self._domain}/deregister",
+                json={"correlation-id": self._correlation_id, "secret-key": self._secret},
+                headers={"Authorization": self._auth_token} if self._auth_token else {},
+            )
+        except httpx.HTTPError:
+            pass
+        await self._client.aclose()
+        self._client = None
+
+
+__all__ = [
+    "CallbackClient",
+    "Interaction",
+    "InteractshCallbackClient",
+    "LocalCallbackServer",
+]

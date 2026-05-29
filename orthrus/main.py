@@ -364,7 +364,18 @@ def cli(no_banner: bool) -> None:
     help="Run declarative templates: 'builtin' for the bundled set, or a file/directory path.",
 )
 @click.option("--user-agent", default="random", help="User-Agent string or 'random'.")
-@click.option("--callback", default=None, help="Callback server URL for OOB detection.")
+@click.option("--callback", default=None, help="Advertise host for the local OOB listener.")
+@click.option(
+    "--interactsh",
+    is_flag=True,
+    help="Use a real Interactsh OOB collaborator (public pool) for blind/OOB detection.",
+)
+@click.option(
+    "--interactsh-server",
+    default=None,
+    help="Specific Interactsh server host (default: public pool); implies --interactsh.",
+)
+@click.option("--interactsh-token", default=None, help="Auth token for a self-hosted Interactsh server.")
 @click.option("--no-exploit", is_flag=True, help="Skip exploitation confirmation phase.")
 @click.option("--browser/--no-browser", default=True, help="Use headless browser (DOM/stored XSS).")
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
@@ -452,6 +463,9 @@ def scan(
     templates: str | None,
     user_agent: str,
     callback: str | None,
+    interactsh: bool,
+    interactsh_server: str | None,
+    interactsh_token: str | None,
     no_exploit: bool,
     browser: bool,
     exclude_paths: str | None,
@@ -560,6 +574,9 @@ def scan(
             import_spec=import_spec,
             templates=templates,
             callback=callback,
+            interactsh=interactsh,
+            interactsh_server=interactsh_server,
+            interactsh_token=interactsh_token,
             no_exploit=no_exploit,
             use_browser=browser,
             har_path=har,

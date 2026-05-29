@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from time import perf_counter
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from rich.table import Table
@@ -19,7 +20,7 @@ from orthrus.core import schemas
 from orthrus.core.auth import LoginResult, acquire_oauth2_token, perform_login
 from orthrus.core.baseline import build_baseline
 from orthrus.core.browser import BrowserManager
-from orthrus.core.callback import LocalCallbackServer
+from orthrus.core.callback import CallbackClient, InteractshCallbackClient, LocalCallbackServer
 from orthrus.core.config import ScanConfig, Settings
 from orthrus.core.context import ScanContext
 from orthrus.core.event_bus import Event, EventBus, EventType
@@ -115,14 +116,7 @@ class Orchestrator:
         self._wire_events()
 
         if not self.config.no_exploit:
-            if self.config.callback:
-                logger.info(
-                    "external callback (%s) not yet supported; using local listener",
-                    self.config.callback,
-                )
-            callback = LocalCallbackServer()
-            await callback.start()
-            self.ctx.callback = callback
+            self.ctx.callback = await self._build_callback()
 
         if self.config.use_browser and BrowserManager.is_available():
             browser = BrowserManager(
@@ -197,6 +191,35 @@ class Orchestrator:
             len(self.ctx.endpoints),
             len(self.ctx.findings),
         )
+
+    async def _build_callback(self) -> CallbackClient:
+        """Select and start the OOB collaborator (PRD §7.2).
+
+        Prefers a real Interactsh collaborator when ``--interactsh`` is set so
+        internet-reachable targets can call back; on registration failure (no
+        egress, server down) it falls back to the same-host local listener. The
+        ``--callback`` host, if given, is advertised by the local listener so a
+        routable address is injected into payloads.
+        """
+        if self.config.interactsh or self.config.interactsh_server:
+            client = InteractshCallbackClient(
+                server=self.config.interactsh_server,
+                token=self.config.interactsh_token,
+            )
+            try:
+                await client.start()
+                logger.info("OOB collaborator: Interactsh (%s)", client.base_url)
+                return client
+            except Exception as exc:  # network/egress/server failure -> fall back
+                logger.warning(
+                    "Interactsh unavailable (%s); using local callback listener", exc
+                )
+        advertise = None
+        if self.config.callback:
+            advertise = urlsplit(self.config.callback).hostname or self.config.callback
+        server = LocalCallbackServer(advertise_host=advertise)
+        await server.start()
+        return server
 
     async def _run_login(self, http: HttpClient, session: Session) -> LoginResult:
         """Perform the configured login flow once (OAuth2, or form/JSON).
