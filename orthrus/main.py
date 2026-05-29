@@ -823,6 +823,7 @@ def _run_distributed(
 @click.option("--waf/--no-waf", "waf_detect", default=True, help="Run WAF detection.")
 @click.option("--api/--no-api", "api_discovery", default=True, help="Run API discovery.")
 @click.option("--dns/--no-dns", "dns_enum", default=True, help="Run DNS enumeration (domain targets).")
+@click.option("--mine-params/--no-mine-params", "mine_params", default=True, help="Mine endpoints for hidden parameters.")
 @click.option("--subdomains", is_flag=True, help="Run subdomain enumeration (needs *.domain scope).")
 @click.option("--wayback", is_flag=True, help="Query the Wayback Machine for historical URLs.")
 @click.option("--ports", is_flag=True, help="Run Nmap port scan (needs the nmap binary).")
@@ -864,6 +865,7 @@ def recon(
     waf_detect: bool,
     api_discovery: bool,
     dns_enum: bool,
+    mine_params: bool,
     subdomains: bool,
     wayback: bool,
     ports: bool,
@@ -905,7 +907,8 @@ def recon(
     flags = {
         "fingerprint": fingerprint, "crawl": crawl, "js": js_analysis,
         "content": content_discovery, "waf": waf_detect, "api": api_discovery,
-        "dns": dns_enum, "subdomains": subdomains, "wayback": wayback, "ports": ports,
+        "dns": dns_enum, "params": mine_params,
+        "subdomains": subdomains, "wayback": wayback, "ports": ports,
     }
     which = {name for name, on in flags.items() if on}
     _log_scope(scope)

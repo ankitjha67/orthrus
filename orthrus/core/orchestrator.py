@@ -38,6 +38,7 @@ from orthrus.recon.content_discovery import ContentDiscovery
 from orthrus.recon.crawler import Crawler
 from orthrus.recon.dns_enum import DnsEnum
 from orthrus.recon.js_analyzer import JsAnalyzer
+from orthrus.recon.param_mining import ParameterMiner
 from orthrus.recon.port_scan import PortScan
 from orthrus.recon.registry import get_recon_plugins
 from orthrus.recon.spa_crawl import SpaCrawl
@@ -385,6 +386,10 @@ class Orchestrator:
             modules.append(Wayback())
         if which is not None and "ports" in which:
             modules.append(PortScan())
+        # Parameter mining runs after the endpoint-discovering modules so it can
+        # probe everything they found for undeclared parameters.
+        if which is None or "params" in which:
+            modules.append(ParameterMiner())
         modules.extend(get_recon_plugins())  # recon plugins run alongside built-ins
 
         seen_endpoints: set[tuple[str, str]] = set()

@@ -64,6 +64,7 @@ HOME = (
     '<li><a href="/account">account</a></li>'
     '<li><a href="/nosql?user=guest">nosql</a></li>'
     '<li><a href="/upload">upload</a></li>'
+    '<li><a href="/items">items</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
@@ -305,6 +306,13 @@ class Handler(BaseHTTPRequestHandler):
         elif parts.path == "/account" or parts.path.startswith("/account/"):
             # Ignores any extra sub-path -> /account/x.css returns the page -> cache deception.
             self._html(ACCOUNT_BODY)
+        elif parts.path == "/items":
+            # Processes an undeclared 'debug' param (reflected) -> param mining finds it.
+            dbg = first("debug")
+            if dbg:
+                self._html(f"<html><body>items (debug mode: {dbg})</body></html>")
+            else:
+                self._html("<html><body>items list</body></html>")
         elif parts.path == "/nosql":
             user = first("user")
             if any(c in user for c in ("$", "{", "'", '"', "\\")):
