@@ -15,13 +15,15 @@ from orthrus.api import create_app  # noqa: E402
 from orthrus.db.store import Store  # noqa: E402
 
 
-def _finding(vuln_type: str, severity: schemas.Severity) -> schemas.Finding:
+def _finding(
+    vuln_type: str, severity: schemas.Severity, url: str = "https://example.com/x"
+) -> schemas.Finding:
     return schemas.Finding(
         vuln_type=vuln_type,
         title=f"{vuln_type} finding",
         severity=severity,
         confidence=schemas.Confidence.FIRM,
-        url="https://example.com/x",
+        url=url,
         description="desc",
         remediation="fix it",
         scanner=vuln_type,
@@ -40,6 +42,14 @@ def client(tmp_path):
         await store.add_finding("scan-apitest", _finding("sqli", schemas.Severity.HIGH))
         await store.add_finding("scan-apitest", _finding("xss", schemas.Severity.MEDIUM))
         await store.set_scan_status("scan-apitest", "completed", completed=True)
+        # A second scan whose finding URL carries an XSS payload — the dashboard
+        # must render it escaped (a security tool's own UI must not be XSS-able).
+        await store.create_scan("scan-xss", "https://x.example", {}, {})
+        await store.add_finding(
+            "scan-xss",
+            _finding("xss", schemas.Severity.HIGH, url="https://x/<script>alert(1)</script>"),
+        )
+        await store.set_scan_status("scan-xss", "completed", completed=True)
         await store.close()
 
     asyncio.run(seed())
@@ -92,3 +102,26 @@ def test_report_endpoint(client) -> None:
 def test_unknown_scan_404(client) -> None:
     assert client.get("/api/scans/does-not-exist").status_code == 404
     assert client.get("/api/scans/does-not-exist/findings").status_code == 404
+
+
+# ----------------------------------------------------------------- dashboard
+def test_dashboard_index(client) -> None:
+    r = client.get("/")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "scan-apitest" in r.text
+    assert "ORTHRUS" in r.text
+
+
+def test_dashboard_scan_detail(client) -> None:
+    r = client.get("/dashboard/scans/scan-apitest")
+    assert r.status_code == 200
+    assert "sqli" in r.text and "https://example.com" in r.text
+
+
+def test_dashboard_escapes_xss_payload(client) -> None:
+    # The finding URL contains <script>; the page must escape it, not emit it raw.
+    r = client.get("/dashboard/scans/scan-xss")
+    assert r.status_code == 200
+    assert "<script>alert(1)</script>" not in r.text
+    assert "&lt;script&gt;alert(1)&lt;/script&gt;" in r.text

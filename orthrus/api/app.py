@@ -11,14 +11,38 @@ network server required.
 
 from __future__ import annotations
 
+import html
 from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 
 from orthrus import __version__
 from orthrus.core.config import get_settings
 from orthrus.db.store import Store
+
+_SEV_COLOR = {
+    "critical": "#b30000", "high": "#e8491d", "medium": "#d98800",
+    "low": "#3aa775", "info": "#7889a6",
+}
+_SEV_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
+
+
+def _page(title: str, body: str) -> str:
+    """Minimal dark-theme HTML shell. Body is assembled from pre-escaped parts."""
+    return (
+        "<!doctype html><html lang=en><head><meta charset=utf-8>"
+        '<meta name=viewport content="width=device-width, initial-scale=1">'
+        f"<title>{html.escape(title)}</title><style>"
+        "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f1117;color:#e6e6e6;margin:0;padding:24px}"
+        "h1{color:#e8491d;margin:0 0 4px} a{color:#5ab0ff;text-decoration:none} a:hover{text-decoration:underline}"
+        "table{border-collapse:collapse;width:100%;margin-top:14px}"
+        "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #242a36;font-size:14px}"
+        "th{color:#9aa6bf;font-weight:600} .sev{font-weight:700} code{color:#7fd9c0;word-break:break-all}"
+        ".pill{display:inline-block;padding:2px 9px;border-radius:11px;color:#fff;font-size:12px;margin-right:6px}"
+        "</style></head><body>" + body + "</body></html>"
+    )
 
 
 def _scan_dict(row: Any, findings: int | None = None) -> dict[str, Any]:
@@ -94,6 +118,61 @@ def create_app(db_url: str | None = None) -> FastAPI:
             "summary": await app.state.store.severity_counts(scan_id),
             "findings": [{**f.model_dump(mode="json"), "id": fid} for fid, f in pairs],
         }
+
+    # ---------------------------------------------------------- web dashboard
+    @app.get("/", response_class=HTMLResponse)
+    async def dashboard_index() -> str:
+        rows = await app.state.store.list_scans(limit=100)
+        trs = "".join(
+            "<tr>"
+            f"<td><a href='/dashboard/scans/{html.escape(row.id)}'>{html.escape(row.id)}</a></td>"
+            f"<td>{html.escape(row.target or '')}</td>"
+            f"<td>{html.escape(row.status or '')}</td>"
+            f"<td>{count}</td>"
+            f"<td>{html.escape(row.started_at.isoformat() if row.started_at else '')}</td>"
+            "</tr>"
+            for row, count in rows
+        )
+        body = (
+            "<h1>ORTHRUS</h1>"
+            f"<p>{len(rows)} scan(s) · <a href='/docs'>API docs</a></p>"
+            "<table><tr><th>Scan</th><th>Target</th><th>Status</th><th>Findings</th><th>Started</th></tr>"
+            + (trs or "<tr><td colspan=5>No scans yet.</td></tr>")
+            + "</table>"
+        )
+        return _page("ORTHRUS — scans", body)
+
+    @app.get("/dashboard/scans/{scan_id}", response_class=HTMLResponse)
+    async def dashboard_scan(scan_id: str) -> str:
+        row = await _require_scan(scan_id)
+        summary = await app.state.store.severity_counts(scan_id)
+        pairs = await app.state.store.get_findings_with_ids(scan_id)
+        pairs.sort(key=lambda p: _SEV_RANK.get(p[1].severity.value, 9))
+        chips = "".join(
+            f"<span class=pill style='background:{_SEV_COLOR.get(k, '#789')}'>{html.escape(k)} {v}</span>"
+            for k, v in summary.items()
+            if k != "total" and v
+        )
+        frs = "".join(
+            "<tr>"
+            f"<td class=sev style='color:{_SEV_COLOR.get(f.severity.value, '#789')}'>{html.escape(f.severity.value)}</td>"
+            f"<td>{html.escape(f.confidence.value)}</td>"
+            f"<td>{html.escape(f.vuln_type)}</td>"
+            f"<td><code>{html.escape(f.url or '')}</code></td>"
+            f"<td>{html.escape(f.cwe or '')}</td>"
+            "</tr>"
+            for _fid, f in pairs
+        )
+        body = (
+            "<p><a href='/'>&larr; all scans</a></p>"
+            f"<h1>{html.escape(row.target or scan_id)}</h1>"
+            f"<p>{html.escape(scan_id)} · {html.escape(row.status or '')}</p>"
+            f"<p>{chips or 'No findings.'}</p>"
+            "<table><tr><th>Severity</th><th>Confidence</th><th>Type</th><th>URL</th><th>CWE</th></tr>"
+            + (frs or "<tr><td colspan=5>No findings.</td></tr>")
+            + "</table>"
+        )
+        return _page(f"ORTHRUS — {scan_id}", body)
 
     return app
 
