@@ -7,6 +7,7 @@ should be added here so the orchestrator can discover them.
 
 from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     auth,
+    business_logic,
     cache_poisoning,
     cmd_injection,
     cors,

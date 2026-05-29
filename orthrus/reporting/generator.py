@@ -59,6 +59,8 @@ OWASP_2021 = {
     "cve": "A06:2021 - Vulnerable and Outdated Components",
     "default-creds": "A07:2021 - Identification and Authentication Failures",
     "race-condition": "A04:2021 - Insecure Design",
+    "parameter-tampering": "A04:2021 - Insecure Design",
+    "parameter-pollution": "A03:2021 - Injection",
     "example": "A05:2021 - Security Misconfiguration",
 }
 
@@ -71,6 +73,7 @@ PCI_DSS = {
     "cache-poisoning": "6.4.1", "graphql": "6.4.1", "auth-session": "8.3",
     "default-creds": "8.3.6", "jwt": "8.3", "tls": "4.2.1", "cve": "6.3.3",
     "exposed-file": "6.4.1", "websocket": "6.2.4", "race-condition": "6.2.4",
+    "parameter-tampering": "6.2.4", "parameter-pollution": "6.2.4",
 }
 
 # NIST Cybersecurity Framework function/category.

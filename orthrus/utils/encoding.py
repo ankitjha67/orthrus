@@ -26,4 +26,23 @@ def with_query_param(url: str, name: str, value: str) -> str:
     return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", query, ""))
 
 
-__all__ = ["with_query_param"]
+def with_duplicate_query_param(url: str, name: str, first: str, second: str) -> str:
+    """Return ``url`` with ``name`` present twice: ``name=first&name=second``.
+
+    Any pre-existing occurrences of ``name`` are dropped first; other params are
+    preserved in order. Used by the HTTP-parameter-pollution probe to observe how
+    a server resolves duplicate query keys.
+    """
+    parts = urlsplit(url)
+    pairs = [
+        (key, val)
+        for key, val in parse_qsl(parts.query, keep_blank_values=True)
+        if key != name
+    ]
+    pairs.append((name, first))
+    pairs.append((name, second))
+    query = urlencode(pairs, doseq=True)
+    return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", query, ""))
+
+
+__all__ = ["with_query_param", "with_duplicate_query_param"]
