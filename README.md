@@ -7,7 +7,7 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 29 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 39 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -73,28 +73,30 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 
 ## ✨ Features
 
-**Reconnaissance (12 modules)**
+**Reconnaissance (13 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
 - Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
+- Parameter mining (Arjun-style hidden-parameter discovery)
 - JavaScript analysis (endpoint + secret extraction), content discovery
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (29)**
+**Vulnerability scanners (39)**
 
 | Category | Scanners |
 |---|---|
-| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE |
+| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL) |
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
-| Access / logic | IDOR, CSRF, open redirect, race conditions, business-logic (parameter tampering / HTTP parameter pollution) |
+| Access / logic | IDOR, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
-| Auth / session | Auth-session analysis, default credentials, JWT analysis |
-| Server-side | SSRF (out-of-band + metadata), deserialization, prototype pollution |
-| Config / transport | Security headers, CORS, TLS analysis, exposed files, cache poisoning |
+| Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks) |
+| Server-side | SSRF (out-of-band + metadata), deserialization, prototype pollution (client- & server-side) |
+| Config / transport | Security headers, CORS, TLS analysis, exposed files, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover |
 | Protocol / API | GraphQL, WebSocket |
+| Supply chain | SCA — known-vulnerable JS libraries (retire.js-style) |
 | Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
-| Intelligence | CVE matcher (version → known-CVE correlation) |
+| Intelligence | CVE matcher (version → known-CVE) enriched with CISA KEV + EPSS (`orthrus update`) |
 
 Active injection scanners share a **WAF-evasion encoder library** (URL / double-URL /
 mixed-case / comment-spacing / HTML-entity / unicode); transport-surviving
@@ -262,8 +264,8 @@ targets:
 ORTHRUS's core sub-commands are `recon`, `scan`, `exploit`, and `report`, plus
 utility commands: `doctor` (environment readiness), `modules` (module inventory),
 `findings` (terminal triage view), `diff` (compare two scans), `scans` (list past
-scans), `benchmark` (detection-accuracy harness), and `completion` (shell
-completion). Run `orthrus --help` for the full list.
+scans), `benchmark` (detection-accuracy harness), `update` (refresh CISA-KEV
+intel), and `completion` (shell completion). Run `orthrus --help` for the full list.
 
 ### `orthrus scan` — the full pipeline
 
@@ -442,9 +444,10 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 ```
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
-  recon/       crawler, dynamic/SPA crawl, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    29 scanners + base interface + registry
+  recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
+  scanners/    39 scanners + base interface + registry
   exploits/    8 confirmation modules + base interface + registry
+  intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
   reporting/   JSON/CSV/HTML/PDF/SARIF/Markdown generator, CVSS engine, Jinja2 templates
   db/          SQLAlchemy 2.0 models, async store, Alembic migrations
   distributed/ Celery app, tasks, target dispatcher
