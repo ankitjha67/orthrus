@@ -84,6 +84,7 @@ class HttpClient:
             config.rate_limit.requests_per_second,
             config.rate_limit.burst,
             config.rate_limit.jitter,
+            adaptive=config.rate_limit.adaptive,
         )
         return cls(
             scope,
@@ -140,6 +141,9 @@ class HttpClient:
             method, url, headers=self._merge_headers(headers), **kwargs
         )
         self.requests_sent += 1
+        self.rate_limiter.feedback(
+            host, status=response.status_code, retry_after=response.headers.get("retry-after")
+        )
 
         if follow_redirects:
             response = await self._follow_redirects(response)
@@ -160,11 +164,17 @@ class HttpClient:
                 await self._enforce_scope(next_url, is_redirect=True)
             except ScopeViolation:
                 break  # stop following but return what we already have
-            await self.rate_limiter.acquire(urlsplit(next_url).hostname or "")
+            next_host = urlsplit(next_url).hostname or ""
+            await self.rate_limiter.acquire(next_host)
             response = await self._client.request(
                 "GET", next_url, headers=self._merge_headers(None)
             )
             self.requests_sent += 1
+            self.rate_limiter.feedback(
+                next_host,
+                status=response.status_code,
+                retry_after=response.headers.get("retry-after"),
+            )
             hops += 1
         return response
 

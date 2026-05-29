@@ -88,6 +88,10 @@ class RateLimitConfig(BaseModel):
     requests_per_second: float = 50.0
     burst: int = 10
     jitter: float = Field(default=0.0, description="Random 0..jitter seconds added per request.")
+    adaptive: bool = Field(
+        default=True,
+        description="Back off automatically when the target returns 429/503 (honors Retry-After).",
+    )
 
 
 class ScanConfig(BaseModel):
