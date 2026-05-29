@@ -198,3 +198,34 @@ async def test_resume_missing_scan_raises(tmp_path):
     with pytest.raises(ValueError, match="cannot resume"):
         await orch.setup()
     await orch.store.close()
+
+
+# ------------------------------------------------------- scan listing (hydra scans)
+async def test_list_scans_orders_and_counts(tmp_path):
+    store = Store(_db_url(tmp_path))
+    await store.init()
+    # Two scans: one with a finding, one without.
+    cfg_a = _config("a")
+    await _seed(store, cfg_a, phase="scan")  # adds 1 finding
+    await store.create_scan("b", "http://h", {}, {})  # no findings
+    await store.set_scan_status("b", "completed", completed=True)
+
+    listed = await store.list_scans()
+    ids = {row.id: count for row, count in listed}
+    assert ids == {"a": 1, "b": 0}  # counts include scans with zero findings
+
+    # status filter narrows the result set.
+    await store.set_scan_status("a", "failed")
+    failed = await store.list_scans(status="failed")
+    assert [row.id for row, _ in failed] == ["a"]
+    assert (await store.list_scans(status="running")) == []
+    await store.close()
+
+
+async def test_list_scans_respects_limit(tmp_path):
+    store = Store(_db_url(tmp_path))
+    await store.init()
+    for i in range(5):
+        await store.create_scan(f"s{i}", "http://h", {}, {})
+    assert len(await store.list_scans(limit=3)) == 3
+    await store.close()

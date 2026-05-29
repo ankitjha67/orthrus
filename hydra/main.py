@@ -571,6 +571,60 @@ async def _run_report(
         await store.close()
 
 
+@cli.command(name="scans")
+@click.option("--status", default=None, help="Filter by status: running / completed / failed.")
+@click.option("--limit", default=50, type=int, help="Maximum number of scans to list.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def scans(status: str | None, limit: int, verbose: str) -> None:
+    """List previous scans (id, status, phase, findings) for resume/report."""
+    configure_logging(verbose)
+    asyncio.run(_list_scans(status, limit))
+
+
+_STATUS_STYLE = {"completed": "green", "running": "yellow", "failed": "red", "pending": "dim"}
+
+
+async def _list_scans(status: str | None, limit: int) -> None:
+    from rich.table import Table
+
+    from hydra.utils.logger import console
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        rows = await store.list_scans(limit=limit, status=status)
+    finally:
+        await store.close()
+
+    if not rows:
+        logger.info("no scans found (filter: %s)", status or "none")
+        return
+
+    table = Table(title="HYDRA scans")
+    table.add_column("Scan ID", style="bold")
+    table.add_column("Target")
+    table.add_column("Status")
+    table.add_column("Last phase")
+    table.add_column("Findings", justify="right")
+    table.add_column("Started")
+    for row, count in rows:
+        style = _STATUS_STYLE.get(row.status, "white")
+        started = row.started_at.strftime("%Y-%m-%d %H:%M") if row.started_at else "-"
+        table.add_row(
+            row.id,
+            row.target,
+            f"[{style}]{row.status}[/]",
+            row.phase or "-",
+            str(count),
+            started,
+        )
+    console.print(table)
+    # Nudge toward the resume workflow for any scan that didn't finish.
+    if any(row.status in ("running", "failed") for row, _ in rows):
+        logger.info("resume an interrupted scan with: hydra scan --resume --scan-id <id>")
+
+
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
 @click.option(

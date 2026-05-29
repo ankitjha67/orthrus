@@ -147,6 +147,29 @@ class Store:
         async with self.session() as session:
             return await session.get(ScanRow, scan_id)
 
+    async def list_scans(
+        self, *, limit: int = 50, status: str | None = None
+    ) -> list[tuple[ScanRow, int]]:
+        """Recent scans (newest first) paired with their finding count.
+
+        Backs ``hydra scans`` so an operator can find a scan id to resume or
+        report on. ``status`` filters to e.g. running/completed/failed.
+        """
+        async with self.session() as session:
+            counts = (
+                select(FindingRow.scan_id, func.count().label("n"))
+                .group_by(FindingRow.scan_id)
+                .subquery()
+            )
+            stmt = select(ScanRow, func.coalesce(counts.c.n, 0)).outerjoin(
+                counts, ScanRow.id == counts.c.scan_id
+            )
+            if status:
+                stmt = stmt.where(ScanRow.status == status)
+            stmt = stmt.order_by(ScanRow.started_at.desc()).limit(limit)
+            result = await session.execute(stmt)
+            return [(row, count) for row, count in result.all()]
+
     # ----------------------------------------------------------------- assets
     async def add_asset(self, scan_id: str, asset: schemas.Asset) -> int:
         async with self.session() as session:
