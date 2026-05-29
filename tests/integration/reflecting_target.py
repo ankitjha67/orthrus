@@ -9,7 +9,7 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /sqli?id=      SQLi (MySQL error on quote)   /comment(POST) reflected XSS (body) + CSRF
   /ping?host=    OS command injection          cookies        missing flags / serialized / weak JWT
   /download?file=LFI (/etc/passwd, win.ini)    X-Forwarded-Host reflection -> cache poisoning
-  /fetch?url=    SSRF (GET + POST body)
+  /fetch?url=    SSRF (GET + POST body)         /api/users/<id> IDOR / BOLA via REST path id
 
 Run: python reflecting_target.py [port]
 """
@@ -178,6 +178,14 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0") or 0)
         return self.rfile.read(length).decode("utf-8", "ignore") if length else ""
 
+    def _profile_body(self, pid: str) -> str:
+        names = {"1": "Alice Anderson", "2": "Bob Brown", "3": "Carol Clark"}
+        nm = names.get(pid, f"User {pid}")
+        return (
+            f"<html><body>Profile #{pid}: name={nm}, email=user{pid}@corp.example, "
+            f"dept=Engineering, joined=2020-01-15, status=active account</body></html>"
+        )
+
     def _guestbook(self) -> str:
         items = "".join(f"<div class=c>{c}</div>" for c in GUESTBOOK_COMMENTS)
         return (
@@ -222,12 +230,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._html("<html><body>file not found</body></html>")
         elif parts.path == "/profile":
             pid = first("id") or "0"
-            names = {"1": "Alice Anderson", "2": "Bob Brown", "3": "Carol Clark"}
-            nm = names.get(pid, f"User {pid}")
-            self._html(
-                f"<html><body>Profile #{pid}: name={nm}, email=user{pid}@corp.example, "
-                f"dept=Engineering, joined=2020-01-15, status=active account</body></html>"
-            )
+            self._html(self._profile_body(pid))
+        elif parts.path.startswith("/api/users/"):
+            # REST object reference: /api/users/<id> returns a distinct object per
+            # numeric id with no per-object authorization -> BOLA via PATH param.
+            uid = parts.path[len("/api/users/"):].split("/", 1)[0] or "0"
+            self._html(self._profile_body(uid))
         elif parts.path == "/xml":
             self._html("<html><body>XML endpoint: POST an XML document</body></html>")
         elif parts.path == "/fetch":

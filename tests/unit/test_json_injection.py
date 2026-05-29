@@ -102,3 +102,47 @@ async def test_send_query_mutates_url_no_body():
     assert method == "GET"
     assert "q=PAY" in url
     assert "json" not in kwargs and "data" not in kwargs
+
+
+def test_path_param_injectable_on_get():
+    ep = Endpoint(
+        url="http://h/api/users/1",
+        method=HttpMethod.GET,
+        params=[Param(name="id", location=ParamLocation.PATH, value="1")],
+    )
+    pts = list(injection_points(_ctx([ep])))
+    assert len(pts) == 1
+    assert pts[0].param == "id"
+    assert pts[0].location == ParamLocation.PATH
+    assert pts[0].method == HttpMethod.GET
+
+
+async def test_send_path_mutates_matching_segment():
+    http = FakeHttp()
+    ep = Endpoint(
+        url="http://h/api/users/1/profile",
+        method=HttpMethod.GET,
+        params=[Param(name="id", location=ParamLocation.PATH, value="1")],
+    )
+    ctx = _ctx([ep], http)
+    point = next(iter(injection_points(ctx)))
+    await send(ctx, point, "2")
+    method, url, kwargs = http.calls[0]
+    assert method == "GET"
+    assert url == "http://h/api/users/2/profile"  # only the id segment changed
+    assert "json" not in kwargs and "data" not in kwargs
+    assert used_url(point, "2") == "http://h/api/users/2/profile"
+
+
+async def test_send_path_encodes_special_chars_keeping_slash():
+    http = FakeHttp()
+    ep = Endpoint(
+        url="http://h/files/1",
+        method=HttpMethod.GET,
+        params=[Param(name="id", location=ParamLocation.PATH, value="1")],
+    )
+    ctx = _ctx([ep], http)
+    point = next(iter(injection_points(ctx)))
+    await send(ctx, point, "a/b' c")  # slash kept; quote + space percent-encoded
+    _, url, _ = http.calls[0]
+    assert url == "http://h/files/a/b%27%20c"
