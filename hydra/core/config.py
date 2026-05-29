@@ -112,6 +112,11 @@ class ScanConfig(BaseModel):
     auth_cookie: str | None = None
     auth_script: str | None = None
 
+    # Spec-driven API discovery: a local file path or in-scope URL to an
+    # OpenAPI/Swagger, GraphQL introspection, HAR, or Postman document. Its
+    # declared operations are imported as endpoints with typed params (§5.2).
+    import_spec: str | None = None
+
     callback: str | None = None
     no_exploit: bool = False
     use_browser: bool = True  # use Playwright for DOM/stored XSS + confirmation when available

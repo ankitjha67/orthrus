@@ -117,6 +117,12 @@ def cli() -> None:
 @click.option("--proxy", default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--auth-cookie", default=None, help="Pre-authenticated session cookie string.")
 @click.option("--auth-script", default=None, help="Playwright login script path (deferred).")
+@click.option(
+    "--import",
+    "import_spec",
+    default=None,
+    help="Import an OpenAPI/Swagger/GraphQL/HAR/Postman spec (file path or in-scope URL).",
+)
 @click.option("--user-agent", default="random", help="User-Agent string or 'random'.")
 @click.option("--callback", default=None, help="Callback server URL for OOB detection.")
 @click.option("--no-exploit", is_flag=True, help="Skip exploitation confirmation phase.")
@@ -153,6 +159,7 @@ def scan(
     proxy: str | None,
     auth_cookie: str | None,
     auth_script: str | None,
+    import_spec: str | None,
     user_agent: str,
     callback: str | None,
     no_exploit: bool,
@@ -201,6 +208,7 @@ def scan(
         extra_headers=_parse_headers(headers),
         auth_cookie=auth_cookie,
         auth_script=auth_script,
+        import_spec=import_spec,
         callback=callback,
         no_exploit=no_exploit,
         use_browser=browser,
@@ -310,6 +318,12 @@ def _run_distributed(
 @click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
 @click.option("--proxy", default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--auth-cookie", default=None, help="Pre-authenticated session cookie string.")
+@click.option(
+    "--import",
+    "import_spec",
+    default=None,
+    help="Import an OpenAPI/Swagger/GraphQL/HAR/Postman spec (file path or in-scope URL).",
+)
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
 @click.option("--scan-id", default=None, help="Custom scan identifier.")
 @click.option("--output", "-o", default=None, help="Optional JSON report output path.")
@@ -333,6 +347,7 @@ def recon(
     timeout: float,
     proxy: str | None,
     auth_cookie: str | None,
+    import_spec: str | None,
     exclude_paths: str | None,
     scan_id: str | None,
     output: str | None,
@@ -350,6 +365,7 @@ def recon(
         timeout=timeout,
         proxy=proxy,
         auth_cookie=auth_cookie,
+        import_spec=import_spec,
     )
     config.rate_limit.requests_per_second = rate_limit
     flags = {
