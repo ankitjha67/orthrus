@@ -23,6 +23,7 @@ Run: python reflecting_target.py [port]
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import sys
@@ -38,10 +39,23 @@ WEAK_JWT = (
     "eyJ1c2VyIjoiYWRtaW4iLCJyb2xlIjoidXNlciJ9."
     "50QUbI83hHJdTpsseful-jdby2eFD5UIj4wEzPfVnrU"
 )
+def _b64url(obj: dict) -> str:
+    return base64.urlsafe_b64encode(json.dumps(obj).encode()).rstrip(b"=").decode()
+
+
+# A JWT whose header points 'jku' at an attacker-controlled key URL -> key injection.
+JKU_JWT = ".".join(
+    [
+        _b64url({"alg": "RS256", "typ": "JWT", "jku": "https://attacker.example/jwks.json"}),
+        _b64url({"user": "admin", "role": "user"}),
+        "AAAA",
+    ]
+)
 INSECURE_COOKIES = [
     "sid=abc123def456",
     'obj=O:8:"stdClass":1:{s:4:"user";s:5:"admin";}',
     f"token={WEAK_JWT}",
+    f"jt={JKU_JWT}",
 ]
 
 HOME = (

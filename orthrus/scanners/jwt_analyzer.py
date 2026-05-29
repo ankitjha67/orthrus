@@ -67,6 +67,32 @@ def analyze_jwt(
             )
         )
 
+    # Advanced header attacks: attacker-controlled key source (jku/x5u) and kid injection.
+    for hk in ("jku", "x5u"):
+        if header.get(hk):
+            issues.append(
+                (
+                    Severity.HIGH,
+                    f"JWT header references an external key URL ('{hk}')",
+                    f"The token header sets '{hk}'={header[hk]!r}. If the server fetches its "
+                    "verification key from this URL without a strict allow-list, an attacker can "
+                    "serve their own key (or point it at an internal host for SSRF) and forge tokens.",
+                    "CWE-347",
+                )
+            )
+    kid = str(header.get("kid", ""))
+    if kid and any(tok in kid for tok in ("../", "..\\", "';", '"', "|", ";", "$(", "{{", " or ")):
+        issues.append(
+            (
+                Severity.MEDIUM,
+                "JWT 'kid' header contains injection metacharacters",
+                f"The 'kid' header ({kid!r}) carries path-traversal / injection characters. Servers "
+                "that resolve 'kid' to a key file or a database lookup may be exploitable "
+                "(arbitrary file read, SQL injection, or signing-key confusion).",
+                "CWE-347",
+            )
+        )
+
     try:
         claims = jwt.decode(token, options={"verify_signature": False})
     except Exception:
