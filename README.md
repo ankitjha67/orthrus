@@ -302,6 +302,46 @@ Common `scan` options: `--modules`, `--aggressive`, `--rate-limit`,
 `--exclude-paths`, `--headers`, `--threads`, `--scan-id`, `-o/--output`,
 `--format`, `--template`, `--min-severity`, `--logo`, `--har`, `-v/--verbose`.
 
+### Full end-to-end scan of a site you own (recommended workflow)
+
+`orthrus scan` runs all four phases — recon → scan → exploit-confirm → report — in
+a single command, and writes the report when you pass `-o` + `--format`. With the
+`[browser]` extra installed, DOM/stored-XSS and JS-rendered crawling are included
+automatically. A safe, live-site-friendly flow for **a site you own or are
+explicitly authorized to test**:
+
+```bash
+# 1) Preview the engagement scope + plan — sends NO traffic
+orthrus scan -t https://yoursite.com --scope "yoursite.com,*.yoursite.com" --dry-run
+
+# 2) Run the full pipeline with gentle settings → technical HTML report
+orthrus scan -t https://yoursite.com \
+  --scope "yoursite.com,*.yoursite.com" \
+  --rate-limit 10 \
+  --crawl-depth 3 --max-pages 200 \
+  --exclude-paths "/logout,/admin/delete/.*" \
+  -o reports/yoursite.html --format html --template technical
+
+# 3) Export more formats from the SAME stored scan (no re-scan needed)
+orthrus scans                                                          # list scans, copy the id
+orthrus report --scan-id <id> --format pdf   --template executive -o reports/yoursite_exec
+orthrus report --scan-id <id> --format sarif -o reports/yoursite     # CI / code-scanning
+orthrus report --scan-id <id> --format json  -o reports/yoursite     # machine-readable
+```
+
+Tune it for your target:
+- **Deeper testing** (more load — use deliberately, ideally on staging): add
+  `--aggressive` for time-based blind SQLi/command tests and race-condition probes.
+- **Authenticated areas**: add `--auth-cookie "session=…; csrf=…"` (copy a logged-in
+  cookie from your browser's dev tools), or drive a login with `--login-url` and the
+  related flags (`orthrus scan --help`).
+- **Watch every request**: route through Burp/ZAP with `--proxy http://127.0.0.1:8080`.
+- **Gate CI**: add `--fail-on high` to exit non-zero when a high-or-worse finding appears.
+
+> Only scan hosts you **own** or hold **written authorization** for, and keep
+> `--scope` tight (deny-by-default — only listed hosts are contacted). On shared
+> hosting, check your provider's policy before active scanning.
+
 ### `orthrus recon` — reconnaissance only
 
 ```bash

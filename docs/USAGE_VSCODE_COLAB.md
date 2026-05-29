@@ -170,20 +170,34 @@ The project is pre-configured (`pyproject.toml`: `pytest` with `asyncio_mode=aut
 
 The suite is offline and deterministic — it never touches the network.
 
-### A9. Scan a real, authorized target
-Once you're comfortable, point it at a system you're **authorized** to test, and
-always pass an **explicit scope**:
+### A9. Full end-to-end scan of a site you own
+Once you're comfortable, point it at a system you **own** or are **authorized** to
+test, and always pass an **explicit scope**. `orthrus scan` runs all four phases
+(recon → scan → exploit-confirm → report) in one command:
 
 ```bash
-orthrus scan -t https://app.target.com \
-  --scope "*.target.com,api.target.com,10.0.0.0/24" \
-  --exclude-paths "/admin/delete/.*,/api/v1/payments" \
-  -o reports/engagement.html --format html --template technical
+# 1) Preview the scope + plan first — sends NO traffic
+orthrus scan -t https://yoursite.com --scope "yoursite.com,*.yoursite.com" --dry-run
+
+# 2) Run the full pipeline with gentle, live-site-friendly settings
+orthrus scan -t https://yoursite.com \
+  --scope "yoursite.com,*.yoursite.com" \
+  --rate-limit 10 \
+  --crawl-depth 3 --max-pages 200 \
+  --exclude-paths "/logout,/admin/delete/.*" \
+  -o reports/yoursite.html --format html --template technical
+
+# 3) Export more formats from the same stored scan (no re-scan)
+orthrus scans                                                          # copy the scan id
+orthrus report --scan-id <id> --format pdf   --template executive -o reports/yoursite_exec
+orthrus report --scan-id <id> --format sarif -o reports/yoursite
 ```
 
-See the README's [Usage guide](../README.md#-usage-guide) for authenticated
-scans (`--auth-cookie`, `--login-url`, `--oauth2-*`), proxying through Burp
-(`--proxy`), rate limiting, and module selection (`--modules`).
+Add `--aggressive` for time-based blind + race-condition tests, `--auth-cookie`
+for authenticated areas, or `--proxy http://127.0.0.1:8080` to watch traffic in
+Burp/ZAP. See the README's
+[recommended workflow](../README.md#full-end-to-end-scan-of-a-site-you-own-recommended-workflow)
+for the full set of options.
 
 ### VS Code troubleshooting
 | Symptom | Fix |
