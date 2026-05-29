@@ -79,6 +79,7 @@ HOME = (
     '<li><a href="/nosql?user=guest">nosql</a></li>'
     '<li><a href="/upload">upload</a></li>'
     '<li><a href="/items">items</a></li>'
+    '<li><a href="/api/merge">merge</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
@@ -168,6 +169,10 @@ ACCOUNT_BODY = (
 
 # Stored XSS: comments are rendered into HTML without sanitization.
 GUESTBOOK_COMMENTS: list[str] = []
+
+# Simulated server-side prototype pollution: keys merged via __proto__ leak onto
+# every subsequent /api/merge object (as they would on a polluted Object.prototype).
+_PROTO_POLLUTED: dict[str, str] = {}
 
 
 def fetch_url(u: str) -> str:
@@ -320,6 +325,9 @@ class Handler(BaseHTTPRequestHandler):
         elif parts.path == "/account" or parts.path.startswith("/account/"):
             # Ignores any extra sub-path -> /account/x.css returns the page -> cache deception.
             self._html(ACCOUNT_BODY)
+        elif parts.path == "/api/merge":
+            # Distinct GET page so the crawler records it as an endpoint (SSPP POSTs to it).
+            self._html("<html><body>merge API: POST a JSON object to deep-merge into your profile</body></html>")
         elif parts.path == "/items":
             # Processes an undeclared 'debug' param (reflected) -> param mining finds it.
             dbg = first("debug")
@@ -395,6 +403,19 @@ class Handler(BaseHTTPRequestHandler):
             account = {"id": "1", "name": "guest", "role": "user", "verified": "false"}
             account.update(self._parse_fields(body))
             self._json(account)
+        elif parts.path == "/api/merge":
+            # Naive deep-merge that pollutes the (simulated) prototype -> SSPP.
+            try:
+                obj = json.loads(body) if body.strip().startswith("{") else {}
+            except ValueError:
+                obj = {}
+            proto = obj.get("__proto__")
+            if isinstance(proto, dict):
+                _PROTO_POLLUTED.update({str(k): str(v) for k, v in proto.items()})
+            ctor = obj.get("constructor")
+            if isinstance(ctor, dict) and isinstance(ctor.get("prototype"), dict):
+                _PROTO_POLLUTED.update({str(k): str(v) for k, v in ctor["prototype"].items()})
+            self._json({"id": 1, "role": "user", **_PROTO_POLLUTED})
         elif parts.path == "/upload":
             # No extension/content validation -> accepts any file (unrestricted upload).
             m = re.search(r'filename="([^"]+)"', body)

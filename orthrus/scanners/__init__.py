@@ -33,6 +33,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     race_condition,
     sca,
     sqli,
+    sspp,
     ssrf,
     ssti,
     stored_xss,
