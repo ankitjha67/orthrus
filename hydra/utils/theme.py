@@ -17,6 +17,7 @@ from __future__ import annotations
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
@@ -61,6 +62,16 @@ _NOTICE = "authorized security testing only"
 
 _SEVERITIES = ("critical", "high", "medium", "low", "info")
 _STATUSES = ("completed", "running", "failed", "pending")
+# Highest risk first, so findings_table() can sort the operator's triage list.
+_SEVERITY_RANK = {name: i for i, name in enumerate(_SEVERITIES)}
+
+# Confidence -> theme token. Confirmed (exploitation proved it) reads green;
+# tentative is muted so the eye lands on what's been verified.
+_CONFIDENCE_STYLES = {
+    "confirmed": "status.completed",
+    "firm": "default",
+    "tentative": "hydra.muted",
+}
 
 
 def _unicode_ok(console: Console) -> bool:
@@ -76,6 +87,43 @@ def severity_style(severity: str) -> str:
 def status_style(status: str) -> str:
     """Theme style name for a scan status, or 'default' for unknown values."""
     return f"status.{status.lower()}" if status.lower() in _STATUSES else "default"
+
+
+def confidence_style(confidence: str) -> str:
+    """Theme style name for a finding's confidence, or 'default' for unknowns."""
+    return _CONFIDENCE_STYLES.get(str(confidence).lower(), "default")
+
+
+def findings_table(findings: object) -> Table:
+    """A color-coded, severity-sorted table of individual findings.
+
+    Complements the severity tally: the tally answers "how many of each", this
+    answers "what fired, where, how bad, and how sure are we" — the list an
+    operator actually triages. Accepts any objects exposing ``severity``,
+    ``vuln_type``, ``title``, ``url`` and ``confidence`` (duck-typed so the
+    helper stays decoupled from the schemas layer).
+    """
+    table = Table(title="[hydra.accent]FINDINGS[/]", border_style="hydra.muted", expand=False)
+    table.add_column("Sev", no_wrap=True)
+    table.add_column("Type", style="bold", no_wrap=True)
+    table.add_column("Finding")
+    table.add_column("URL", style="hydra.muted", overflow="fold")
+    table.add_column("Conf", no_wrap=True)
+
+    ordered = sorted(
+        findings,  # type: ignore[call-overload]
+        key=lambda f: (_SEVERITY_RANK.get(str(f.severity).lower(), 99), str(f.vuln_type)),
+    )
+    for f in ordered:
+        sev = str(f.severity)
+        table.add_row(
+            Text(sev.upper(), style=severity_style(sev)),
+            str(f.vuln_type),
+            str(getattr(f, "title", "") or ""),
+            str(f.url),
+            Text(str(f.confidence), style=confidence_style(f.confidence)),
+        )
+    return table
 
 
 def render_banner(console: Console, version: str) -> None:
@@ -131,6 +179,8 @@ def scope_panel(
 __all__ = [
     "ACCENT",
     "HYDRA_THEME",
+    "confidence_style",
+    "findings_table",
     "render_banner",
     "scope_panel",
     "section",

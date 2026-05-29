@@ -46,7 +46,7 @@ from hydra.reporting.generator import generate_report
 from hydra.scanners.registry import get_scanners
 from hydra.utils.logger import console, get_logger
 from hydra.utils.scope import ScopeValidator
-from hydra.utils.theme import section, severity_style
+from hydra.utils.theme import findings_table, section, severity_style
 
 logger = get_logger("orchestrator")
 
@@ -498,6 +498,9 @@ class Orchestrator:
             table.add_row("Requests sent", str(self.ctx.http.requests_sent))
             table.add_row("Scope violations blocked", str(self.ctx.http.scope_violations))
         console.print(table)
+        # The per-finding triage list: only worth showing when something fired.
+        if self.ctx is not None and self.ctx.findings:
+            console.print(findings_table(self.ctx.findings))
         self._print_scanner_metrics()
 
     def _print_scanner_metrics(self) -> None:
