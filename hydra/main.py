@@ -126,6 +126,50 @@ def _log_scope(scope: ScopeConfig) -> None:
     )
 
 
+def _resolve_plan(module_list: list[str], aggressiveness: Aggressiveness) -> dict[str, list[str]]:
+    """Scanners that would run vs. be gated out at this aggressiveness.
+
+    A pure planning view reflecting the --modules selection and the
+    aggressiveness gate only. Per-target applicability (decided during recon)
+    can narrow the 'will_run' set further at runtime; this never sends traffic.
+    """
+    import hydra.scanners  # noqa: F401  (import populates SCANNER_REGISTRY)
+    from hydra.core.orchestrator import _AGGRESSIVENESS_RANK
+    from hydra.scanners.registry import get_scanners
+
+    configured = _AGGRESSIVENESS_RANK[aggressiveness]
+    will_run: list[str] = []
+    gated: list[str] = []
+    for scanner in get_scanners(module_list):
+        bucket = will_run if _AGGRESSIVENESS_RANK[scanner.min_aggressiveness] <= configured else gated
+        bucket.append(scanner.name)
+    return {"will_run": sorted(will_run), "gated": sorted(gated)}
+
+
+def _print_scan_plan(config: ScanConfig) -> None:
+    """Render the dry-run plan: which modules run, and the key run settings."""
+    plan = _resolve_plan(config.modules, config.aggressiveness)
+    section(console, "DRY RUN · SCAN PLAN")
+    console.print(
+        f"[hydra.muted]Target:[/] {config.target}    "
+        f"[hydra.muted]Aggressiveness:[/] {config.aggressiveness.value}    "
+        f"[hydra.muted]Exploit:[/] {'off' if config.no_exploit else 'on'}    "
+        f"[hydra.muted]Browser:[/] {'on' if config.use_browser else 'off'}"
+    )
+    console.print(
+        f"[hydra.muted]Report:[/] {config.report_format} -> {config.output}    "
+        f"[hydra.muted]Rate limit:[/] {config.rate_limit.requests_per_second:g} req/s"
+    )
+    will_run = plan["will_run"]
+    console.print(f"\n[status.completed]Will run[/] ({len(will_run)}): {', '.join(will_run) or '(none)'}")
+    if plan["gated"]:
+        console.print(
+            f"[hydra.muted]Gated (needs higher aggressiveness) "
+            f"({len(plan['gated'])}): {', '.join(plan['gated'])}[/]"
+        )
+    console.print("\n[hydra.muted]No requests were sent (--dry-run).[/]")
+
+
 # --fail-on severity gating (CI pipelines). Mirrors the report-time severity
 # ordering in hydra.reporting.generator so the threshold means the same thing
 # everywhere. Process exits with this code when the gate trips, distinct from
@@ -252,6 +296,13 @@ def cli(no_banner: bool) -> None:
     help="Suppress phase chrome and per-module chatter; show only the banner, scope "
     "and final results (pairs with --fail-on for CI).",
 )
+@click.option(
+    "--dry-run",
+    "dry_run",
+    is_flag=True,
+    help="Resolve the scope and scanner plan, print them, and exit without sending "
+    "any requests (confirm the engagement boundary before scanning).",
+)
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
     target: str | None,
@@ -291,6 +342,7 @@ def scan(
     har: str | None,
     fail_on: str | None,
     quiet: bool,
+    dry_run: bool,
     verbose: str,
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
@@ -363,6 +415,10 @@ def scan(
     )
     config.rate_limit.requests_per_second = rate_limit
     _log_scope(scope)
+    if dry_run:
+        # Preview only: show the resolved plan and stop before any packet leaves.
+        _print_scan_plan(config)
+        return
     counts = asyncio.run(_run_scan(config))
     _apply_fail_on(counts, fail_on)
 
