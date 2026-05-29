@@ -123,6 +123,7 @@ PP_PAGE = (
 
 # External JS with API endpoints, a websocket URL, and a leaked key (for js-analyzer).
 APP_JS = (
+    "/*! jQuery v1.7.1 jquery.com | jquery.org/license */"  # outdated lib -> SCA finding
     "const API='/api/v2';"
     "fetch('/api/v2/profile').then(r=>r.json());"
     "axios.get('/api/v2/orders');"

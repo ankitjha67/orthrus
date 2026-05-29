@@ -63,6 +63,7 @@ OWASP_2021 = {
     "parameter-pollution": "A03:2021 - Injection",
     "host-header-injection": "A03:2021 - Injection",
     "framework-debug": "A05:2021 - Security Misconfiguration",
+    "vulnerable-component": "A06:2021 - Vulnerable and Outdated Components",
     "example": "A05:2021 - Security Misconfiguration",
 }
 
@@ -77,6 +78,7 @@ PCI_DSS = {
     "exposed-file": "6.4.1", "websocket": "6.2.4", "race-condition": "6.2.4",
     "parameter-tampering": "6.2.4", "parameter-pollution": "6.2.4",
     "host-header-injection": "6.2.4", "framework-debug": "6.4.1",
+    "vulnerable-component": "6.3.3",
 }
 
 # NIST Cybersecurity Framework function/category.
