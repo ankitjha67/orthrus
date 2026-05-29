@@ -40,6 +40,7 @@ from orthrus.recon.dns_enum import DnsEnum
 from orthrus.recon.js_analyzer import JsAnalyzer
 from orthrus.recon.port_scan import PortScan
 from orthrus.recon.registry import get_recon_plugins
+from orthrus.recon.spa_crawl import SpaCrawl
 from orthrus.recon.subdomain_enum import SubdomainEnum
 from orthrus.recon.tech_fingerprint import TechFingerprint
 from orthrus.recon.waf_detect import WafDetect
@@ -371,6 +372,11 @@ class Orchestrator:
         # calls are captured as endpoints. applicable() gates on browser presence.
         if which is None or "browser" in which:
             modules.append(BrowserCrawl())
+        # SPA route discovery: enumerate client-side routes and drive each so
+        # route-specific lazy XHR/fetch fire. Runs after browser-crawl so it only
+        # emits the deeper, route-gated surface. applicable() gates on browser.
+        if which is None or "spa" in which:
+            modules.append(SpaCrawl())
         if which is None or "dns" in which:
             modules.append(DnsEnum())  # applicable() skips IP targets
         if which is not None and "subdomains" in which:
