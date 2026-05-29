@@ -513,5 +513,139 @@ async def _run_report(
         await store.close()
 
 
+@cli.command()
+@click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
+@click.option(
+    "--truth",
+    required=True,
+    help="Ground-truth file path, or a bundled name (e.g. 'reflecting-target').",
+)
+@click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
+@click.option("--modules", default="all", help="Comma-separated scanner modules.")
+@click.option("--aggressive", is_flag=True, help="Enable aggressive scanning (some classes need it).")
+@click.option("--confirm/--no-confirm", default=False, help="Run exploitation confirmation before scoring.")
+@click.option("--browser/--no-browser", default=True, help="Use headless browser (DOM/stored XSS).")
+@click.option("--rate-limit", default=50.0, type=float, help="Max requests/sec per domain.")
+@click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude.")
+@click.option("--output", "-o", default=None, help="Write the benchmark result as JSON to this path.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def benchmark(
+    target: str,
+    truth: str,
+    scope_str: str,
+    modules: str,
+    aggressive: bool,
+    confirm: bool,
+    browser: bool,
+    rate_limit: float,
+    timeout: float,
+    exclude_paths: str | None,
+    output: str | None,
+    verbose: str,
+) -> None:
+    """Measure detection accuracy against a known-vulnerability ground truth.
+
+    Scans a target you own, then scores the findings against an enumerated
+    ground-truth file: detection rate (did we catch the known bugs?) and a
+    false-positive proxy (did we report bugs that aren't in the truth?).
+    """
+    configure_logging(verbose)
+    from hydra.benchmark.runner import load_truth
+
+    truth_name, expected = load_truth(truth)
+    scope = build_scope(scope_str, target, exclude_paths)
+    config = ScanConfig(
+        target=target,
+        scope=scope,
+        modules=[m.strip() for m in modules.split(",") if m.strip()],
+        aggressiveness=Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL,
+        timeout=timeout,
+        use_browser=browser,
+        no_exploit=not confirm,
+    )
+    config.rate_limit.requests_per_second = rate_limit
+    _log_scope(scope)
+    asyncio.run(_run_benchmark(config, truth_name, expected, confirm, output))
+
+
+async def _run_benchmark(
+    config: ScanConfig,
+    truth_name: str,
+    expected: list,  # list[Expected]
+    confirm: bool,
+    output: str | None,
+) -> None:
+    from hydra.benchmark.runner import run_benchmark
+
+    report = await run_benchmark(config, get_settings(), expected, confirm=confirm)
+    _print_benchmark(report, truth_name, config.target)
+    if output:
+        _write_benchmark_json(report, truth_name, config.target, output)
+        logger.info("benchmark result written to %s", output)
+
+
+def _print_benchmark(report: object, truth_name: str, target: str) -> None:
+    from rich.table import Table
+
+    from hydra.utils.logger import console
+
+    r = report  # BenchmarkReport
+    table = Table(title=f"Benchmark: {truth_name} vs {target}")
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+    table.add_row("Detection rate", f"{r.detection_rate:.0%} ({r.required_detected}/{r.required_total})")
+    if r.optional_total:
+        table.add_row(
+            "Optional detected", f"{r.optional_detected}/{r.optional_total} (capability-gated)"
+        )
+    table.add_row("Unexpected findings", str(r.unexpected_count))
+    table.add_row("False-positive rate", f"{r.false_positive_rate:.0%}")
+    table.add_row("Total findings", str(r.total_findings))
+    console.print(table)
+
+    if r.missed:
+        missed = Table(title="Missed (expected but not detected)", show_lines=False)
+        missed.add_column("Vuln")
+        missed.add_column("Where")
+        missed.add_column("Kind")
+        for e in r.missed:
+            missed.add_row(e.vuln_type, e.url_contains or "*", "optional" if e.optional else "required")
+        console.print(missed)
+    if r.unexpected:
+        unexpected = Table(title="Unexpected findings (possible false positives)")
+        unexpected.add_column("Vuln")
+        unexpected.add_column("URL")
+        for f in r.unexpected:
+            unexpected.add_row(f.vuln_type, f.url)
+        console.print(unexpected)
+
+
+def _write_benchmark_json(
+    report: object, truth_name: str, target: str, output: str
+) -> None:
+    r = report  # BenchmarkReport
+    payload = {
+        "truth": truth_name,
+        "target": target,
+        "detection_rate": round(r.detection_rate, 4),
+        "required_detected": r.required_detected,
+        "required_total": r.required_total,
+        "optional_detected": r.optional_detected,
+        "optional_total": r.optional_total,
+        "unexpected_count": r.unexpected_count,
+        "false_positive_rate": round(r.false_positive_rate, 4),
+        "total_findings": r.total_findings,
+        "detected": [{"vuln_type": e.vuln_type, "where": e.url_contains, "param": e.param} for e in r.detected],
+        "missed": [
+            {"vuln_type": e.vuln_type, "where": e.url_contains, "param": e.param, "optional": e.optional}
+            for e in r.missed
+        ],
+        "unexpected": [{"vuln_type": f.vuln_type, "url": f.url, "parameter": f.parameter} for f in r.unexpected],
+    }
+    with open(output, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2)
+
+
 if __name__ == "__main__":
     cli()
