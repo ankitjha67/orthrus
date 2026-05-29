@@ -487,6 +487,36 @@ async def _awrite(path: str, text: str) -> None:
         await fh.write(text)
 
 
+def _write_stdout(text: str) -> None:
+    """Write a text report to stdout as UTF-8, regardless of console locale.
+
+    Prefers the binary buffer (correct on a Windows console / when piped); falls
+    back to the text stream when it's been replaced (e.g. pytest capture).
+    """
+    import sys
+
+    data = text if text.endswith("\n") else text + "\n"
+    buffer = getattr(sys.stdout, "buffer", None)
+    if buffer is not None:
+        buffer.write(data.encode("utf-8"))
+        buffer.flush()
+    else:
+        sys.stdout.write(data)
+
+
+async def _emit(text: str, output: str, ext: str) -> str:
+    """Persist a text report: to ``output`` (with extension) or stdout if "-".
+
+    Returns the written path, or "-" to signal the report went to stdout.
+    """
+    if output == "-":
+        _write_stdout(text)
+        return "-"
+    path = _with_ext(output, ext)
+    await _awrite(path, text)
+    return path
+
+
 async def generate_report(
     store: Store,
     scan_id: str,
@@ -500,32 +530,32 @@ async def generate_report(
     context = await _build_context(store, scan_id, branding, min_severity)
 
     if fmt == "json":
-        path = _with_ext(output, "json")
-        await _awrite(path, json.dumps(context, indent=2, ensure_ascii=False, default=str))
-        return path
+        return await _emit(
+            json.dumps(context, indent=2, ensure_ascii=False, default=str), output, "json"
+        )
 
     if fmt == "csv":
-        path = _with_ext(output, "csv")
-        await _awrite(path, _write_csv(context["findings"]))
-        return path
+        return await _emit(_write_csv(context["findings"]), output, "csv")
 
     if fmt == "sarif":
-        path = _with_ext(output, "sarif")
-        await _awrite(path, _write_sarif(context))
-        return path
+        return await _emit(_write_sarif(context), output, "sarif")
 
     if fmt in ("md", "markdown"):
-        path = _with_ext(output, "md")
-        await _awrite(path, _write_markdown(context))
-        return path
+        return await _emit(_write_markdown(context), output, "md")
 
     if fmt in ("html", "pdf"):
         tmpl = template if template in VALID_TEMPLATES else "technical"
         html = _render_html(context, f"{tmpl}.html")
+        if fmt == "html":
+            return await _emit(html, output, "html")
+        # PDF is binary and renders from an HTML file on disk, so it can't stream.
+        if output == "-":
+            raise ValueError(
+                "cannot stream a PDF report to stdout; use a text format "
+                "(json/csv/sarif/md/html)"
+            )
         html_path = _with_ext(output, "html")
         await _awrite(html_path, html)
-        if fmt == "html":
-            return html_path
         # PDF: render the HTML with headless Chromium.
         from hydra.reporting.pdf import html_to_pdf
 
