@@ -171,8 +171,8 @@ should always pass an explicit `--scope`.**
 ## 📦 Installation
 
 ```bash
-git clone https://github.com/ankitjha67/project_hydra.git
-cd project_hydra
+git clone https://github.com/ankitjha67/orthrus.git
+cd orthrus
 
 python -m venv .venv
 # Windows:  .\.venv\Scripts\Activate.ps1
