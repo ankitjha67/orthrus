@@ -432,41 +432,54 @@ class Orchestrator:
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="exploit")
 
         confirmed = 0
-        for finding in self.ctx.findings:
-            if finding.confidence == Confidence.CONFIRMED:
-                continue  # execution-based scanners (DOM/stored XSS) already proved it
-            modules = exploits_for(finding)
-            if not modules:
-                continue
-            for module in modules:
+        # Confirmed findings (DOM/stored XSS proved by execution) and findings with
+        # no matching confirmer are skipped; pre-filtering keeps the progress total honest.
+        candidates = [
+            (finding, modules)
+            for finding in self.ctx.findings
+            if finding.confidence != Confidence.CONFIRMED and (modules := exploits_for(finding))
+        ]
+        progress = make_progress(console) if (self._use_progress() and candidates) else None
+        with progress or contextlib.nullcontext():
+            task = progress.add_task("exploit", total=len(candidates)) if progress else None
+            for finding, modules in candidates:
+                if progress is not None:
+                    progress.update(task, description=f"exploit · {finding.vuln_type}")
                 try:
-                    result = await module.confirm(self.ctx, finding)
-                except Exception:
-                    logger.exception("exploit module %s crashed on %s", module.name, finding.id)
-                    continue
-                finding_db_id = self.ctx.finding_ids.get(finding.id)
-                if finding_db_id is not None:
-                    await self.store.add_exploitation(finding_db_id, result)
-                if result.success:
-                    confirmed += 1
-                    finding.confidence = Confidence.CONFIRMED
-                    if finding_db_id is not None:
-                        await self.store.set_finding_confidence(
-                            finding_db_id, Confidence.CONFIRMED.value
-                        )
-                    await self.event_bus.emit(
-                        EventType.EXPLOIT_CONFIRMED,
-                        vuln_type=finding.vuln_type,
-                        url=finding.url,
-                        technique=result.technique,
-                    )
-                    logger.info(
-                        "[bold green]CONFIRMED[/] %s at %s (%s)",
-                        finding.vuln_type,
-                        finding.url,
-                        result.technique,
-                    )
-                    break  # one successful confirmation per finding is enough
+                    for module in modules:
+                        try:
+                            result = await module.confirm(self.ctx, finding)
+                        except Exception:
+                            logger.exception(
+                                "exploit module %s crashed on %s", module.name, finding.id
+                            )
+                            continue
+                        finding_db_id = self.ctx.finding_ids.get(finding.id)
+                        if finding_db_id is not None:
+                            await self.store.add_exploitation(finding_db_id, result)
+                        if result.success:
+                            confirmed += 1
+                            finding.confidence = Confidence.CONFIRMED
+                            if finding_db_id is not None:
+                                await self.store.set_finding_confidence(
+                                    finding_db_id, Confidence.CONFIRMED.value
+                                )
+                            await self.event_bus.emit(
+                                EventType.EXPLOIT_CONFIRMED,
+                                vuln_type=finding.vuln_type,
+                                url=finding.url,
+                                technique=result.technique,
+                            )
+                            logger.info(
+                                "[bold green]CONFIRMED[/] %s at %s (%s)",
+                                finding.vuln_type,
+                                finding.url,
+                                result.technique,
+                            )
+                            break  # one successful confirmation per finding is enough
+                finally:
+                    if progress is not None:
+                        progress.advance(task)
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="exploit")
         await self.store.set_scan_phase(self.scan_id, "exploit")  # checkpoint for --resume
