@@ -73,7 +73,14 @@ class ContentDiscovery(BaseRecon):
         parts = urlsplit(ctx.config.target if "://" in ctx.config.target else f"//{ctx.config.target}")
         root = f"{parts.scheme or 'http'}://{parts.netloc or parts.path}"
 
-        base_status, base_len = await self._baseline(ctx, root)
+        # Prefer the orchestrator's shared catch-all profile (multiple probes,
+        # structural fingerprint). Fall back to a local single-shot baseline
+        # when running standalone (e.g. recon-only without an orchestrator).
+        profile = ctx.baseline if ctx.baseline and ctx.baseline.fingerprints else None
+        if profile is None:
+            base_status, base_len = await self._baseline(ctx, root)
+        else:
+            base_status, base_len = None, None
 
         for path in WORDLIST:
             url = f"{root}/{path}"
@@ -84,7 +91,12 @@ class ContentDiscovery(BaseRecon):
             except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL):
                 continue
             length = len(resp.content)
-            if not is_interesting(resp.status_code, length, base_status, base_len):
+            if resp.status_code not in _FOUND_STATUSES:
+                continue
+            if profile is not None:
+                if profile.matches(resp.status_code, resp.text):
+                    continue  # looks like the calibrated catch-all, not a real hit
+            elif not is_interesting(resp.status_code, length, base_status, base_len):
                 continue
 
             sensitive = (

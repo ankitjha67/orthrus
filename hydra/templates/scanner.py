@@ -130,6 +130,20 @@ class TemplateScanner(BaseScanner):
             if not matched:
                 continue
 
+            # Suppress catch-all false positives, but ONLY for templates whose
+            # match is purely status-based: a soft-404 site returns the same
+            # "found" status for every path, so a status-only matcher fires on
+            # noise. Templates that key on body words/regex or headers (e.g. a
+            # reflected-Origin CORS check) stay trusted even when the body
+            # itself resembles the catch-all.
+            if (
+                ctx.baseline is not None
+                and request.matchers
+                and all(m.type == "status" for m in request.matchers)
+                and ctx.baseline.matches(resp.status_code, resp.text)
+            ):
+                continue
+
             key = (template.id, url)
             if key in emitted:
                 continue

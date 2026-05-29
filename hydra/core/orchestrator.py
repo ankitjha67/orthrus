@@ -14,6 +14,7 @@ from rich.table import Table
 
 from hydra.core import schemas
 from hydra.core.auth import perform_login
+from hydra.core.baseline import build_baseline
 from hydra.core.browser import BrowserManager
 from hydra.core.callback import LocalCallbackServer
 from hydra.core.config import ScanConfig, Settings
@@ -178,6 +179,12 @@ class Orchestrator:
     async def run_recon(self, which: set[str] | None = None) -> tuple[int, int]:
         assert self.ctx is not None
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="recon")
+
+        # Calibrate a soft-404/catch-all profile first so recon (content
+        # discovery) and later template scans can suppress false positives that
+        # merely echo the target's catch-all response.
+        if self.ctx.baseline is None:
+            self.ctx.baseline = await build_baseline(self.ctx)
 
         # Order matters: crawl populates script endpoints before js-analysis reads them.
         modules: list[BaseRecon] = []

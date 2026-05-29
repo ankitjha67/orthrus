@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from hydra.core import schemas
+from hydra.core.baseline import BaselineProfile
 from hydra.core.browser import BrowserManager
 from hydra.core.callback import CallbackClient
 from hydra.core.config import ScanConfig
@@ -29,6 +30,7 @@ class ScanContext:
     event_bus: EventBus
     callback: CallbackClient | None = None
     browser: BrowserManager | None = None
+    baseline: BaselineProfile | None = None
     assets: list[schemas.Asset] = field(default_factory=list)
     endpoints: list[schemas.Endpoint] = field(default_factory=list)
     websockets: list[str] = field(default_factory=list)
