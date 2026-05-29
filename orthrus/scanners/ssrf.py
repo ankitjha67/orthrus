@@ -16,6 +16,7 @@ from collections.abc import AsyncIterator
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Confidence, Evidence, Finding, Severity
 from orthrus.scanners._injection import InjectionPoint, injection_points, send, used_url
+from orthrus.scanners._payloads import SSRF_METADATA
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.logger import get_logger
@@ -32,17 +33,23 @@ URL_HINTS = {
     "fetch", "load", "u", "next", "data", "reference", "ref",
 }
 
-METADATA_PAYLOADS = [
-    "http://169.254.169.254/latest/meta-data/",
-    "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
-    "http://metadata.google.internal/computeMetadata/v1/",
-]
+METADATA_PAYLOADS = list(SSRF_METADATA)
 
 # Content signatures only — tokens that appear in actual metadata *responses* but
 # NOT in the payload URLs we inject (otherwise a reflected payload false-positives).
+# Covers AWS, Azure, GCP, DigitalOcean and Oracle Cloud metadata services.
 _METADATA_RE = re.compile(
+    # AWS IMDS
     r"ami-id|instance-id|instance-type|local-ipv4|public-keys|block-device-mapping|"
-    r"instance-identity|AccessKeyId|SecretAccessKey",
+    r"instance-identity|AccessKeyId|SecretAccessKey|"
+    # Azure IMDS (instance JSON)
+    r"azEnvironment|resourceGroupName|\bvmId\b|"
+    # GCP service-account OAuth token response
+    r"ya29\.|"
+    # DigitalOcean metadata v1.json
+    r"droplet_id|"
+    # Oracle Cloud Infrastructure
+    r"canonicalRegionName|ociAdName",
     re.IGNORECASE,
 )
 

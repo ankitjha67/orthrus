@@ -1,0 +1,33 @@
+id: apache-server-status
+info:
+  name: Exposed Apache mod_status Page
+  author: orthrus
+  severity: medium
+  description: >-
+    The Apache /server-status page is publicly reachable. It discloses active
+    requests with client IPs and target URLs, server uptime, and worker state —
+    leaking traffic patterns and internal endpoints.
+  remediation: >-
+    Restrict mod_status with "Require local" / IP allow-listing, or disable the
+    handler in production.
+  tags:
+    - exposure
+    - apache
+    - misconfig
+  cwe: CWE-200
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/server-status"
+      - "{{BaseURL}}/server-status?auto"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        condition: or
+        words:
+          - "Apache Server Status"
+          - "Scoreboard:"

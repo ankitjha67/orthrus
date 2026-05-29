@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Aggressiveness, Confidence, Evidence, Finding, Severity
 from orthrus.scanners._injection import injection_points, send, used_url
+from orthrus.scanners._payloads import ssti_templates
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 
@@ -22,13 +23,7 @@ MAX_POINTS = 120
 
 
 def _templates(expr: str) -> list[tuple[str, str]]:
-    return [
-        ("Jinja2/Twig", "{{" + expr + "}}"),
-        ("Jinja2/Smarty", "${{" + expr + "}}"),
-        ("Freemarker/JSP-EL", "${" + expr + "}"),
-        ("Spring-EL/Ruby", "#{" + expr + "}"),
-        ("ERB", "<%= " + expr + " %>"),
-    ]
+    return ssti_templates(expr)
 
 
 def ssti_evaluated(expected: str, raw_expr: str, body: str) -> bool:

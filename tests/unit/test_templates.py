@@ -201,3 +201,41 @@ def test_load_directory_skips_invalid(tmp_path):
 def test_load_missing_path_raises():
     with pytest.raises(FileNotFoundError):
         load_templates("/no/such/templates/dir")
+
+
+# --------------------------------------------- new builtin template matchers
+def _builtin_request(template_id: str):
+    for t in load_templates("builtin"):
+        if t.id == template_id:
+            return t.requests[0]
+    raise AssertionError(f"builtin template {template_id!r} not found")
+
+
+def test_phpinfo_template_matches_real_page_only():
+    req = _builtin_request("phpinfo-exposure")
+    hit = _resp(status=200, body="<h1>PHP Version 8.2.7</h1><tr>Zend Engine v4.2.7</tr>")
+    miss = _resp(status=200, body="<html>welcome to my site</html>")
+    assert eval_request_matchers(req, hit)[0] is True
+    assert eval_request_matchers(req, miss)[0] is False
+    # status gate: same body but a 404 must not match
+    assert eval_request_matchers(req, _resp(status=404, body=hit.body))[0] is False
+
+
+def test_spring_actuator_env_template_matches_env_dump():
+    req = _builtin_request("spring-actuator-env")
+    body = '{"activeProfiles":[],"propertySources":[{"name":"systemProperties"}]}'
+    assert eval_request_matchers(req, _resp(status=200, body=body))[0] is True
+    assert eval_request_matchers(req, _resp(status=200, body='{"status":"UP"}'))[0] is False
+
+
+def test_sql_dump_template_matches_dump_signatures():
+    req = _builtin_request("sql-dump-exposure")
+    for body in ("-- MySQL dump 10.13", "PostgreSQL database dump", "CREATE TABLE users ("):
+        assert eval_request_matchers(req, _resp(status=200, body=body))[0] is True
+    assert eval_request_matchers(req, _resp(status=200, body="not a dump"))[0] is False
+
+
+def test_swagger_template_matches_openapi_spec():
+    req = _builtin_request("swagger-api-docs")
+    assert eval_request_matchers(req, _resp(status=200, body='{"openapi":"3.0.1","paths":{}}'))[0]
+    assert eval_request_matchers(req, _resp(status=200, body='{"data":[]}'))[0] is False

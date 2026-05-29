@@ -1,0 +1,28 @@
+id: ds-store-exposure
+info:
+  name: Exposed .DS_Store File
+  author: orthrus
+  severity: low
+  description: >-
+    A macOS .DS_Store file is reachable in the web root. It enumerates directory
+    and file names, helping an attacker map the application's structure and find
+    otherwise unlinked resources.
+  remediation: >-
+    Deny access to .DS_Store at the web server/CDN and exclude it from deploys.
+  tags:
+    - exposure
+    - config
+  cwe: CWE-548
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.DS_Store"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        words:
+          - "Bud1"

@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Aggressiveness, Confidence, Evidence, Finding, Severity
 from orthrus.scanners._injection import InjectionPoint, injection_points, send, used_url
+from orthrus.scanners._payloads import cmd_output_payloads, cmd_time_payloads
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 
@@ -23,25 +24,11 @@ SLEEP_SECONDS = 5
 
 
 def _output_payloads(value: str, canary: str) -> list[str]:
-    cmd = f"echo {canary}"
-    return [
-        f"{value}; {cmd}",
-        f"{value}| {cmd}",
-        f"{value}&& {cmd}",
-        f"{value}& {cmd}",
-        f"{value}`{cmd}`",
-        f"{value}$({cmd})",
-        f"{value}%0a{cmd}",
-    ]
+    return cmd_output_payloads(value, canary)
 
 
 def _time_payloads(value: str) -> list[str]:
-    return [
-        f"{value}; sleep {SLEEP_SECONDS}",
-        f"{value}| sleep {SLEEP_SECONDS}",
-        f"{value}& ping -n {SLEEP_SECONDS + 1} 127.0.0.1",
-        f"{value}&& ping -n {SLEEP_SECONDS + 1} 127.0.0.1",
-    ]
+    return cmd_time_payloads(value, SLEEP_SECONDS)
 
 
 def cmd_executed(canary: str, body: str) -> bool:

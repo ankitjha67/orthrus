@@ -19,6 +19,7 @@ from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Aggressiveness, Confidence, Evidence, Finding, Severity
 from orthrus.scanners._evasion import transport_safe_variants
 from orthrus.scanners._injection import InjectionPoint, injection_points, send, used_url
+from orthrus.scanners._payloads import SQLI_BOOLEAN_PAIRS, SQLI_ERROR, SQLI_TIME
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.logger import get_logger
@@ -28,7 +29,7 @@ logger = get_logger("scanner.sqli")
 SCANNER_NAME = "sqli"
 MAX_POINTS = 120
 
-ERROR_PAYLOADS = ["'", '"', "')", "';", "\"))", "`"]
+ERROR_PAYLOADS = SQLI_ERROR
 
 # DBMS -> error-signature regexes (case-insensitive).
 _SQL_ERROR_SIGNATURES: dict[str, list[str]] = {
@@ -76,11 +77,7 @@ _COMPILED = {
     for dbms, pats in _SQL_ERROR_SIGNATURES.items()
 }
 
-TIME_PAYLOADS = [
-    ("MySQL", "' AND SLEEP({n})-- -"),
-    ("PostgreSQL", "' AND (SELECT 1 FROM PG_SLEEP({n}))-- -"),
-    ("Microsoft SQL Server", "'; WAITFOR DELAY '0:0:{n}'-- -"),
-]
+TIME_PAYLOADS = SQLI_TIME
 SLEEP_SECONDS = 4
 
 
@@ -201,16 +198,19 @@ class SqlInjectionScanner(BaseScanner):
         baseline_text: str,
         aggressive: bool = False,
     ) -> Finding | None:
-        true_base = f"{value}' AND '1'='1"
-        false_base = f"{value}' AND '1'='2"
-        # Each pair is (evasion-label, TRUE payload, FALSE payload). The raw pair
-        # is always tried first; under AGGRESSIVE we additionally try transport-
-        # surviving evasions (mixed case, comment spacing) of the same clause so a
-        # signature WAF that blocks the plain "AND '1'='1" can't mask the finding.
-        pairs: list[tuple[str, str, str]] = [("raw", true_base, false_base)]
+        # Try several closing contexts (string/numeric/parenthesised/double-quote)
+        # so a backend query whose syntax doesn't match one style is still caught
+        # by another. Each entry is (label, TRUE payload, FALSE payload).
+        pairs: list[tuple[str, str, str]] = [
+            (label, f"{value}{true_suffix}", f"{value}{false_suffix}")
+            for label, true_suffix, false_suffix in SQLI_BOOLEAN_PAIRS
+        ]
+        # Under AGGRESSIVE, additionally try transport-surviving evasions (mixed
+        # case, comment spacing) of the canonical string clause, so a signature
+        # WAF that blocks the plain "AND '1'='1" can't mask the finding.
         if aggressive:
-            t_vars = transport_safe_variants(true_base)
-            f_vars = transport_safe_variants(false_base)
+            t_vars = transport_safe_variants(f"{value}' AND '1'='1")
+            f_vars = transport_safe_variants(f"{value}' AND '1'='2")
             for (label, t_enc), (_, f_enc) in zip(t_vars[1:], f_vars[1:], strict=False):
                 pairs.append((label, t_enc, f_enc))
 

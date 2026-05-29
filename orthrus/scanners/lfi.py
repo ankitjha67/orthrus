@@ -13,22 +13,14 @@ from collections.abc import AsyncIterator
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Aggressiveness, Confidence, Evidence, Finding, Severity
 from orthrus.scanners._injection import InjectionPoint, injection_points, send, used_url
+from orthrus.scanners._payloads import LFI_PATHS
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 
 SCANNER_NAME = "lfi"
 MAX_POINTS = 120
 
-LFI_PAYLOADS = [
-    "../../../../../../../../etc/passwd",
-    "....//....//....//....//....//etc/passwd",
-    "..%2f..%2f..%2f..%2f..%2f..%2fetc%2fpasswd",
-    "/etc/passwd",
-    "../../../../../../../../windows/win.ini",
-    "..\\..\\..\\..\\..\\..\\windows\\win.ini",
-    "..%5c..%5c..%5c..%5cwindows%5cwin.ini",
-    "C:\\windows\\win.ini",
-]
+LFI_PAYLOADS = LFI_PATHS
 
 _PASSWD_RE = re.compile(r"root:.*?:0:0:", re.MULTILINE)
 _WININI_RE = re.compile(r"\[(fonts|extensions|mci extensions)\]|for 16-bit app support", re.IGNORECASE)

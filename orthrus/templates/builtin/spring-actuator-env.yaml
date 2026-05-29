@@ -1,0 +1,36 @@
+id: spring-actuator-env
+info:
+  name: Exposed Spring Boot Actuator Environment
+  author: orthrus
+  severity: high
+  description: >-
+    A Spring Boot Actuator /env (or /actuator/env) endpoint is publicly
+    reachable. It dumps the application environment — property sources, system
+    properties, and frequently database URLs, credentials, and API keys.
+  remediation: >-
+    Restrict actuator endpoints to an internal management port and require
+    authentication. Disable sensitive endpoints (env, heapdump, configprops) in
+    production via management.endpoints.web.exposure.
+  tags:
+    - exposure
+    - spring
+    - misconfig
+  reference:
+    - https://docs.spring.io/spring-boot/docs/current/reference/html/actuator.html
+  cwe: CWE-200
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/actuator/env"
+      - "{{BaseURL}}/env"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        condition: and
+        words:
+          - "propertySources"
+          - "systemProperties"

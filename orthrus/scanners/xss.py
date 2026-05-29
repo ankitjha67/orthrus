@@ -25,6 +25,7 @@ from orthrus.core.schemas import (
     ParamLocation,
     Severity,
 )
+from orthrus.scanners._payloads import xss_execution_payloads
 from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.encoding import with_query_param
@@ -44,23 +45,15 @@ def build_payload(marker: str) -> str:
 
 
 def execution_payloads(marker: str) -> list[str]:
-    """Browser-executing payloads that set window.__orthrus_xss=marker (or alert it).
+    """Browser-executing payloads that set ``window['__hx_<marker>']=1``.
 
-    Covers several injection contexts; onerror/onload variants also fire when the
-    sink writes via innerHTML (where injected <script> would not run).
+    Delegates to the shared XSS corpus (orthrus.scanners._payloads). Each payload
+    sets a *marker-namespaced* global so detection survives pages that render
+    many payloads (stored XSS) — no last-write-wins clash and no alert()-driven
+    dialog storms. Covers script/event-handler/SVG/iframe contexts, several
+    tag-breakout prefixes, and a context-spanning polyglot.
     """
-    # Set a *marker-namespaced* global so detection survives pages that render
-    # many payloads (stored XSS): each marker has its own property, so there is
-    # no last-write-wins clash and no need for alert()-driven dialog storms.
-    js = f"window['__hx_{marker}']=1"
-    return [
-        f"<script>{js}</script>",
-        f'"><script>{js}</script>',
-        f'<img src=x onerror="{js}">',
-        f'"><img src=x onerror="{js}">',
-        f'<svg onload="{js}">',
-        f'<details open ontoggle="{js}">',
-    ]
+    return xss_execution_payloads(marker)
 
 
 def detect_reflection(marker: str, body: str) -> tuple[bool, set[str]]:

@@ -1,0 +1,38 @@
+id: swagger-api-docs
+info:
+  name: Exposed API Documentation (Swagger / OpenAPI)
+  author: orthrus
+  severity: info
+  description: >-
+    Interactive API documentation (Swagger UI / OpenAPI spec) is publicly
+    reachable. It enumerates every API route, parameter, and model, giving an
+    attacker a complete map of the application's attack surface.
+  remediation: >-
+    Restrict API documentation to non-production or authenticated environments,
+    or remove it from public deployments.
+  tags:
+    - exposure
+    - api
+    - info-disclosure
+  cwe: CWE-200
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/swagger-ui.html"
+      - "{{BaseURL}}/swagger/index.html"
+      - "{{BaseURL}}/v2/api-docs"
+      - "{{BaseURL}}/v3/api-docs"
+      - "{{BaseURL}}/openapi.json"
+      - "{{BaseURL}}/swagger.json"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: regex
+        part: body
+        condition: or
+        regex:
+          - "swagger-ui"
+          - "\"swagger\"\\s*:"
+          - "\"openapi\"\\s*:"

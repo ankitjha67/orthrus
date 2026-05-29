@@ -1,0 +1,41 @@
+id: phpinfo-exposure
+info:
+  name: Exposed phpinfo() Page
+  author: orthrus
+  severity: medium
+  description: >-
+    A phpinfo() page is publicly reachable. It discloses the PHP version,
+    loaded modules, environment variables, absolute paths, and server
+    configuration that aid further attacks.
+  remediation: >-
+    Remove phpinfo()/test scripts from production and deny access to them at the
+    web server. Never expose interpreter diagnostics publicly.
+  tags:
+    - exposure
+    - php
+    - info-disclosure
+  cwe: CWE-200
+requests:
+  - method: GET
+    path:
+      - "{{BaseURL}}/phpinfo.php"
+      - "{{BaseURL}}/info.php"
+      - "{{BaseURL}}/test.php"
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+      - type: word
+        part: body
+        condition: and
+        words:
+          - "PHP Version"
+          - "Zend Engine"
+    extractors:
+      - type: regex
+        name: php_version
+        part: body
+        regex:
+          - "PHP Version ([0-9.]+)"
+        group: 1
