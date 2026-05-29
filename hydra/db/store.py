@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import Connection, func, inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from hydra.core import schemas
@@ -24,6 +24,55 @@ from hydra.db.models import ScanLog as ScanLogRow
 from hydra.utils import crypto
 
 
+# --------------------------------------------------------- row -> schema rehydration
+# Resume (`hydra scan --resume`) reloads a previous run's inventory from the DB
+# back into the in-memory pydantic schemas the pipeline operates on. Columns the
+# schema generates fresh (id, discovered_at) are intentionally not round-tripped.
+def _asset_to_schema(row: AssetRow) -> schemas.Asset:
+    return schemas.Asset(
+        fqdn=row.fqdn,
+        ips=list(row.ips_json or []),
+        ports=list(row.ports_json or []),
+        technologies=[schemas.Technology.model_validate(t) for t in (row.technology_json or [])],
+        discovery_method=row.discovery_method,
+        http_available=row.http_available,
+        https_available=row.https_available,
+        status_code=row.status_code,
+        title=row.title,
+    )
+
+
+def _endpoint_to_schema(row: EndpointRow) -> schemas.Endpoint:
+    return schemas.Endpoint(
+        url=row.url,
+        method=schemas.HttpMethod(row.method),
+        params=[schemas.Param.model_validate(p) for p in (row.parameters_json or [])],
+        response_status=row.response_status,
+        content_type=row.content_type,
+        content_hash=row.content_hash,
+        source=row.source,
+    )
+
+
+def _finding_to_schema(row: FindingRow) -> schemas.Finding:
+    return schemas.Finding(
+        vuln_type=row.vuln_type,
+        title=row.title,
+        severity=schemas.Severity(row.severity),
+        confidence=schemas.Confidence(row.confidence),
+        url=row.url,
+        parameter=row.parameter,
+        param_location=schemas.ParamLocation(row.param_location) if row.param_location else None,
+        description=row.description,
+        remediation=row.remediation,
+        cwe=row.cwe,
+        cvss_score=row.cvss_score,
+        cvss_vector=row.cvss_vector,
+        scanner=row.scanner,
+        evidence=schemas.Evidence.model_validate(row.evidence_json or {}),
+    )
+
+
 class Store:
     def __init__(self, db_url: str, encryption_key: str | None = None) -> None:
         self.engine = create_async_engine(db_url, future=True)
@@ -35,6 +84,19 @@ class Store:
     async def init(self) -> None:
         async with self.engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(self._migrate_schema)
+
+    @staticmethod
+    def _migrate_schema(conn: Connection) -> None:
+        """Add columns introduced after a DB was first created.
+
+        ``create_all`` never alters existing tables, so a database created
+        before the resume feature lacks ``scans.phase``. Add it lazily here so
+        upgrading the tool doesn't require a manual migration or a fresh DB.
+        """
+        columns = {c["name"] for c in inspect(conn).get_columns("scans")}
+        if "phase" not in columns:
+            conn.execute(text("ALTER TABLE scans ADD COLUMN phase VARCHAR(16)"))
 
     def session(self) -> AsyncSession:
         return self._session_factory()
@@ -72,6 +134,15 @@ class Store:
                 row.completed_at = datetime.now(UTC)
             await session.commit()
 
+    async def set_scan_phase(self, scan_id: str, phase: str) -> None:
+        """Checkpoint the last fully-completed pipeline phase (for --resume)."""
+        async with self.session() as session:
+            row = await session.get(ScanRow, scan_id)
+            if row is None:
+                return
+            row.phase = phase
+            await session.commit()
+
     async def get_scan(self, scan_id: str) -> ScanRow | None:
         async with self.session() as session:
             return await session.get(ScanRow, scan_id)
@@ -95,6 +166,12 @@ class Store:
             await session.commit()
             return row.id
 
+    async def get_assets(self, scan_id: str) -> list[schemas.Asset]:
+        """Rehydrate a scan's persisted assets as in-memory schemas (resume)."""
+        async with self.session() as session:
+            result = await session.execute(select(AssetRow).where(AssetRow.scan_id == scan_id))
+            return [_asset_to_schema(r) for r in result.scalars().all()]
+
     # -------------------------------------------------------------- endpoints
     async def add_endpoint(
         self,
@@ -117,6 +194,14 @@ class Store:
             session.add(row)
             await session.commit()
             return row.id
+
+    async def get_endpoints(self, scan_id: str) -> list[schemas.Endpoint]:
+        """Rehydrate a scan's persisted endpoints as in-memory schemas (resume)."""
+        async with self.session() as session:
+            result = await session.execute(
+                select(EndpointRow).where(EndpointRow.scan_id == scan_id)
+            )
+            return [_endpoint_to_schema(r) for r in result.scalars().all()]
 
     # --------------------------------------------------------------- findings
     async def add_finding(
@@ -154,6 +239,18 @@ class Store:
                 select(FindingRow).where(FindingRow.scan_id == scan_id)
             )
             return list(result.scalars().all())
+
+    async def get_findings_with_ids(self, scan_id: str) -> list[tuple[int, schemas.Finding]]:
+        """Rehydrate findings as schemas paired with their DB row id (resume).
+
+        The DB id is needed so the exploitation phase can attach confirmations
+        to the right row via ``ctx.finding_ids`` after a resume.
+        """
+        async with self.session() as session:
+            result = await session.execute(
+                select(FindingRow).where(FindingRow.scan_id == scan_id)
+            )
+            return [(r.id, _finding_to_schema(r)) for r in result.scalars().all()]
 
     async def get_exploitations(self, finding_id: int) -> list[ExploitationRow]:
         async with self.session() as session:

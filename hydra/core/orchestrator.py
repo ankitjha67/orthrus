@@ -54,25 +54,44 @@ _AGGRESSIVENESS_RANK = {
     Aggressiveness.AGGRESSIVE: 2,
 }
 
+# Pipeline phases in execution order. On --resume, any phase at or below the
+# last checkpointed phase is skipped (its persisted output is rehydrated).
+_PHASE_ORDER = ("recon", "scan", "exploit")
+_PHASE_RANK = {name: i for i, name in enumerate(_PHASE_ORDER)}
+
 
 class Orchestrator:
-    def __init__(self, config: ScanConfig, settings: Settings) -> None:
+    def __init__(self, config: ScanConfig, settings: Settings, *, resume: bool = False) -> None:
         self.config = config
         self.settings = settings
         self.scan_id = config.scan_id or f"scan-{uuid4().hex[:8]}"
+        self.resume = resume
+        self._resume_phase: str | None = None  # last completed phase of a resumed scan
         self.event_bus = EventBus()
         self.scope = ScopeValidator(config.scope)
         self.store = Store(settings.db_url, encryption_key=settings.encryption_key)
         self.ctx: ScanContext | None = None
         self.scanner_metrics: list[ScannerMetric] = []
 
+    def _phase_complete(self, phase: str) -> bool:
+        """True when a resumed scan already finished ``phase`` in a prior run."""
+        if self._resume_phase is None:
+            return False
+        return _PHASE_RANK.get(self._resume_phase, -1) >= _PHASE_RANK[phase]
+
     async def setup(self) -> None:
         load_plugins(self.settings.plugins_dir)
         await self.store.init()
 
+        resume_row = None
+        if self.resume:
+            resume_row = await self.store.get_scan(self.scan_id)
+            if resume_row is None:
+                raise ValueError(f"cannot resume: no scan '{self.scan_id}' in the database")
+            self._resume_phase = resume_row.phase
         # Avoid a primary-key collision if the operator reuses an existing --scan-id
         # (previously this aborted the scan silently). Uniquify and warn instead.
-        if await self.store.get_scan(self.scan_id) is not None:
+        elif await self.store.get_scan(self.scan_id) is not None:
             new_id = f"{self.scan_id}-{uuid4().hex[:6]}"
             logger.warning("scan id '%s' already exists; using '%s'", self.scan_id, new_id)
             self.scan_id = new_id
@@ -117,28 +136,64 @@ class Orchestrator:
         elif self.config.use_browser:
             logger.info("Playwright not installed ([browser] extra); browser scanners disabled")
 
-        await self.store.create_scan(
-            self.scan_id,
-            self.config.target,
-            self.config.scope.model_dump(mode="json"),
-            self.config.model_dump(mode="json"),
-        )
-        await self.event_bus.emit(
-            EventType.SCAN_STARTED, scan_id=self.scan_id, target=self.config.target
-        )
-        await self.store.log(  # operator audit trail (PRD §12.2)
-            self.scan_id,
-            "audit",
-            "audit",
-            f"scan started target={self.config.target} scope={self.config.scope.domains or self.config.scope.ip_ranges} "
-            f"modules={self.config.modules} aggressiveness={self.config.aggressiveness.value} "
-            f"exploit={not self.config.no_exploit} encryption={'on' if self.settings.encryption_key else 'off'}",
-        )
-        logger.info("scan [bold]%s[/] started against %s", self.scan_id, self.config.target)
+        if resume_row is not None:
+            # Resuming: keep the existing scan row, flip it back to running, and
+            # reload the persisted inventory so skipped phases have their state.
+            await self.store.set_scan_status(self.scan_id, "running")
+            await self._rehydrate_state()
+            await self.event_bus.emit(
+                EventType.SCAN_STARTED, scan_id=self.scan_id, target=self.config.target
+            )
+            await self.store.log(
+                self.scan_id,
+                "audit",
+                "audit",
+                f"scan resumed from phase={self._resume_phase or 'start'} "
+                f"target={self.config.target}",
+            )
+            logger.info(
+                "scan [bold]%s[/] resumed (last completed phase: %s)",
+                self.scan_id,
+                self._resume_phase or "none",
+            )
+        else:
+            await self.store.create_scan(
+                self.scan_id,
+                self.config.target,
+                self.config.scope.model_dump(mode="json"),
+                self.config.model_dump(mode="json"),
+            )
+            await self.event_bus.emit(
+                EventType.SCAN_STARTED, scan_id=self.scan_id, target=self.config.target
+            )
+            await self.store.log(  # operator audit trail (PRD §12.2)
+                self.scan_id,
+                "audit",
+                "audit",
+                f"scan started target={self.config.target} scope={self.config.scope.domains or self.config.scope.ip_ranges} "
+                f"modules={self.config.modules} aggressiveness={self.config.aggressiveness.value} "
+                f"exploit={not self.config.no_exploit} encryption={'on' if self.settings.encryption_key else 'off'}",
+            )
+            logger.info("scan [bold]%s[/] started against %s", self.scan_id, self.config.target)
 
         # Authenticate before recon so the entire scan replays the session.
         if self.config.login_url and self.config.login_data:
             await self._authenticate(http, session)
+
+    async def _rehydrate_state(self) -> None:
+        """Reload a resumed scan's persisted assets/endpoints/findings into ctx."""
+        assert self.ctx is not None
+        self.ctx.assets = await self.store.get_assets(self.scan_id)
+        self.ctx.endpoints = await self.store.get_endpoints(self.scan_id)
+        for db_id, finding in await self.store.get_findings_with_ids(self.scan_id):
+            self.ctx.findings.append(finding)
+            self.ctx.finding_ids[finding.id] = db_id
+        logger.info(
+            "resumed state: %d asset(s), %d endpoint(s), %d finding(s)",
+            len(self.ctx.assets),
+            len(self.ctx.endpoints),
+            len(self.ctx.findings),
+        )
 
     async def _authenticate(self, http: HttpClient, session: Session) -> None:
         """Log in before recon so the whole scan runs authenticated (§3.4)."""
@@ -181,6 +236,18 @@ class Orchestrator:
     # ----------------------------------------------------------- phase: recon
     async def run_recon(self, which: set[str] | None = None) -> tuple[int, int]:
         assert self.ctx is not None
+        if self._phase_complete("recon"):
+            # Resuming past recon: assets/endpoints were rehydrated in setup().
+            # Still rebuild the soft-404 baseline (scan-time calibration, not
+            # persisted) so downstream scanners keep their FP suppression.
+            if self.ctx.baseline is None:
+                self.ctx.baseline = await build_baseline(self.ctx)
+            logger.info(
+                "recon already complete (resumed): reusing %d asset(s), %d endpoint(s)",
+                len(self.ctx.assets),
+                len(self.ctx.endpoints),
+            )
+            return len(self.ctx.assets), len(self.ctx.endpoints)
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="recon")
 
         # Calibrate a soft-404/catch-all profile first so recon (content
@@ -237,6 +304,7 @@ class Orchestrator:
                     await self.event_bus.emit(EventType.ENDPOINT_DISCOVERED, url=item.url)
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="recon")
+        await self.store.set_scan_phase(self.scan_id, "recon")  # checkpoint for --resume
         logger.info(
             "recon complete: %d asset(s), %d endpoint(s), %d request(s) sent",
             len(self.ctx.assets),
@@ -248,11 +316,18 @@ class Orchestrator:
     # ------------------------------------------------------------ phase: scan
     async def run_scan(self) -> int:
         assert self.ctx is not None
+        if self._phase_complete("scan"):
+            logger.info(
+                "scan already complete (resumed): reusing %d finding(s)",
+                len(self.ctx.findings),
+            )
+            return len(self.ctx.findings)
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="scan")
         scanners = get_scanners(self.config.modules)
         if not scanners:
             logger.info("scan: no scanner modules registered yet (Roadmap Phase 2+)")
             await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="scan")
+            await self.store.set_scan_phase(self.scan_id, "scan")  # checkpoint for --resume
             return 0
 
         configured_rank = _AGGRESSIVENESS_RANK[self.config.aggressiveness]
@@ -298,6 +373,7 @@ class Orchestrator:
                 await self.store.log(self.scan_id, "info", "metrics", metric.summary_line())
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="scan")
+        await self.store.set_scan_phase(self.scan_id, "scan")  # checkpoint for --resume
         logger.info("scan complete: %d finding(s)", total)
         return total
 
@@ -307,6 +383,14 @@ class Orchestrator:
         if self.config.no_exploit:
             logger.info("exploitation skipped (--no-exploit)")
             return 0
+        if self._phase_complete("exploit"):
+            confirmed = sum(
+                1 for f in self.ctx.findings if f.confidence == Confidence.CONFIRMED
+            )
+            logger.info(
+                "exploitation already complete (resumed): %d finding(s) confirmed", confirmed
+            )
+            return confirmed
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="exploit")
 
         confirmed = 0
@@ -347,6 +431,7 @@ class Orchestrator:
                     break  # one successful confirmation per finding is enough
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="exploit")
+        await self.store.set_scan_phase(self.scan_id, "exploit")  # checkpoint for --resume
         logger.info("exploitation complete: %d finding(s) confirmed", confirmed)
         return confirmed
 

@@ -106,7 +106,7 @@ def cli() -> None:
 
 
 @cli.command()
-@click.option("--target", "-t", required=True, help="Target URL.")
+@click.option("--target", "-t", default=None, help="Target URL (required unless --resume).")
 @click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
 @click.option("--modules", default="all", help="Comma-separated scanner modules.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
@@ -151,6 +151,12 @@ def cli() -> None:
 @click.option("--workers", default=4, type=int, help="Worker count (distributed partitioning).")
 @click.option("--redis", "redis_url", default=None, help="Redis broker URL (distributed mode).")
 @click.option("--scan-id", default=None, help="Custom scan identifier.")
+@click.option(
+    "--resume",
+    is_flag=True,
+    help="Resume an interrupted scan by --scan-id, reusing its stored config/scope "
+    "and skipping phases already completed. Report options are taken from the CLI.",
+)
 @click.option("--output", "-o", default="hydra_report", help="Report output path.")
 @click.option(
     "--format",
@@ -165,7 +171,7 @@ def cli() -> None:
 @click.option("--har", default=None, help="Record a browser HAR to this path (evidence).")
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
-    target: str,
+    target: str | None,
     scope_str: str,
     modules: str,
     aggressive: bool,
@@ -193,6 +199,7 @@ def scan(
     workers: int,
     redis_url: str | None,
     scan_id: str | None,
+    resume: bool,
     output: str,
     report_format: str,
     template: str,
@@ -203,6 +210,25 @@ def scan(
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
     configure_logging(verbose)
+
+    # Resume picks up an interrupted scan from its last checkpoint. The original
+    # target/scope/config come from the DB, so only --scan-id is required here.
+    if resume:
+        if not scan_id:
+            raise click.UsageError("--resume requires --scan-id")
+        report_overrides = {
+            "output": output,
+            "report_format": report_format,
+            "report_template": template,
+            "min_severity": min_severity,
+            "branding_logo": logo,
+        }
+        asyncio.run(_resume_scan(scan_id, report_overrides))
+        return
+
+    if not target:
+        raise click.UsageError("--target is required (or use --resume with --scan-id)")
+
     module_list = [m.strip() for m in modules.split(",") if m.strip()]
     aggressiveness = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
 
@@ -251,10 +277,10 @@ def scan(
     asyncio.run(_run_scan(config))
 
 
-async def _run_scan(config: ScanConfig) -> None:
+async def _run_scan(config: ScanConfig, *, resume: bool = False) -> None:
     from hydra.core.orchestrator import Orchestrator
 
-    orch = Orchestrator(config, get_settings())
+    orch = Orchestrator(config, get_settings(), resume=resume)
     status = "completed"
     try:
         await orch.setup()
@@ -268,6 +294,31 @@ async def _run_scan(config: ScanConfig) -> None:
         logger.exception("scan aborted")
     finally:
         await orch.teardown(status)
+
+
+async def _resume_scan(scan_id: str, report_overrides: dict[str, str | None]) -> None:
+    """Reload a previous scan's config from the DB and re-run it from its checkpoint."""
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        scan = await store.get_scan(scan_id)
+        if scan is None:
+            logger.error("no such scan to resume: %s", scan_id)
+            return
+        config = ScanConfig.model_validate(scan.config_json)
+        config.scan_id = scan_id
+    finally:
+        await store.close()
+
+    # Report output is controlled by this invocation's CLI flags, not the
+    # original run's; everything else (target, scope, modules) comes from the DB.
+    for key, value in report_overrides.items():
+        if value is not None:
+            setattr(config, key, value)
+
+    _log_scope(config.scope)
+    logger.info("resuming scan %s against %s", scan_id, config.target)
+    await _run_scan(config, resume=True)
 
 
 def _run_distributed(

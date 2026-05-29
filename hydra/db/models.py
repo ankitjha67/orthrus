@@ -38,6 +38,9 @@ class Scan(Base):
     scope_json: Mapped[dict] = mapped_column(JSON, default=dict)
     config_json: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(32), default="pending")
+    # Last fully-completed pipeline phase ("recon"/"scan"/"exploit"); drives
+    # `hydra scan --resume` so an interrupted run skips finished phases.
+    phase: Mapped[str | None] = mapped_column(String(16), nullable=True)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

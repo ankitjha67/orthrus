@@ -151,6 +151,9 @@ class _Store:
     async def log(self, scan_id: str, level: str, module: str, message: str) -> None:
         self.logs.append((module, message))
 
+    async def set_scan_phase(self, scan_id: str, phase: str) -> None:
+        pass  # orchestrator checkpoints the phase after run_scan; no-op for this fake
+
 
 async def test_run_scan_records_metrics_and_isolates_crash(monkeypatch):
     config = ScanConfig(target="http://h", scope=ScopeConfig(domains=["h"]))
