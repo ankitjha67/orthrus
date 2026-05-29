@@ -13,6 +13,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from hydra import main
+from hydra.core.config import ScanConfig, ScopeConfig
 
 
 def test_read_targets_skips_comments_and_blanks(tmp_path):
@@ -113,3 +114,41 @@ def test_neither_target_nor_file_errors():
     result = CliRunner().invoke(main.cli, ["--no-banner", "scan"])
     assert result.exit_code != 0
     assert "--target" in result.output
+
+
+def test_batch_summary_rolls_up_per_target(tmp_path):
+    # A pass-through asyncio.run returns _run_scan's value unchanged, so the
+    # per-target counts flow into the roll-up. The summary renders to the shared
+    # console (stderr), captured here as the other terminal-output tests do.
+    from hydra.utils.logger import console
+
+    p = tmp_path / "targets.txt"
+    p.write_text("http://a.example/\nhttp://b.example/\n", encoding="utf-8")
+
+    counts = {"http://a.example/": {"high": 2, "low": 1}, "http://b.example/": {"critical": 1}}
+
+    def config_for(t: str) -> ScanConfig:
+        return ScanConfig(target=t, scope=ScopeConfig(domains=["example"]), output="rep")
+
+    def fake_run(cfg, **_kw):
+        return counts[cfg.target]
+
+    with (
+        patch.object(main, "_run_scan", new=fake_run),
+        patch.object(main.asyncio, "run", side_effect=lambda c: c),
+        console.capture() as cap,
+    ):
+        main._run_target_file(str(p), config_for, dry_run=False, fail_on=None)
+    out = cap.get()
+    assert "BATCH SUMMARY" in out
+    assert "a.example" in out and "b.example" in out
+    # Totals are summed per target (2 + 1 = 3 for the first).
+    assert "3" in out
+
+
+def test_batch_summary_empty_is_noop():
+    from hydra.utils.logger import console
+
+    with console.capture() as cap:
+        main._print_batch_summary([])
+    assert cap.get() == ""

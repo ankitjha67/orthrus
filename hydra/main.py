@@ -555,6 +555,7 @@ def _run_target_file(
         raise click.UsageError(f"no targets found in {target_file}")
     logger.info("batch: %d target(s) from %s", len(targets), target_file)
     aggregate: dict[str, int] = {}
+    per_target: list[tuple[str, dict[str, int]]] = []
     for t in targets:
         cfg = config_for(t)
         cfg.scan_id = None  # each target is its own scan; never share an id
@@ -564,10 +565,42 @@ def _run_target_file(
             _print_scan_plan(cfg)
             continue
         counts = asyncio.run(_run_scan(cfg))
+        per_target.append((t, counts))
         for sev, n in counts.items():
             aggregate[sev] = aggregate.get(sev, 0) + n
     if not dry_run:
+        _print_batch_summary(per_target)
         _apply_fail_on(aggregate, fail_on)
+
+
+def _print_batch_summary(results: list[tuple[str, dict[str, int]]]) -> None:
+    """Roll-up table for a batch run: one row per target, severity counts + total.
+
+    Each target already prints its own RESULTS panel; this final overview lets
+    the operator compare targets at a glance and spot the worst offenders.
+    """
+    if not results:
+        return
+    from rich.table import Table
+    from rich.text import Text
+
+    from hydra.utils.theme import severity_style
+
+    section(console, f"BATCH SUMMARY · {len(results)} target(s)")
+    table = Table(title="[hydra.accent]Findings by target[/]", border_style="hydra.muted")
+    table.add_column("Target", style="bold", overflow="fold")
+    for sev in ("critical", "high", "medium", "low"):
+        table.add_column(sev.capitalize(), justify="right")
+    table.add_column("Total", justify="right", style="bold")
+
+    for target, counts in results:
+        total = sum(counts.values())
+        cells = []
+        for sev in ("critical", "high", "medium", "low"):
+            n = counts.get(sev, 0)
+            cells.append(Text(str(n), style=severity_style(sev) if n else "hydra.muted"))
+        table.add_row(target, *cells, str(total))
+    console.print(table)
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
