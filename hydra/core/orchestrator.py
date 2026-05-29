@@ -235,10 +235,15 @@ class Orchestrator:
 
         self.event_bus.subscribe(EventType.SCOPE_VIOLATION, on_scope_violation)
 
+    def _section(self, title: str) -> None:
+        """Print a phase divider unless the run is --quiet (CI: results only)."""
+        if not self.config.quiet:
+            section(console, title)
+
     # ----------------------------------------------------------- phase: recon
     async def run_recon(self, which: set[str] | None = None) -> tuple[int, int]:
         assert self.ctx is not None
-        section(console, "PHASE · RECON")
+        self._section("PHASE · RECON")
         if self._phase_complete("recon"):
             # Resuming past recon: assets/endpoints were rehydrated in setup().
             # Still rebuild the soft-404 baseline (scan-time calibration, not
@@ -319,7 +324,7 @@ class Orchestrator:
     # ------------------------------------------------------------ phase: scan
     async def run_scan(self) -> int:
         assert self.ctx is not None
-        section(console, "PHASE · SCAN")
+        self._section("PHASE · SCAN")
         if self._phase_complete("scan"):
             logger.info(
                 "scan already complete (resumed): reusing %d finding(s)",
@@ -384,7 +389,7 @@ class Orchestrator:
     # --------------------------------------------------------- phase: exploit
     async def run_exploit(self) -> int:
         assert self.ctx is not None
-        section(console, "PHASE · EXPLOIT")
+        self._section("PHASE · EXPLOIT")
         if self.config.no_exploit:
             logger.info("exploitation skipped (--no-exploit)")
             return 0

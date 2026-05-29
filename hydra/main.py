@@ -219,6 +219,13 @@ def cli(no_banner: bool) -> None:
     help=f"Exit {FAIL_ON_EXIT_CODE} if any finding at or above this severity is found "
     "(CI gating). Applies to single-target scans.",
 )
+@click.option(
+    "--quiet",
+    "-q",
+    is_flag=True,
+    help="Suppress phase chrome and per-module chatter; show only the banner, scope "
+    "and final results (pairs with --fail-on for CI).",
+)
 @click.option("--verbose", "-v", default="info", help="Log level: debug/info/warning/error.")
 def scan(
     target: str | None,
@@ -257,10 +264,13 @@ def scan(
     logo: str | None,
     har: str | None,
     fail_on: str | None,
+    quiet: bool,
     verbose: str,
 ) -> None:
     """Run the full pipeline: recon -> scan -> exploit -> report."""
-    configure_logging(verbose)
+    # --quiet silences per-module info chatter (warnings/errors still surface, so
+    # scope blocks, auth failures and the --fail-on gate are never hidden).
+    configure_logging("warning" if quiet else verbose)
 
     # Resume picks up an interrupted scan from its last checkpoint. The original
     # target/scope/config come from the DB, so only --scan-id is required here.
@@ -323,6 +333,7 @@ def scan(
         report_template=template,
         min_severity=min_severity,
         branding_logo=logo,
+        quiet=quiet,
     )
     config.rate_limit.requests_per_second = rate_limit
     _log_scope(scope)

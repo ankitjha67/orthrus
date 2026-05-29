@@ -144,6 +144,7 @@ class ScanConfig(BaseModel):
     report_template: str = "technical"
     min_severity: str | None = None  # report-time severity floor (§8.3)
     branding_logo: str | None = None  # logo image embedded in HTML/PDF reports
+    quiet: bool = False  # suppress phase chrome/chatter; show only banner + results (CI)
 
 
 class Settings(BaseSettings):
