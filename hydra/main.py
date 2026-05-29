@@ -20,7 +20,8 @@ from hydra.core.config import ScanConfig, ScopeConfig, get_settings
 from hydra.core.schemas import Aggressiveness
 from hydra.db.store import Store
 from hydra.reporting.generator import generate_report
-from hydra.utils.logger import configure_logging, get_logger
+from hydra.utils.logger import configure_logging, console, get_logger
+from hydra.utils.theme import render_banner, scope_panel, status_style
 
 logger = get_logger("cli")
 
@@ -87,12 +88,15 @@ def _parse_headers(headers_json: str | None) -> dict[str, str]:
 
 
 def _log_scope(scope: ScopeConfig) -> None:
-    logger.info(
-        "[bold]Authorized scope[/] - domains=%s ip_ranges=%s ports=%s exclude=%s",
-        scope.domains or "(none)",
-        scope.ip_ranges or "(none)",
-        scope.ports or "any",
-        scope.exclude_paths or "(none)",
+    # The engagement boundary is load-bearing, so render it as a prominent
+    # bordered panel the operator can confirm before any request goes out.
+    console.print(
+        scope_panel(
+            domains=scope.domains,
+            ip_ranges=scope.ip_ranges,
+            ports=scope.ports,
+            exclude=scope.exclude_paths,
+        )
     )
 
 
@@ -128,11 +132,19 @@ def _apply_fail_on(counts: dict[str, int], fail_on: str | None) -> None:
 
 @click.group()
 @click.version_option(__version__, prog_name="hydra")
-def cli() -> None:
+@click.option(
+    "--no-banner",
+    is_flag=True,
+    envvar="HYDRA_NO_BANNER",
+    help="Suppress the startup banner (also via HYDRA_NO_BANNER=1).",
+)
+def cli(no_banner: bool) -> None:
     """HYDRA - automated vulnerability discovery & exploitation confirmation.
 
     For authorized security testing only.
     """
+    if not no_banner:
+        render_banner(console, __version__)
 
 
 @cli.command()
@@ -633,13 +645,8 @@ def scans(status: str | None, limit: int, verbose: str) -> None:
     asyncio.run(_list_scans(status, limit))
 
 
-_STATUS_STYLE = {"completed": "green", "running": "yellow", "failed": "red", "pending": "dim"}
-
-
 async def _list_scans(status: str | None, limit: int) -> None:
     from rich.table import Table
-
-    from hydra.utils.logger import console
 
     settings = get_settings()
     store = Store(settings.db_url, encryption_key=settings.encryption_key)
@@ -653,7 +660,7 @@ async def _list_scans(status: str | None, limit: int) -> None:
         logger.info("no scans found (filter: %s)", status or "none")
         return
 
-    table = Table(title="HYDRA scans")
+    table = Table(title="[hydra.accent]HYDRA scans[/]")
     table.add_column("Scan ID", style="bold")
     table.add_column("Target")
     table.add_column("Status")
@@ -661,12 +668,11 @@ async def _list_scans(status: str | None, limit: int) -> None:
     table.add_column("Findings", justify="right")
     table.add_column("Started")
     for row, count in rows:
-        style = _STATUS_STYLE.get(row.status, "white")
         started = row.started_at.strftime("%Y-%m-%d %H:%M") if row.started_at else "-"
         table.add_row(
             row.id,
             row.target,
-            f"[{style}]{row.status}[/]",
+            f"[{status_style(row.status)}]{row.status}[/]",
             row.phase or "-",
             str(count),
             started,

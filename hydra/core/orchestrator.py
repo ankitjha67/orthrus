@@ -12,6 +12,7 @@ from time import perf_counter
 from uuid import uuid4
 
 from rich.table import Table
+from rich.text import Text
 
 from hydra.core import schemas
 from hydra.core.auth import perform_login
@@ -45,6 +46,7 @@ from hydra.reporting.generator import generate_report
 from hydra.scanners.registry import get_scanners
 from hydra.utils.logger import console, get_logger
 from hydra.utils.scope import ScopeValidator
+from hydra.utils.theme import section, severity_style
 
 logger = get_logger("orchestrator")
 
@@ -236,6 +238,7 @@ class Orchestrator:
     # ----------------------------------------------------------- phase: recon
     async def run_recon(self, which: set[str] | None = None) -> tuple[int, int]:
         assert self.ctx is not None
+        section(console, "PHASE · RECON")
         if self._phase_complete("recon"):
             # Resuming past recon: assets/endpoints were rehydrated in setup().
             # Still rebuild the soft-404 baseline (scan-time calibration, not
@@ -316,6 +319,7 @@ class Orchestrator:
     # ------------------------------------------------------------ phase: scan
     async def run_scan(self) -> int:
         assert self.ctx is not None
+        section(console, "PHASE · SCAN")
         if self._phase_complete("scan"):
             logger.info(
                 "scan already complete (resumed): reusing %d finding(s)",
@@ -380,6 +384,7 @@ class Orchestrator:
     # --------------------------------------------------------- phase: exploit
     async def run_exploit(self) -> int:
         assert self.ctx is not None
+        section(console, "PHASE · EXPLOIT")
         if self.config.no_exploit:
             logger.info("exploitation skipped (--no-exploit)")
             return 0
@@ -469,11 +474,19 @@ class Orchestrator:
 
     async def print_summary(self) -> None:
         counts = await self.store.severity_counts(self.scan_id)
-        table = Table(title=f"Scan {self.scan_id} - {self.config.target}")
+        section(console, "RESULTS")
+        table = Table(title=f"[hydra.accent]Scan {self.scan_id}[/] · {self.config.target}")
         table.add_column("Severity", style="bold")
         table.add_column("Count", justify="right")
         for severity in ("critical", "high", "medium", "low", "info"):
-            table.add_row(severity.title(), str(counts.get(severity, 0)))
+            n = counts.get(severity, 0)
+            style = severity_style(severity)
+            # Colour the severity by risk; grey out empty buckets so the eye
+            # lands on what actually fired.
+            table.add_row(
+                Text(severity.title(), style=style),
+                Text(str(n), style=style if n else "dim"),
+            )
         if self.ctx is not None:
             confirmed = sum(
                 1 for f in self.ctx.findings if f.confidence == Confidence.CONFIRMED

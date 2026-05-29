@@ -12,7 +12,11 @@ import logging
 from rich.console import Console
 from rich.logging import RichHandler
 
-console = Console(stderr=True)
+from hydra.utils.theme import HYDRA_THEME
+
+# Shared stderr console (stdout stays clean for report data). The theme
+# registers HYDRA's palette so log markup and tables share one design language.
+console = Console(stderr=True, theme=HYDRA_THEME)
 
 _LEVELS = {
     "debug": logging.DEBUG,
