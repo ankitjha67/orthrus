@@ -31,6 +31,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     open_redirect,
     prototype_pollution,
     race_condition,
+    request_smuggling,
     sca,
     sqli,
     sspp,
