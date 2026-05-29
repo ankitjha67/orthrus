@@ -8,6 +8,7 @@ pipeline runs end-to-end today and grows without structural change.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from time import perf_counter
 from urllib.parse import urlsplit
@@ -130,10 +131,18 @@ class Orchestrator:
             try:
                 await browser.start()
                 self.ctx.browser = browser
+                logger.info(
+                    "browser engine ready — XSS/DOM confirmation will execute payloads in a "
+                    "real headless browser"
+                )
             except Exception:
                 logger.exception("browser engine failed to start; continuing without it")
         elif self.config.use_browser:
-            logger.info("Playwright not installed ([browser] extra); browser scanners disabled")
+            logger.info(
+                "Playwright not installed ([browser] extra); XSS confirmation falls back to "
+                "reflection heuristics — install with `pip install orthrus-framework[browser] "
+                "&& playwright install chromium` for execution-proven XSS"
+            )
 
         if resume_row is not None:
             # Resuming: keep the existing scan row, flip it back to running, and
@@ -552,7 +561,6 @@ class Orchestrator:
             return confirmed
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="exploit")
 
-        confirmed = 0
         # Confirmed findings (DOM/stored XSS proved by execution) and findings with
         # no matching confirmer are skipped; pre-filtering keeps the progress total honest.
         candidates = [
@@ -561,46 +569,63 @@ class Orchestrator:
             if finding.confidence != Confidence.CONFIRMED and (modules := exploits_for(finding))
         ]
         progress = make_progress(console) if (self._use_progress() and candidates) else None
+
+        # Confirmation is network-bound: each module replays probes against the
+        # target, so over WAN latency the serial sum of round-trips dominated the
+        # phase. Run candidates concurrently under a bounded semaphore (sized to
+        # the scan's concurrency knob) so the latencies overlap. Each finding's
+        # own modules still run serially with break-on-first-success, and every
+        # store write opens its own AsyncSession, so concurrent persistence is safe.
+        limit = max(1, min(self.config.concurrency, len(candidates))) if candidates else 1
+        sem = asyncio.Semaphore(limit)
+
         with progress or contextlib.nullcontext():
             task = progress.add_task("exploit", total=len(candidates)) if progress else None
-            for finding, modules in candidates:
-                if progress is not None:
-                    progress.update(task, description=f"exploit · {finding.vuln_type}")
-                try:
-                    for module in modules:
-                        try:
-                            result = await module.confirm(self.ctx, finding)
-                        except Exception:
-                            logger.exception(
-                                "exploit module %s crashed on %s", module.name, finding.id
-                            )
-                            continue
-                        finding_db_id = self.ctx.finding_ids.get(finding.id)
-                        if finding_db_id is not None:
-                            await self.store.add_exploitation(finding_db_id, result)
-                        if result.success:
-                            confirmed += 1
-                            finding.confidence = Confidence.CONFIRMED
-                            if finding_db_id is not None:
-                                await self.store.set_finding_confidence(
-                                    finding_db_id, Confidence.CONFIRMED.value
-                                )
-                            await self.event_bus.emit(
-                                EventType.EXPLOIT_CONFIRMED,
-                                vuln_type=finding.vuln_type,
-                                url=finding.url,
-                                technique=result.technique,
-                            )
-                            logger.info(
-                                "[bold green]CONFIRMED[/] %s at %s (%s)",
-                                finding.vuln_type,
-                                finding.url,
-                                result.technique,
-                            )
-                            break  # one successful confirmation per finding is enough
-                finally:
+
+            async def _confirm_finding(finding, modules) -> int:
+                async with sem:
                     if progress is not None:
-                        progress.advance(task)
+                        progress.update(task, description=f"exploit · {finding.vuln_type}")
+                    try:
+                        for module in modules:
+                            try:
+                                result = await module.confirm(self.ctx, finding)
+                            except Exception:
+                                logger.exception(
+                                    "exploit module %s crashed on %s", module.name, finding.id
+                                )
+                                continue
+                            finding_db_id = self.ctx.finding_ids.get(finding.id)
+                            if finding_db_id is not None:
+                                await self.store.add_exploitation(finding_db_id, result)
+                            if result.success:
+                                finding.confidence = Confidence.CONFIRMED
+                                if finding_db_id is not None:
+                                    await self.store.set_finding_confidence(
+                                        finding_db_id, Confidence.CONFIRMED.value
+                                    )
+                                await self.event_bus.emit(
+                                    EventType.EXPLOIT_CONFIRMED,
+                                    vuln_type=finding.vuln_type,
+                                    url=finding.url,
+                                    technique=result.technique,
+                                )
+                                logger.info(
+                                    "[bold green]CONFIRMED[/] %s at %s (%s)",
+                                    finding.vuln_type,
+                                    finding.url,
+                                    result.technique,
+                                )
+                                return 1  # one successful confirmation per finding is enough
+                        return 0
+                    finally:
+                        if progress is not None:
+                            progress.advance(task)
+
+            results = await asyncio.gather(
+                *(_confirm_finding(finding, modules) for finding, modules in candidates)
+            )
+        confirmed = sum(results)
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="exploit")
         await self.store.set_scan_phase(self.scan_id, "exploit")  # checkpoint for --resume
