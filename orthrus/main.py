@@ -45,6 +45,24 @@ def _as_ip_range(token: str) -> str | None:
         return None
 
 
+def _normalize_scope_domain(token: str) -> str:
+    """Reduce a scope token to a bare host(/wildcard), tolerating pasted URLs.
+
+    Scope is host/domain-based, not URL-based, so 'https://site.com:8443/app' and
+    '*.https://site.com:8443' are normalised to 'site.com' / '*.site.com'. The port
+    is irrelevant here (the target port is authorised separately).
+    """
+    wildcard = token.startswith("*.")
+    core = token[2:] if wildcard else token
+    if "://" in core:
+        core = core.split("://", 1)[1]
+    core = core.split("/", 1)[0]  # drop any path
+    if ":" in core:
+        core = core.rsplit(":", 1)[0]  # drop :port (hostnames only; CIDR is handled earlier)
+    core = core.strip().lower()
+    return f"*.{core}" if wildcard else core
+
+
 def build_scope(
     scope_str: str | None,
     target: str,
@@ -65,7 +83,7 @@ def build_scope(
             if ip_range:
                 ip_ranges.append(ip_range)
             else:
-                domains.append(token)
+                domains.append(_normalize_scope_domain(token))
         scope = ScopeConfig(domains=domains, ip_ranges=ip_ranges)
 
     if exclude_paths:

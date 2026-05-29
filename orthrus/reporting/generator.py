@@ -495,6 +495,24 @@ def _write_sarif(context: dict[str, Any]) -> str:
     return json.dumps(sarif, indent=2, ensure_ascii=False, default=str)
 
 
+def _safe_output_path(output: str) -> str:
+    """Make a user-supplied ``-o`` path safe to write on this OS.
+
+    Tolerates a pasted URL as a filename (e.g. ``reports/https://site.com:8443.html``)
+    by stripping the scheme and replacing characters that are illegal in a filename
+    (``: / \\ * ? " < > |``) in the *basename* with ``-`` — turning what would be an
+    OSError (or a silent NTFS alternate-data-stream write on Windows) into a real,
+    predictable file. Directory and drive components are preserved.
+    """
+    import os
+    import re
+
+    cleaned = re.sub(r"\b[a-zA-Z][a-zA-Z0-9+.\-]*://", "", output)  # drop a pasted scheme
+    head, tail = os.path.split(cleaned)
+    tail = re.sub(r'[<>:"|?*\\/]', "-", tail) or "report"
+    return os.path.join(head, tail) if head else tail
+
+
 def _with_ext(output: str, ext: str) -> str:
     return output if output.endswith(f".{ext}") else f"{output}.{ext}"
 
@@ -529,7 +547,7 @@ async def _emit(text: str, output: str, ext: str) -> str:
     if output == "-":
         _write_stdout(text)
         return "-"
-    path = _with_ext(output, ext)
+    path = _with_ext(_safe_output_path(output), ext)
     await _awrite(path, text)
     return path
 
