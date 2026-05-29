@@ -13,6 +13,8 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /api/account(POST) mass assignment (autobind)
   /password-reset     Host/X-Forwarded-Host reflected into reset link -> host-header injection
   /actuator/env       exposed Spring Boot Actuator env  /server-status  Apache status -> framework debug
+  /account            /account/*.css returns the page verbatim -> web cache deception
+  /nosql?user=        reflects a MongoServerError on operator/quote chars -> NoSQL injection
 
 Run: python reflecting_target.py [port]
 """
@@ -57,6 +59,8 @@ HOME = (
     '<li><a href="/redeem">redeem</a></li>'
     '<li><a href="/login">login</a></li>'
     '<li><a href="/password-reset">reset</a></li>'
+    '<li><a href="/account">account</a></li>'
+    '<li><a href="/nosql?user=guest">nosql</a></li>'
     "</ul>"
     '<script src="/app.js"></script>'
     '<form action="/comment" method="post">'
@@ -138,6 +142,11 @@ ACTUATOR_ENV = (
     '"properties":{"DB_PASSWORD":{"value":"s3cr3t"},"JAVA_HOME":{"value":"/usr/lib/jvm"}}}]}'
 )
 SERVER_STATUS = "Apache Server Status for 127.0.0.1\nServer uptime: 3 days 4 hours\nScoreboard: __W_\n"
+# Sensitive account page; any /account/* sub-path returns it verbatim -> web cache deception.
+ACCOUNT_BODY = (
+    "<html><body><h1>Account</h1>user=alice, email=alice@corp.example, "
+    "balance=$4,200.00, card ending 1234</body></html>"
+)
 
 # Stored XSS: comments are rendered into HTML without sanitization.
 GUESTBOOK_COMMENTS: list[str] = []
@@ -290,6 +299,15 @@ class Handler(BaseHTTPRequestHandler):
             self._raw(ACTUATOR_ENV.encode(), "application/json")
         elif parts.path == "/server-status":
             self._raw(SERVER_STATUS.encode(), "text/plain")
+        elif parts.path == "/account" or parts.path.startswith("/account/"):
+            # Ignores any extra sub-path -> /account/x.css returns the page -> cache deception.
+            self._html(ACCOUNT_BODY)
+        elif parts.path == "/nosql":
+            user = first("user")
+            if any(c in user for c in ("$", "{", "'", '"', "\\")):
+                self._html("<html><body>MongoServerError: unknown top level operator: $ne</body></html>")
+            else:
+                self._html(f"<html><body>user record: {user}</body></html>")
         elif parts.path == "/guestbook":
             self._html(self._guestbook())
         elif parts.path == "/password-reset":
