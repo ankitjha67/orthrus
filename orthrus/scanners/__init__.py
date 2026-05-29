@@ -17,6 +17,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     deserialization,
     dom_xss,
     exposed_files,
+    framework_debug,
     graphql,
     headers,
     host_header,

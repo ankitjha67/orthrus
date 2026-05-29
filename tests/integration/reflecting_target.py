@@ -12,6 +12,7 @@ scanners can run end-to-end against a target we own. Do NOT deploy this.
   /fetch?url=    SSRF (GET + POST body)         /api/users/<id> IDOR / BOLA via REST path id
   /api/account(POST) mass assignment (autobind)
   /password-reset     Host/X-Forwarded-Host reflected into reset link -> host-header injection
+  /actuator/env       exposed Spring Boot Actuator env  /server-status  Apache status -> framework debug
 
 Run: python reflecting_target.py [port]
 """
@@ -130,6 +131,12 @@ APP_JS = (
 )
 ENV_FILE = "SECRET_KEY=orthrus-prod-123\nDATABASE_URL=postgres://u:p@db/app\n"
 GIT_HEAD = "ref: refs/heads/main\n"
+# Spring Boot Actuator /env left exposed (framework debug / management endpoint).
+ACTUATOR_ENV = (
+    '{"activeProfiles":["prod"],"propertySources":[{"name":"systemEnvironment",'
+    '"properties":{"DB_PASSWORD":{"value":"s3cr3t"},"JAVA_HOME":{"value":"/usr/lib/jvm"}}}]}'
+)
+SERVER_STATUS = "Apache Server Status for 127.0.0.1\nServer uptime: 3 days 4 hours\nScoreboard: __W_\n"
 
 # Stored XSS: comments are rendered into HTML without sanitization.
 GUESTBOOK_COMMENTS: list[str] = []
@@ -277,6 +284,11 @@ class Handler(BaseHTTPRequestHandler):
             self._raw(ENV_FILE.encode(), "text/plain")
         elif parts.path == "/.git/HEAD":
             self._raw(GIT_HEAD.encode(), "text/plain")
+        elif parts.path == "/actuator/env":
+            # Spring Boot Actuator env endpoint left exposed -> leaks config/secrets.
+            self._raw(ACTUATOR_ENV.encode(), "application/json")
+        elif parts.path == "/server-status":
+            self._raw(SERVER_STATUS.encode(), "text/plain")
         elif parts.path == "/guestbook":
             self._html(self._guestbook())
         elif parts.path == "/password-reset":
