@@ -13,6 +13,10 @@ vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
 produces JSON / CSV / HTML / PDF reports with CVSS v3.1 + v4.0 scoring and
 OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 
+![Orthrus terminal output: the banner, the AUTHORIZED SCOPE panel, the scan summary, OWASP Top-10 coverage, and the colour-coded findings table](docs/screenshot.png)
+
+<sub>A real scan of the bundled, 127.0.0.1-only practice target. Regenerate this view from any JSON report with [`examples/render_report_ui.py`](examples/render_report_ui.py).</sub>
+
 ---
 
 > ## ⚠️ Legal & Ethical Use — read before running anything
@@ -341,6 +345,17 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
 Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
 10, CWE, PCI-DSS, NIST-CSF, and MITRE ATT&CK.
 
+**Share the terminal view.** `examples/render_report_ui.py` renders any JSON
+report into the themed terminal UI (banner, scope panel, summary, OWASP coverage,
+findings table) and exports an **SVG + HTML** frame (and a **PNG** when the
+`[browser]` extra is installed) — useful for docs, slides, and tickets:
+
+```bash
+orthrus scan -t http://127.0.0.1:8731 -o report.json
+python examples/render_report_ui.py report.json -o out/scan
+# → out/scan.svg, out/scan.html, out/scan.png
+```
+
 ## 🏭 Production: PostgreSQL & distributed scanning
 
 ```bash
@@ -374,6 +389,8 @@ orthrus/
   utils/       logger, scope validator, rate limiter, encoding
   main.py      Click CLI entry point
 docker/        Dockerfile + docker-compose (app, workers, redis, postgres)
+examples/      render_report_ui.py (report → themed SVG/HTML/PNG) + a sample report
+docs/          screenshots and supporting images
 tests/         unit tests + a bundled deliberately-vulnerable integration target
 ```
 

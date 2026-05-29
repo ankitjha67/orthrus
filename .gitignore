@@ -14,11 +14,18 @@ env/
 *.sqlite3
 *.db
 orthrus_report*
+orthrus_smoke_ui.*
 scan_data/
 evidence/
 screenshots/
 reports/
 *.har
+
+# Regenerable UI renders from examples/render_report_ui.py (PNG hero is committed)
+examples/*.svg
+examples/*.html
+docs/*.svg
+docs/*.html
 
 # Local agent config
 .claude/settings.local.json
