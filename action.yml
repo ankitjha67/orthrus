@@ -1,0 +1,55 @@
+name: "ORTHRUS scan"
+description: "Run an authorized ORTHRUS scan and upload SARIF to GitHub code scanning."
+author: "Ankit Jha"
+branding:
+  icon: "shield"
+  color: "orange"
+
+inputs:
+  target:
+    description: "Target URL to scan (you must own it or be authorized to test it)."
+    required: true
+  scope:
+    description: "Engagement scope: bare host(s)/CIDR, comma-separated, or 'auto'."
+    required: false
+    default: "auto"
+  fail_on:
+    description: "Fail the job when a finding at/above this severity is found (critical|high|medium|low|info). Empty = never fail."
+    required: false
+    default: ""
+  args:
+    description: "Extra arguments passed to 'orthrus scan' (e.g. '--aggressive --rate-limit 10')."
+    required: false
+    default: ""
+  ref:
+    description: "ORTHRUS git ref to install."
+    required: false
+    default: "main"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - name: Install ORTHRUS
+      shell: bash
+      run: pip install "orthrus-framework[scanners] @ git+https://github.com/ankitjha67/orthrus.git@${{ inputs.ref }}"
+    - name: Run ORTHRUS scan
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        SCOPE: ${{ inputs.scope }}
+        FAIL_ON: ${{ inputs.fail_on }}
+        EXTRA: ${{ inputs.args }}
+      run: |
+        FAILARG=""
+        [ -n "$FAIL_ON" ] && FAILARG="--fail-on $FAIL_ON"
+        orthrus --no-banner scan -t "$TARGET" --scope "$SCOPE" \
+          --format sarif -o orthrus.sarif $FAILARG $EXTRA
+    - name: Upload SARIF to code scanning
+      if: always()
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: orthrus.sarif
