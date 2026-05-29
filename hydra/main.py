@@ -915,6 +915,145 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
     console.print(findings_table(rows))
 
 
+def _finding_key(row: object) -> tuple[str, str, str]:
+    """Stable cross-scan identity for diffing: what + where + which parameter.
+
+    Severity/confidence can change between runs without the underlying issue
+    changing, so they are deliberately excluded from the key — a fixed bug that
+    later reappears at a different severity still matches as 'still present'.
+    """
+    return (row.vuln_type, row.url, row.parameter or "")
+
+
+def _diff_sort_key(row: object) -> tuple[int, str, str]:
+    """Order diff rows highest-severity first, then stably by type/url."""
+    return (-_FAIL_ON_ORDER.get(row.severity, 0), row.vuln_type, row.url)
+
+
+def _partition_diff(base_rows: list, against_rows: list) -> dict[str, list]:
+    """Split findings into NEW / FIXED / STILL-PRESENT across two scans.
+
+    'new' is in the newer scan only, 'fixed' is in the baseline only, and
+    'persisting' is in both (keyed by :func:`_finding_key`). The newer row is
+    kept for persisting items so its current severity is what's shown.
+    """
+    base_map: dict[tuple, object] = {}
+    for r in base_rows:
+        base_map.setdefault(_finding_key(r), r)
+    against_map: dict[tuple, object] = {}
+    for r in against_rows:
+        against_map.setdefault(_finding_key(r), r)
+
+    base_keys, against_keys = set(base_map), set(against_map)
+    return {
+        "new": sorted((against_map[k] for k in against_keys - base_keys), key=_diff_sort_key),
+        "fixed": sorted((base_map[k] for k in base_keys - against_keys), key=_diff_sort_key),
+        "persisting": sorted(
+            (against_map[k] for k in base_keys & against_keys), key=_diff_sort_key
+        ),
+    }
+
+
+@cli.command(name="diff")
+@click.option("--base", "base_id", required=True, help="Baseline scan id (the 'before').")
+@click.option("--against", "against_id", required=True, help="Newer scan id (the 'after').")
+@click.option(
+    "--severity",
+    default=None,
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only consider findings at or above this severity.",
+)
+@click.option("--json", "as_json", is_flag=True, help="Emit the diff as JSON (stdout).")
+@click.option(
+    "--fail-on-new",
+    is_flag=True,
+    help=f"Exit {FAIL_ON_EXIT_CODE} if any NEW finding appears (retest/CI regression gate).",
+)
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def diff(
+    base_id: str,
+    against_id: str,
+    severity: str | None,
+    as_json: bool,
+    fail_on_new: bool,
+    verbose: str,
+) -> None:
+    """Compare two scans: what's NEW, FIXED, or STILL PRESENT.
+
+    A read-only, network-free retest view. Findings are matched across the two
+    scans by type + URL + parameter, so you can confirm a fix landed (FIXED),
+    catch regressions (NEW), and see what still needs work (STILL PRESENT).
+    Pair --fail-on-new with a retest pipeline to fail the build on any new bug.
+    """
+    configure_logging(verbose)
+    base_rows, against_rows = asyncio.run(_load_diff_rows(base_id, against_id, severity))
+    parts = _partition_diff(base_rows, against_rows)
+
+    if as_json:
+        click.echo(
+            json.dumps(
+                {key: [_finding_summary(r) for r in rows] for key, rows in parts.items()},
+                indent=2,
+                default=str,
+            )
+        )
+    else:
+        _print_diff(base_id, against_id, parts)
+
+    if fail_on_new and parts["new"]:
+        logger.error(
+            "fail-on-new: %d new finding(s) since %s; exiting %d",
+            len(parts["new"]),
+            base_id,
+            FAIL_ON_EXIT_CODE,
+        )
+        raise SystemExit(FAIL_ON_EXIT_CODE)
+
+
+async def _load_diff_rows(
+    base_id: str, against_id: str, severity: str | None
+) -> tuple[list, list]:
+    """Load both scans' findings, applying the optional severity floor to each."""
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        if await store.get_scan(base_id) is None:
+            raise click.ClickException(f"no such scan: {base_id} (list scans with `hydra scans`)")
+        if await store.get_scan(against_id) is None:
+            raise click.ClickException(
+                f"no such scan: {against_id} (list scans with `hydra scans`)"
+            )
+        base_rows = await store.get_findings(base_id)
+        against_rows = await store.get_findings(against_id)
+    finally:
+        await store.close()
+
+    if severity:
+        floor = _FAIL_ON_ORDER.get(severity.lower(), 0)
+        base_rows = [r for r in base_rows if _FAIL_ON_ORDER.get(r.severity, 0) >= floor]
+        against_rows = [r for r in against_rows if _FAIL_ON_ORDER.get(r.severity, 0) >= floor]
+    return base_rows, against_rows
+
+
+def _print_diff(base_id: str, against_id: str, parts: dict[str, list]) -> None:
+    from hydra.utils.theme import findings_table
+
+    section(console, f"SCAN DIFF · {base_id} -> {against_id}")
+    console.print(
+        f"[status.failed]New:[/] {len(parts['new'])}    "
+        f"[status.completed]Fixed:[/] {len(parts['fixed'])}    "
+        f"[hydra.muted]Still present:[/] {len(parts['persisting'])}"
+    )
+    for label, key in (("NEW", "new"), ("FIXED", "fixed")):
+        rows = parts[key]
+        if rows:
+            section(console, f"{label} · {len(rows)}")
+            console.print(findings_table(rows))
+    if not parts["new"] and not parts["fixed"]:
+        console.print("\n[hydra.muted]No change between the two scans.[/]")
+
+
 @cli.command(name="modules")
 @click.argument("name", required=False)
 @click.option("--json", "as_json", is_flag=True, help="Emit the inventory as JSON (stdout).")
