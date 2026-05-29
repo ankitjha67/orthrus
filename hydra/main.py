@@ -834,13 +834,15 @@ async def _list_scans(status: str | None, limit: int) -> None:
 
 
 @cli.command(name="modules")
+@click.argument("name", required=False)
 @click.option("--json", "as_json", is_flag=True, help="Emit the inventory as JSON (stdout).")
 @click.option("--verbose", "-v", default="warning", help="Log level.")
-def modules(as_json: bool, verbose: str) -> None:
-    """List available scanner and exploit-confirmation modules.
+def modules(name: str | None, as_json: bool, verbose: str) -> None:
+    """List scanner and exploit-confirmation modules, or detail one by NAME.
 
-    These are the names accepted by ``hydra scan --modules``. Useful for
-    discovering capabilities and building a targeted module selection.
+    With no NAME, list every module (the names accepted by ``hydra scan
+    --modules``). Pass a NAME to filter to a single scanner (by module name or
+    vuln type) or confirmer (by name or a vuln type it handles).
     """
     configure_logging(verbose)
     # Importing the packages runs the @register side-effects that populate the
@@ -868,6 +870,17 @@ def modules(as_json: bool, verbose: str) -> None:
         for cls in sorted(EXPLOIT_REGISTRY.values(), key=lambda c: c.name)
     ]
 
+    if name:
+        wanted = name.lower()
+        scanners = [s for s in scanners if wanted in (s["name"].lower(), s["vuln_type"].lower())]
+        exploits = [
+            e
+            for e in exploits
+            if e["name"].lower() == wanted or wanted in [h.lower() for h in e["handles"]]
+        ]
+        if not scanners and not exploits:
+            raise click.ClickException(f"no module matches '{name}' (try `hydra modules`)")
+
     if as_json:
         # Machine-readable on stdout (stdout is reserved for data; chrome is stderr).
         click.echo(json.dumps({"scanners": scanners, "exploits": exploits}, indent=2))
@@ -879,30 +892,32 @@ def modules(as_json: bool, verbose: str) -> None:
 def _print_modules(scanners: list[dict], exploits: list[dict]) -> None:
     from rich.table import Table
 
-    section(console, f"SCANNERS · {len(scanners)}")
-    stable = Table(title="[hydra.accent]Vulnerability scanners[/]")
-    stable.add_column("Module", style="bold")
-    stable.add_column("Vuln type")
-    stable.add_column("Aggr.")
-    stable.add_column("Description", style="hydra.muted")
-    for s in scanners:
-        agg = s["min_aggressiveness"]
-        stable.add_row(
-            s["name"],
-            s["vuln_type"],
-            f"[{_AGG_STYLE.get(agg, 'default')}]{agg}[/]",
-            s["description"],
-        )
-    console.print(stable)
+    if scanners:
+        section(console, f"SCANNERS · {len(scanners)}")
+        stable = Table(title="[hydra.accent]Vulnerability scanners[/]")
+        stable.add_column("Module", style="bold")
+        stable.add_column("Vuln type")
+        stable.add_column("Aggr.")
+        stable.add_column("Description", style="hydra.muted")
+        for s in scanners:
+            agg = s["min_aggressiveness"]
+            stable.add_row(
+                s["name"],
+                s["vuln_type"],
+                f"[{_AGG_STYLE.get(agg, 'default')}]{agg}[/]",
+                s["description"],
+            )
+        console.print(stable)
 
-    section(console, f"EXPLOIT CONFIRMATION · {len(exploits)}")
-    etable = Table(title="[hydra.accent]Exploit-confirmation modules[/]")
-    etable.add_column("Module", style="bold")
-    etable.add_column("Confirms")
-    etable.add_column("Description", style="hydra.muted")
-    for e in exploits:
-        etable.add_row(e["name"], ", ".join(e["handles"]), e["description"])
-    console.print(etable)
+    if exploits:
+        section(console, f"EXPLOIT CONFIRMATION · {len(exploits)}")
+        etable = Table(title="[hydra.accent]Exploit-confirmation modules[/]")
+        etable.add_column("Module", style="bold")
+        etable.add_column("Confirms")
+        etable.add_column("Description", style="hydra.muted")
+        for e in exploits:
+            etable.add_row(e["name"], ", ".join(e["handles"]), e["description"])
+        console.print(etable)
 
 
 # Hint lines (stdout, prepended as comments) so an operator who runs the command

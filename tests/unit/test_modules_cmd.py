@@ -60,3 +60,39 @@ def test_modules_human_table_exits_clean():
     runner = CliRunner()
     result = runner.invoke(main.cli, ["--no-banner", "modules"])
     assert result.exit_code == 0, result.output
+
+
+def test_modules_detail_by_name_filters_to_one():
+    runner = CliRunner()
+    result = runner.invoke(main.cli, ["--no-banner", "modules", "sqli", "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+
+    names = {s["name"] for s in data["scanners"]}
+    assert "sqli" in names
+    # Unrelated scanners are filtered out of a single-module view.
+    assert "security-headers" not in names
+
+
+def test_modules_detail_by_vuln_type_groups_family():
+    # "xss" is a vuln_type shared by several scanners (reflected/dom/stored).
+    runner = CliRunner()
+    result = runner.invoke(main.cli, ["--no-banner", "modules", "xss", "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+
+    assert data["scanners"]  # at least one xss-family scanner matched
+    assert all(s["vuln_type"] == "xss" for s in data["scanners"])
+
+
+def test_modules_unknown_name_errors():
+    runner = CliRunner()
+    result = runner.invoke(main.cli, ["--no-banner", "modules", "no-such-module"])
+    assert result.exit_code != 0
+    assert "no-such-module" in result.output
+
+
+def test_modules_human_detail_exits_clean():
+    runner = CliRunner()
+    result = runner.invoke(main.cli, ["--no-banner", "modules", "sqli"])
+    assert result.exit_code == 0, result.output
