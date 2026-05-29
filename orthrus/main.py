@@ -25,7 +25,7 @@ from orthrus.core.schemas import Aggressiveness
 from orthrus.db.store import Store
 from orthrus.reporting.generator import generate_report
 from orthrus.utils.logger import configure_logging, console, get_logger
-from orthrus.utils.theme import render_banner, scope_panel, section, status_style
+from orthrus.utils.theme import findings_table, render_banner, scope_panel, section, status_style
 
 logger = get_logger("cli")
 
@@ -1636,6 +1636,48 @@ def mcp_cmd() -> None:
             "the MCP server needs the [mcp] extra: pip install 'orthrus-framework[mcp]'"
         ) from exc
     server.run()
+
+
+@cli.command(name="iac")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
+@click.option(
+    "--fail-on",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    default=None,
+    help="Exit non-zero if a finding at/above this severity is found (for CI).",
+)
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def iac_cmd(path: str, output: str | None, fail_on: str | None, verbose: str) -> None:
+    """Audit Infrastructure-as-Code for misconfigurations (offline, no network).
+
+    Scans Dockerfiles, docker-compose, and Terraform under PATH (a file or a
+    directory) for root containers, unpinned/secret-bearing images, privileged
+    or docker-socket-mounted services, world-open security groups, public
+    buckets, unencrypted storage, and hardcoded secrets.
+    """
+    configure_logging(verbose)
+    from orthrus.iac import analyze_path
+
+    findings = analyze_path(path)
+    section(console, "IAC AUDIT")
+    if findings:
+        console.print(findings_table(findings))
+    else:
+        console.print("[green]No IaC misconfigurations found.[/]")
+
+    if output:
+        payload = {"findings": [f.model_dump(mode="json") for f in findings]}
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, default=str)
+        console.print(f"wrote {len(findings)} finding(s) to {output}")
+
+    if fail_on:
+        order = ["info", "low", "medium", "high", "critical"]
+        threshold = order.index(fail_on)
+        worst = max((order.index(f.severity.value) for f in findings), default=-1)
+        if worst >= threshold:
+            raise SystemExit(1)
 
 
 @cli.command()
