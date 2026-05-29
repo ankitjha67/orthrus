@@ -101,6 +101,10 @@ class ScanConfig(BaseModel):
     target: str
     scope: ScopeConfig
     modules: list[str] = Field(default_factory=lambda: ["all"])
+    tools: list[str] = Field(
+        default_factory=list,
+        description="External tool adapters to run (e.g. nuclei); empty = none.",
+    )
     aggressiveness: Aggressiveness = Aggressiveness.NORMAL
 
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)

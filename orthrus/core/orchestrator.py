@@ -608,6 +608,36 @@ class Orchestrator:
         return confirmed
 
     # ---------------------------------------------------------- phase: report
+    async def run_integrations(self) -> int:
+        """Run opt-in external-tool adapters (--tools) and store their findings."""
+        from orthrus.integrations import get_tools
+
+        tools = get_tools(self.config.tools) if self.config.tools else []
+        if not tools:
+            return 0
+        await self.event_bus.emit(EventType.PHASE_STARTED, phase="tools")
+        total = 0
+        for tool in tools:
+            try:
+                findings = await tool.run(self.ctx)
+            except Exception:  # isolate adapter failures, like scanners
+                logger.exception("tool %s crashed; continuing", tool.name)
+                continue
+            for finding in findings:
+                db_id = await self.store.add_finding(self.scan_id, finding)
+                self.ctx.findings.append(finding)
+                self.ctx.finding_ids[finding.id] = db_id
+                await self.event_bus.emit(
+                    EventType.FINDING_RAISED,
+                    vuln_type=finding.vuln_type,
+                    severity=finding.severity.value,
+                    url=finding.url,
+                )
+                total += 1
+            logger.info("tool %s: %d finding(s)", tool.name, len(findings))
+        await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="tools")
+        return total
+
     async def run_report(self, fmt: str, output: str) -> str:
         branding = {"logo": self.config.branding_logo} if self.config.branding_logo else None
         path = await generate_report(
@@ -626,6 +656,7 @@ class Orchestrator:
         await self.run_recon()
         await self.run_scan()
         await self.run_exploit()
+        await self.run_integrations()
 
     # ------------------------------------------------------------- lifecycle
     async def teardown(self, status: str = "completed") -> None:

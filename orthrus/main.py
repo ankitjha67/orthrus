@@ -308,6 +308,7 @@ def cli(no_banner: bool) -> None:
 )
 @click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
 @click.option("--modules", default="all", help="Comma-separated scanner modules.")
+@click.option("--tools", default="", help="External tool adapters to run (e.g. 'nuclei' or 'all'); needs the binary on PATH.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--rate-limit", default=50.0, type=float, help="Max requests/sec per domain.")
 @click.option("--crawl-depth", default=10, type=int, help="Maximum crawl depth.")
@@ -455,6 +456,7 @@ def scan(
     target_file: str | None,
     scope_str: str,
     modules: str,
+    tools: str,
     aggressive: bool,
     rate_limit: float,
     crawl_depth: int,
@@ -541,6 +543,7 @@ def scan(
         raise click.UsageError("use either --target or --target-file, not both")
 
     module_list = [m.strip() for m in modules.split(",") if m.strip()]
+    tool_list = [t.strip() for t in tools.split(",") if t.strip()]
     aggressiveness = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
 
     if distributed:
@@ -566,6 +569,7 @@ def scan(
             target=t,
             scope=build_scope(scope_str, t, exclude_paths),
             modules=module_list,
+            tools=tool_list,
             aggressiveness=aggressiveness,
             crawl_depth=crawl_depth,
             max_pages=max_pages,
@@ -732,6 +736,7 @@ async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, in
         await orch.run_recon()
         await orch.run_scan()
         await orch.run_exploit()
+        await orch.run_integrations()
         await orch.run_report(config.report_format, config.output)
         await orch.print_summary()
         # Capture before teardown closes the store; the gate is applied by the caller.
@@ -1453,6 +1458,12 @@ def _collect_diagnostics() -> dict:
             shutil.which("nmap") is not None,
             "service/port discovery during recon",
             "install nmap via your OS package manager",
+        ),
+        (
+            "nuclei binary",
+            shutil.which("nuclei") is not None,
+            "external-tool adapter: template-based scanning via --tools nuclei",
+            "install nuclei (ProjectDiscovery), e.g. 'winget install ProjectDiscovery.Nuclei'",
         ),
         (
             "python-nmap",
