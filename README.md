@@ -5,6 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
+[![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
 ORTHRUS crawls a target, fingerprints its stack, runs 26 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
@@ -54,6 +55,7 @@ OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 - [Scope enforcement](#-scope-enforcement-the-safety-boundary)
 - [Requirements](#-requirements)
 - [Installation](#-installation)
+- [Run in VS Code or Google Colab](#-run-in-vs-code-or-google-colab)
 - [Quickstart](#-quickstart)
 - [Try it safely](#-try-it-safely)
 - [Usage guide](#-usage-guide)
@@ -204,6 +206,18 @@ playwright install chromium
 > and XSS confirmation need `[browser]` + `playwright install chromium`. Each
 > module self-disables cleanly if its extra is missing — the lean core still runs
 > everything else.
+
+## 💻 Run in VS Code or Google Colab
+
+Prefer a guided, copy-paste setup? Two detailed step-by-step walkthroughs live in
+**[docs/USAGE_VSCODE_COLAB.md](docs/USAGE_VSCODE_COLAB.md)**:
+
+- **VS Code** — virtual-environment setup, recommended extensions, running the
+  bundled practice target, breakpoint debugging (`launch.json`), and the
+  test/lint workflow.
+- **Google Colab** — zero local install, all in the browser. Open the
+  ready-to-run notebook and choose **Runtime → Run all**:
+  [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
 ## 🚀 Quickstart
 
