@@ -11,6 +11,8 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import re
+import sys
 from urllib.parse import urlsplit
 
 import click
@@ -21,7 +23,7 @@ from hydra.core.schemas import Aggressiveness
 from hydra.db.store import Store
 from hydra.reporting.generator import generate_report
 from hydra.utils.logger import configure_logging, console, get_logger
-from hydra.utils.theme import render_banner, scope_panel, status_style
+from hydra.utils.theme import render_banner, scope_panel, section, status_style
 
 logger = get_logger("cli")
 
@@ -73,6 +75,30 @@ def build_scope(
     if target_port and scope.ports and target_port not in scope.ports:
         scope.ports.append(target_port)
     return scope
+
+
+# Internal PRD section refs (e.g. "(PRD §6.2)") must never leak into public
+# output, so they are stripped from any description we surface.
+_PRD_REF = re.compile(r"\s*\(PRD[^)]*\)")
+
+
+def _first_doc_line(obj: object) -> str:
+    """A one-line summary for ``obj``: its docstring, else its module's.
+
+    Scanner/exploit classes document themselves at module level, so fall back to
+    the module docstring when the class has none. Any PRD reference is stripped.
+    """
+    doc = (getattr(obj, "__doc__", None) or "").strip()
+    if not doc and isinstance(obj, type):
+        module = sys.modules.get(obj.__module__)
+        doc = (getattr(module, "__doc__", None) or "").strip()
+    line = next((s.strip() for s in doc.splitlines() if s.strip()), "")
+    return _PRD_REF.sub("", line).strip()
+
+
+# Aggressiveness tier -> theme style for the `modules` listing (read intrusiveness
+# at a glance: passive=safe/dim, aggressive=loud/yellow).
+_AGG_STYLE = {"passive": "hydra.muted", "normal": "default", "aggressive": "bold yellow"}
 
 
 def _parse_headers(headers_json: str | None) -> dict[str, str]:
@@ -692,6 +718,78 @@ async def _list_scans(status: str | None, limit: int) -> None:
     # Nudge toward the resume workflow for any scan that didn't finish.
     if any(row.status in ("running", "failed") for row, _ in rows):
         logger.info("resume an interrupted scan with: hydra scan --resume --scan-id <id>")
+
+
+@cli.command(name="modules")
+@click.option("--json", "as_json", is_flag=True, help="Emit the inventory as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def modules(as_json: bool, verbose: str) -> None:
+    """List available scanner and exploit-confirmation modules.
+
+    These are the names accepted by ``hydra scan --modules``. Useful for
+    discovering capabilities and building a targeted module selection.
+    """
+    configure_logging(verbose)
+    # Importing the packages runs the @register side-effects that populate the
+    # registries (no scanners are imported until something needs them).
+    import hydra.exploits  # noqa: F401
+    import hydra.scanners  # noqa: F401
+    from hydra.exploits.registry import EXPLOIT_REGISTRY
+    from hydra.scanners.registry import SCANNER_REGISTRY
+
+    scanners = [
+        {
+            "name": cls.name,
+            "vuln_type": cls.vuln_type,
+            "min_aggressiveness": cls.min_aggressiveness.value,
+            "description": _first_doc_line(cls),
+        }
+        for cls in sorted(SCANNER_REGISTRY.values(), key=lambda c: c.name)
+    ]
+    exploits = [
+        {
+            "name": cls.name,
+            "handles": list(cls.handles),
+            "description": _first_doc_line(cls),
+        }
+        for cls in sorted(EXPLOIT_REGISTRY.values(), key=lambda c: c.name)
+    ]
+
+    if as_json:
+        # Machine-readable on stdout (stdout is reserved for data; chrome is stderr).
+        click.echo(json.dumps({"scanners": scanners, "exploits": exploits}, indent=2))
+        return
+
+    _print_modules(scanners, exploits)
+
+
+def _print_modules(scanners: list[dict], exploits: list[dict]) -> None:
+    from rich.table import Table
+
+    section(console, f"SCANNERS · {len(scanners)}")
+    stable = Table(title="[hydra.accent]Vulnerability scanners[/]")
+    stable.add_column("Module", style="bold")
+    stable.add_column("Vuln type")
+    stable.add_column("Aggr.")
+    stable.add_column("Description", style="hydra.muted")
+    for s in scanners:
+        agg = s["min_aggressiveness"]
+        stable.add_row(
+            s["name"],
+            s["vuln_type"],
+            f"[{_AGG_STYLE.get(agg, 'default')}]{agg}[/]",
+            s["description"],
+        )
+    console.print(stable)
+
+    section(console, f"EXPLOIT CONFIRMATION · {len(exploits)}")
+    etable = Table(title="[hydra.accent]Exploit-confirmation modules[/]")
+    etable.add_column("Module", style="bold")
+    etable.add_column("Confirms")
+    etable.add_column("Description", style="hydra.muted")
+    for e in exploits:
+        etable.add_row(e["name"], ", ".join(e["handles"]), e["description"])
+    console.print(etable)
 
 
 @cli.command()
