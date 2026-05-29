@@ -1472,6 +1472,12 @@ def _collect_diagnostics() -> dict:
             "pip install 'orthrus-framework[api]'",
         ),
         (
+            "MCP server (Model Context Protocol)",
+            _has("mcp"),
+            "expose scans/findings to AI agents via 'orthrus mcp'",
+            "pip install 'orthrus-framework[mcp]'",
+        ),
+        (
             "python-nmap",
             _has("nmap"),
             "parse nmap output",
@@ -1612,6 +1618,24 @@ def serve(host: str, port: int) -> None:
 
     click.echo(f"ORTHRUS API on http://{host}:{port}  (docs at /docs)")
     uvicorn.run(create_app(), host=host, port=port)
+
+
+@cli.command(name="mcp")
+def mcp_cmd() -> None:
+    """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
+
+    Lets an MCP-capable AI agent query ORTHRUS results (list_scans, get_scan,
+    get_findings, list_modules). Needs the [mcp] extra.
+    """
+    from orthrus.mcp_server import build_server
+
+    try:
+        server = build_server()
+    except ImportError as exc:
+        raise click.ClickException(
+            "the MCP server needs the [mcp] extra: pip install 'orthrus-framework[mcp]'"
+        ) from exc
+    server.run()
 
 
 @cli.command()
