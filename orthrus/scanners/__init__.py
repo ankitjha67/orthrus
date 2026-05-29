@@ -26,6 +26,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     idor,
     jwt_analyzer,
     lfi,
+    llm,
     mass_assignment,
     nosql,
     open_redirect,
