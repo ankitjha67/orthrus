@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-772-test / lint-clean quality gates.
+774-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (53 scanners, 17 confirmers, 14 recon
@@ -96,7 +96,7 @@ roadmap for advanced scanners & methods.
 
 | Category | Scanners |
 |---|---|
-| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL), CSV / formula injection |
+| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL + **CL.0 desync**), CSV / formula injection |
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
 | Access / logic | IDOR, **multi-identity authorization matrix (BOLA/BFLA, Autorize-style `--identities`)**, **privilege-escalation forced-browse (unlinked admin routes via the identity lattice)**, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |

@@ -20,6 +20,8 @@ server this correctly finds nothing).
 from __future__ import annotations
 
 import asyncio
+import re
+import secrets
 import ssl
 import time
 from collections.abc import AsyncIterator
@@ -70,6 +72,38 @@ def desync_signal(baseline_time: float, probe_time: float, timeout: float) -> bo
     return probe_time >= timeout * 0.9 and baseline_time < timeout * 0.5
 
 
+def build_cl0_probe(host: str, marker: str) -> bytes:
+    """CL.0 desync: a POST whose body is itself an HTTP request for ``/marker``.
+
+    If the front-end ignores the Content-Length on this request (CL.0), the body
+    is left on the wire and the back-end parses it as a *separate* request — so a
+    request for the unique ``/marker`` path is processed that was never sent as a
+    top-level request. A CL-honouring server instead consumes the body and emits
+    a single response.
+    """
+    smuggled = (
+        f"GET /{marker} HTTP/1.1\r\nHost: {host}\r\n"
+        "Connection: close\r\n\r\n"
+    )
+    return (
+        f"POST / HTTP/1.1\r\nHost: {host}\r\n"
+        f"Content-Length: {len(smuggled)}\r\n"
+        f"Connection: keep-alive\r\n\r\n{smuggled}"
+    ).encode()
+
+
+# A response status line ("HTTP/1.1 200 ...") — distinct from a request line that
+# merely ends in "HTTP/1.1", so an echoed request body cannot inflate the count.
+_RESPONSE_STATUS_RE = re.compile(r"HTTP/1\.[01] \d{3}")
+
+
+def cl0_desynced(response: str, marker: str) -> bool:
+    """True if the smuggled request was processed: the unique marker came back
+    AND the server emitted a *second* HTTP response on the connection (proving an
+    extra request was handled, not merely that the body was echoed)."""
+    return marker in response and len(_RESPONSE_STATUS_RE.findall(response)) >= 2
+
+
 def _origin(url: str) -> tuple[str, int, bool] | None:
     parts = urlsplit(url)
     if not parts.hostname:
@@ -114,6 +148,12 @@ class RequestSmugglingScanner(BaseScanner):
                     yield self._finding(base_url, label, baseline, elapsed)
                     break
 
+            # CL.0: differential — the smuggled request's marker comes back.
+            marker = "orthrus-cl0-" + secrets.token_hex(4)
+            response = await self._cl0_collect(host, port, tls, build_cl0_probe(host, marker))
+            if response is not None and cl0_desynced(response, marker):
+                yield self._cl0_finding(base_url, marker)
+
     def _finding(self, url: str, variant: str, baseline: float, probe: float) -> Finding:
         return Finding(
             vuln_type="request-smuggling",
@@ -140,6 +180,74 @@ class RequestSmugglingScanner(BaseScanner):
                 notes=f"probe {probe:.1f}s vs baseline {baseline:.1f}s (timeout {PROBE_TIMEOUT}s)",
             ),
         )
+
+    def _cl0_finding(self, url: str, marker: str) -> Finding:
+        return Finding(
+            vuln_type="request-smuggling",
+            title="HTTP request smuggling (CL.0 desync)",
+            severity=Severity.HIGH,
+            confidence=Confidence.FIRM,
+            url=url,
+            description=(
+                "A POST whose body was itself an HTTP request for a unique path "
+                f"(/{marker}) caused the server to process that smuggled request — its marker "
+                "came back as a second HTTP response on the connection. The front-end ignored the "
+                "Content-Length (CL.0), so the body desynced the connection. This enables request "
+                "hijacking, response queue poisoning, and security-control bypass for other users."
+            ),
+            remediation=(
+                "Ensure every hop consumes the request body per Content-Length (reject requests "
+                "that ignore CL on bodyless methods), normalise framing, and avoid reusing the "
+                "front-end↔back-end connection across clients."
+            ),
+            cwe="CWE-444",
+            scanner=SCANNER_NAME,
+            evidence=Evidence(
+                request_raw=f"POST / with body 'GET /{marker} HTTP/1.1...' (CL.0 probe)",
+                matched_at=marker,
+                notes="smuggled request marker returned as a second response (CL.0 desync)",
+            ),
+        )
+
+    async def _cl0_collect(
+        self, host: str, port: int, tls: bool, raw: bytes
+    ) -> str | None:
+        """Send a CL.0 probe over a raw socket and collect the full response stream
+        (which holds two responses if the connection desynced)."""
+        ctx_ssl = ssl.create_default_context() if tls else None
+        if ctx_ssl is not None:
+            ctx_ssl.check_hostname = False
+            ctx_ssl.verify_mode = ssl.CERT_NONE
+        try:
+            reader, writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port, ssl=ctx_ssl), timeout=PROBE_TIMEOUT
+            )
+        except (TimeoutError, OSError, ssl.SSLError) as exc:
+            logger.debug("cl0 connect failed for %s:%s: %s", host, port, exc)
+            return None
+        chunks: list[bytes] = []
+        try:
+            writer.write(raw)
+            await asyncio.wait_for(writer.drain(), timeout=PROBE_TIMEOUT)
+            deadline = time.monotonic() + PROBE_TIMEOUT
+            while len(b"".join(chunks)) < 16384 and time.monotonic() < deadline:
+                try:
+                    data = await asyncio.wait_for(reader.read(4096), timeout=1.5)
+                except TimeoutError:
+                    break
+                if not data:
+                    break
+                chunks.append(data)
+        except (TimeoutError, OSError) as exc:
+            logger.debug("cl0 probe error for %s:%s: %s", host, port, exc)
+            return None
+        finally:
+            writer.close()
+            try:
+                await asyncio.wait_for(writer.wait_closed(), timeout=1.0)
+            except (TimeoutError, OSError):
+                pass
+        return b"".join(chunks).decode("latin1")
 
     async def _probe_time(
         self, host: str, port: int, tls: bool, raw: bytes, timeout_s: float
@@ -183,5 +291,7 @@ __all__ = [
     "build_baseline",
     "build_clte_probe",
     "build_tecl_probe",
+    "build_cl0_probe",
     "desync_signal",
+    "cl0_desynced",
 ]

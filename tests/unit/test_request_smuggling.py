@@ -7,10 +7,29 @@ from types import SimpleNamespace
 from orthrus.core.schemas import Severity
 from orthrus.scanners.request_smuggling import (
     RequestSmugglingScanner,
+    build_cl0_probe,
     build_clte_probe,
     build_tecl_probe,
+    cl0_desynced,
     desync_signal,
 )
+
+
+def test_cl0_probe_embeds_marker_request_as_body() -> None:
+    raw = build_cl0_probe("h", "MARK123").decode()
+    assert raw.startswith("POST / HTTP/1.1")
+    assert "GET /MARK123 HTTP/1.1" in raw
+    assert "Content-Length: " in raw and "Connection: keep-alive" in raw
+
+
+def test_cl0_desynced_requires_marker_and_second_response() -> None:
+    two = "HTTP/1.1 200 OK\r\n\r\nok\nHTTP/1.1 404 Not Found\r\n\r\n/MARK123 not found"
+    assert cl0_desynced(two, "MARK123") is True
+    # only one response (body echo) -> not a desync
+    one = "HTTP/1.1 200 OK\r\n\r\nyou posted: GET /MARK123 HTTP/1.1"
+    assert cl0_desynced(one, "MARK123") is False
+    # marker absent -> not a desync
+    assert cl0_desynced("HTTP/1.1 200\r\n\r\nHTTP/1.1 200\r\n\r\nok", "MARK123") is False
 
 
 def test_probes_carry_conflicting_framing() -> None:
