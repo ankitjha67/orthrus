@@ -42,6 +42,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     prototype_pollution,
     race_condition,
     request_smuggling,
+    saml,
     sca,
     secret_scanner,
     service_exposure,
