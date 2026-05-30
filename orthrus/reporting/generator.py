@@ -75,6 +75,12 @@ OWASP_2021 = {
     "iac-misconfig": "A05:2021 - Security Misconfiguration",
     "crlf-injection": "A03:2021 - Injection",
     "file-upload": "A04:2021 - Insecure Design",
+    "csp": "A05:2021 - Security Misconfiguration",
+    "exposed-secret": "A05:2021 - Security Misconfiguration",
+    "formula-injection": "A03:2021 - Injection",
+    "api-misconfig": "A05:2021 - Security Misconfiguration",
+    "shadow-api": "A05:2021 - Security Misconfiguration",
+    "directory-listing": "A05:2021 - Security Misconfiguration",
     "example": "A05:2021 - Security Misconfiguration",
 }
 
@@ -96,6 +102,8 @@ PCI_DSS = {
     "request-smuggling": "6.2.4", "exposed-service": "1.3",
     "prompt-injection": "6.2.4", "llm-info-disclosure": "6.2.4",
     "iac-misconfig": "2.2",
+    "csp": "6.4.1", "exposed-secret": "6.4.1", "formula-injection": "6.2.4",
+    "api-misconfig": "6.4.1", "shadow-api": "6.4.1", "directory-listing": "6.4.1",
 }
 
 # NIST Cybersecurity Framework function/category.

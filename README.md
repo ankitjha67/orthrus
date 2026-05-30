@@ -7,7 +7,7 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 42 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 48 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -21,10 +21,10 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-667-test / lint-clean quality gates.
+716-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
-implemented-system PRD: every subsystem (42 scanners, 17 confirmers, 13 recon
+implemented-system PRD: every subsystem (48 scanners, 17 confirmers, 13 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -92,18 +92,19 @@ roadmap for advanced scanners & methods.
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (42)**
+**Vulnerability scanners (48)**
 
 | Category | Scanners |
 |---|---|
-| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL) |
+| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL), CSV / formula injection |
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
 | Access / logic | IDOR, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
 | Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks) |
 | Server-side | SSRF (out-of-band + metadata), deserialization, prototype pollution (client- & server-side) |
-| Config / transport | Security headers, CORS, TLS analysis, exposed files, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover |
-| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading DoS, debug/stack-trace disclosure — DVGA-grade), WebSocket |
+| Config / transport | Security headers, **CSP weakness analysis**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **HTTP misconfig (TRACE/XST, dangerous methods)** |
+| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading DoS, debug/stack-trace disclosure — DVGA-grade), WebSocket, **shadow / improper-inventory API (API9)** |
+| Secrets | **Exposed-secret scanner** — AWS/Google/Slack/Stripe/GitHub keys + private-key blocks in responses/JS (redacted) |
 | Supply chain | SCA — known-vulnerable JS libraries (retire.js-style) |
 | Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
 | Intelligence | CVE matcher (version → known-CVE) **plus** version-less product fingerprinting (WebLogic, Confluence, Jenkins, Solr → known-exploited CVEs), all enriched with CISA KEV + EPSS (`orthrus update`) |
@@ -484,7 +485,7 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    42 scanners + base interface + registry
+  scanners/    48 scanners + base interface + registry
   exploits/    17 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
