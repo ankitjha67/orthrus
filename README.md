@@ -21,7 +21,12 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-646-test / lint-clean quality gates.
+667-test / lint-clean quality gates.
+
+📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
+implemented-system PRD: every subsystem (42 scanners, 17 confirmers, 13 recon
+modules), the data/config/scope/store models, the confirmation doctrine, and the
+roadmap for advanced scanners & methods.
 
 ---
 
