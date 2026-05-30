@@ -109,19 +109,25 @@ Active injection scanners share a **WAF-evasion encoder library** (URL / double-
 mixed-case / comment-spacing / HTML-entity / unicode); transport-surviving
 variants are tried automatically under `--aggressive`.
 
-**Exploitation confirmation (11 modules)** — re-proves findings to upgrade their
-confidence to `confirmed`: SSRF, SQLi, LFI, command injection, SSTI, open
-redirect, XXE, XSS (browser-executed by default when Playwright is present),
-**NoSQL injection** (driver-error replay), **CRLF / response splitting**
-(fresh-nonce header-injection replay), and **CORS** (arbitrary-origin reflection
-re-proven with a freshly-minted attacker origin). Confirmation works on both
-query-string **and** POST form-body parameters, and runs **concurrently**
-(bounded by `concurrency`) so WAN round-trips overlap instead of summing.
+**Exploitation confirmation (15 modules)** — re-proves findings to upgrade their
+confidence to `confirmed`:
 
-Confirmation deliberately covers the *actively-exploitable* classes; findings
-that are already definitively proven by observation (missing security headers,
-deprecated TLS, known-CVE product exposure, banner disclosure) ship as `firm`
-without a synthetic exploit step.
+- **Injection** — SQLi, command injection, SSTI, LFI, XXE, **NoSQL** (driver-error replay)
+- **XSS** — browser-executed by default when Playwright is present (window-flag/dialog + screenshot)
+- **Redirect / headers** — open redirect, **CRLF / response splitting** (fresh-nonce header survives), **host-header injection** (a freshly-forged attacker host re-reflected into links/redirects)
+- **Access / objects** — **IDOR** (sequential object enumeration reproduced: adjacent IDs resolve, an implausible ID does not), **mass assignment** (a fresh per-field nonce re-bound into the response object)
+- **Cross-origin / tokens** — **CORS** (arbitrary-origin reflection re-proven with a freshly-minted attacker origin), **JWT** (a weak HMAC secret is recovered and used to forge a validly-signed token — the secret is never emitted)
+- **Out-of-band** — SSRF (collaborator callback)
+
+Confirmation works on query-string **and** POST/JSON body parameters and runs
+**concurrently** (bounded by `concurrency`) so WAN round-trips overlap instead of
+summing.
+
+It deliberately covers the *actively-exploitable* classes. Findings that are
+already definitively proven by observation (missing security headers, deprecated
+TLS, known-CVE product exposure, banner disclosure, exposed services, request
+smuggling) ship as `firm`/`confirmed` from detection itself — no synthetic
+exploit step is invented for them.
 
 **Reporting**
 - Formats: **JSON, CSV, HTML, PDF, SARIF, Markdown**
@@ -470,7 +476,7 @@ orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    42 scanners + base interface + registry
-  exploits/    11 confirmation modules + base interface + registry
+  exploits/    15 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
   iac/         Infrastructure-as-Code misconfig analyzer (Dockerfile/compose/Terraform)
