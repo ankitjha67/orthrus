@@ -394,7 +394,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **667 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket integration checks for confirmers.
+- **784 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -433,9 +433,21 @@ Prioritized into waves. Each item is a self-contained increment (detector + test
 
 > **✅ Build-out Wave 1 shipped** (no new core infra — pure detectors, 42→48 scanners, +49 tests): CSP weakness analysis, exposed-secret scanning (redacted), CSV/formula injection, HTTP misconfig (TRACE/XST + dangerous methods), shadow/inventory API (API9), directory-listing/autoindex. See §7.9.
 >
-> **✅ Build-out Wave 2 shipped** — item #1, the highest-leverage gap: the **N-identity authorization matrix** (`orthrus/core/identity.py` + `scanners/authz_matrix.py`, `--identities` JSON manifest). Autorize-style multi-principal replay over isolated per-identity clients flags **BOLA** (CWE-639) and **BFLA** (CWE-285); live-verified over real sockets (a named low-priv user reaching the privileged baseline's object is flagged FIRM, while properly-enforced `/admin` and anonymous redirects are not). 48→49 scanners, +9 tests. See §7.3.
+> **✅ Build-out Wave 2 shipped** — item #1, the highest-leverage gap: the **N-identity authorization matrix** (`orthrus/core/identity.py` + `scanners/authz_matrix.py`, `--identities` JSON manifest). Autorize-style multi-principal replay over isolated per-identity clients flags **BOLA** (CWE-639) and **BFLA** (CWE-285); live-verified over real sockets. 48→49 scanners, +9 tests. See §7.3.
 >
-> Remaining waves below. Next up: **tenant-isolation prober + step-up-auth bypass** (extend the identity engine), then **OOB-everywhere** (blind SQLi/cmd, deserialization DNS-gadget, deep SSRF).
+> **✅ Build-out Waves 3+ shipped** (49→55 scanners, 13→14 recon, all live-verified against real targets — see PROOF.md §5):
+> - **Privilege-escalation forced-browse** (BFLA on *unlinked* admin routes via the identity lattice) — `privilege_escalation`, CWE-285.
+> - **Blind OS command injection via OOB** — `cmd_injection` now mints a callback per point and polls (Interactsh/local collaborator), proving blind RCE (CWE-78).
+> - **JWT RS→HS algorithm confusion** — fetches JWKS, derives the RSA public PEM, forges a valid HS256 token from it (raw HMAC) — `jwt_analyzer`, CWE-347.
+> - **SAML response inspection** — unsigned assertion / signature-wrapping (XSW) / NameID comment-truncation — `saml`, CWE-347/290 (XXE-safe parsing).
+> - **CL.0 request-smuggling desync** — differential raw-socket probe (marker returns as a 2nd response) — `request_smuggling`, CWE-444.
+> - **Browser taint engine** — instrumented Chromium source→sink tracing (DOM XSS / client-side redirect, sink named) — `dom_taint`, CWE-79/601.
+> - **gRPC server-reflection** exposure — `grpc_probe`, CWE-200 (needs the `grpc` extra).
+> - **Source-map recovery** recon — endpoints mined from leaked `.map` originals — `sourcemap_recovery`.
+> - **OAuth/OIDC flow misconfig** (missing state/PKCE, implicit flow, redirect_uri takeover) — `oauth_flow`.
+> - **GraphQL circular-fragment** recursion DoS, **mixed-content**, and the Wave-1 detector batch (CSP, secrets, CSV-injection, API-misconfig, shadow-API, directory-listing).
+>
+> **What genuinely remains** (and why it isn't shipped): **tenant-isolation** is effectively covered by the authz-matrix (which replays a tenant's object URL under another identity); **step-up-auth bypass** is intentionally deferred as too false-positive-prone to do at low FP without app-specific knowledge; **gRPC field-level fuzzing** (beyond reflection) and **HTTP/2 binary smuggling** are larger transport builds; and the **method** items below (ML-assisted anomaly/param discovery, grammar/mutation fuzzing, a reusable differential engine) are research-grade rather than discrete scanners. The list below is retained as the forward backlog.
 
 ### Wave A — Authenticated & multi-identity testing (highest impact)
 1. **Two-identity BOLA/IDOR** — drive the scan with *two* authenticated sessions; confirm true cross-tenant object access (not just enumeration). Requires a session-pool abstraction in `ScanContext`.
@@ -538,7 +550,7 @@ orthrus/
   core/        orchestrator, config, schemas, context, auth, callback,
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
-  recon/       13 modules + spec_parsers + registry
+  recon/       14 modules + spec_parsers + registry
   scanners/    55 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
@@ -551,7 +563,7 @@ orthrus/
   mcp_server.py  FastMCP tools
   main.py      Click CLI (13 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (667 tests)
+tests/         unit + integration (784 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```

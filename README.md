@@ -484,7 +484,7 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 ```
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
-  recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
+  recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    55 scanners + base interface + registry
   exploits/    17 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei, ...) normalized into findings

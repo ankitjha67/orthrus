@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-646 passed, 3 warnings in 8.15s
+784 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
