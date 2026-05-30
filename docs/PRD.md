@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 49 scanners · 17 confirmation modules · 14 recon modules · 734 passing tests · `ruff` clean |
+| Verified snapshot | 49 scanners · 17 confirmation modules · 14 recon modules · 737 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -222,7 +222,7 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 |---|---|---|---|---|
 | `sqli` | sqli | CWE-89 | NORMAL | Error-based (5-DBMS signatures); boolean-blind across 5 closing contexts (+ transport-safe evasion under AGGRESSIVE); time-based `SLEEP/WAITFOR` (AGGRESSIVE, 60% threshold). `MAX_POINTS=120` |
 | `nosql` | nosql-injection | CWE-943 | NORMAL | Operator/quote payloads (`{"$gt":""}`, `';return true`), Mongo/BSON/$where error signatures; baseline guard. `MAX_PROBES=80` |
-| `cmd_injection` | cmd-injection | CWE-78 | NORMAL | Output-based `echo <canary>` via shell metachars (canary-alone guard); time-based sleep (AGGRESSIVE). `MAX_POINTS=120` |
+| `cmd_injection` | cmd-injection | CWE-78 | NORMAL | Output-based `echo <canary>` (canary-alone guard); time-based sleep (AGGRESSIVE); **OOB callback** — inject `curl`/`wget` to the collaborator and poll, proving *blind* RCE. `MAX_POINTS=120` |
 | `ssti` | ssti | CWE-1336 | NORMAL | Arithmetic polyglot `{a*b}` across 5 template syntaxes; evaluated-not-reflected guard |
 | `ssrf` | ssrf | CWE-918 | PASSIVE | Cloud-metadata URLs (AWS/Azure/GCP/DO/Oracle) + signature match; OOB callback variant; URL-hinted param priority |
 | `xxe` | xxe | CWE-611 | PASSIVE | In-band `file:///etc/passwd` + blind OOB entity; XML/SOAP/upload target priority |
@@ -419,7 +419,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **734** (ruff clean) |
+| Automated tests | **737** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
