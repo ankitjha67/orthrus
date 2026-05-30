@@ -25,12 +25,15 @@ from orthrus.core.schemas import (
 )
 from orthrus.exploits.cors_confirm import CorsConfirm
 from orthrus.exploits.crlf_confirm import CrlfConfirm
+from orthrus.exploits.graphql_dos_confirm import GraphqlDosConfirm
 from orthrus.exploits.host_header_confirm import HostHeaderConfirm
 from orthrus.exploits.idor_confirm import IdorConfirm
 from orthrus.exploits.jwt_confirm import JwtConfirm
 from orthrus.exploits.mass_assignment_confirm import MassAssignmentConfirm
 from orthrus.exploits.nosql_confirm import NoSqlConfirm
+from orthrus.exploits.prototype_pollution_confirm import PrototypePollutionConfirm
 from orthrus.exploits.registry import EXPLOIT_REGISTRY, exploits_for
+from orthrus.scanners.graphql import ALIAS_PROBE_COUNT
 
 
 def _finding(vuln_type: str, **kw: object) -> Finding:
@@ -64,6 +67,7 @@ def test_new_confirmers_registered():
     for name in (
         "nosql-confirm", "crlf-confirm", "cors-confirm",
         "host-header-confirm", "mass-assignment-confirm", "idor-confirm", "jwt-confirm",
+        "prototype-pollution-confirm", "graphql-dos-confirm",
     ):
         assert name in EXPLOIT_REGISTRY
 
@@ -293,4 +297,78 @@ async def test_jwt_confirm_skips_non_weak_secret_findings():
     f = _finding("jwt", title="JWT uses the 'none' algorithm",
                  evidence=Evidence(matched_at="eyJabc..."))
     res = await JwtConfirm().confirm(_jwt_ctx_with_token("eyJabc"), f)
+    assert res.success is False
+
+
+# ----------------------------------------------------------------- prototype-pollution-confirm
+class _PPHttp:
+    """Simulates a polluted prototype: once __proto__.<sentinel> is set, benign
+    requests start echoing the sentinel (when vulnerable)."""
+
+    def __init__(self, *, vulnerable: bool) -> None:
+        self._vulnerable = vulnerable
+        self._polluted: set[str] = set()
+
+    async def request(self, method: str, url: str, *, json: dict | None = None,
+                      follow_redirects: bool = True) -> _Resp:
+        body = json or {}
+        for key in ("__proto__", "constructor"):
+            if key in body:
+                sub = body[key].get("prototype", {}) if key == "constructor" else body[key]
+                self._polluted.update(sub)
+        text = " ".join(sorted(self._polluted)) if self._vulnerable else "clean"
+        return _Resp(text=text)
+
+
+async def test_prototype_pollution_confirm_success_on_persistence():
+    ctx = SimpleNamespace(http=_PPHttp(vulnerable=True))
+    res = await PrototypePollutionConfirm().confirm(ctx, _finding("prototype-pollution", url="http://h/api/merge"))
+    assert res.success is True
+    assert res.extracted_data.startswith("orthrusPP")
+
+
+async def test_prototype_pollution_confirm_fail_when_not_persisted():
+    ctx = SimpleNamespace(http=_PPHttp(vulnerable=False))
+    res = await PrototypePollutionConfirm().confirm(ctx, _finding("prototype-pollution", url="http://h/api/merge"))
+    assert res.success is False
+
+
+# ----------------------------------------------------------------- graphql-dos-confirm
+class _GqlHttp:
+    def __init__(self, *, ok: bool) -> None:
+        self._ok = ok
+
+    async def post(self, url: str, *, json: object = None,
+                   follow_redirects: bool = False) -> _Resp:
+        if isinstance(json, list):  # batch probe
+            return _Resp('[{"data":{"__typename":"Q"}},{"data":{"__typename":"Q"}}]'
+                         if self._ok else '{"errors":[]}')
+        query = json.get("query", "") if isinstance(json, dict) else ""
+        if "orthrusAlias" in query and self._ok:
+            body = ",".join(f'"orthrusAlias{i}":"Q"' for i in range(ALIAS_PROBE_COUNT))
+            return _Resp('{"data":{' + body + "}}")
+        return _Resp('{"errors":[{"message":"too complex"}]}')
+
+
+async def test_graphql_dos_confirm_batching():
+    ctx = SimpleNamespace(http=_GqlHttp(ok=True))
+    f = _finding("graphql-dos", title="GraphQL query batching enabled", url="http://h/graphql")
+    res = await GraphqlDosConfirm().confirm(ctx, f)
+    assert res.success is True
+    assert res.technique == "query-batching replay"
+
+
+async def test_graphql_dos_confirm_alias_overloading():
+    ctx = SimpleNamespace(http=_GqlHttp(ok=True))
+    f = _finding("graphql-dos", title="GraphQL alias overloading (no query-cost limit)",
+                 url="http://h/graphql")
+    res = await GraphqlDosConfirm().confirm(ctx, f)
+    assert res.success is True
+    assert res.technique == "alias-overloading replay"
+
+
+async def test_graphql_dos_confirm_fail_when_not_amplified():
+    ctx = SimpleNamespace(http=_GqlHttp(ok=False))
+    f = _finding("graphql-dos", title="GraphQL query batching enabled", url="http://h/graphql")
+    res = await GraphqlDosConfirm().confirm(ctx, f)
     assert res.success is False
