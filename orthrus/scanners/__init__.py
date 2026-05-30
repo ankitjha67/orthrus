@@ -27,6 +27,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     file_upload,
     framework_debug,
     graphql,
+    grpc_probe,
     headers,
     host_header,
     idor,

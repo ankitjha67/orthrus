@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 54 scanners · 17 confirmation modules · 14 recon modules · 780 passing tests · `ruff` clean |
+| Verified snapshot | 55 scanners · 17 confirmation modules · 14 recon modules · 784 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 14 mods  │   │ 54 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 14 mods  │   │ 55 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -213,7 +213,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 
 ---
 
-## 7. Vulnerability scanning subsystem (54 scanners)
+## 7. Vulnerability scanning subsystem (55 scanners)
 
 Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncIterator[Finding]`, declares `min_aggressiveness`, and self-registers. The shared injection layer (`_injection.py`) yields `InjectionPoint`s across `QUERY`, `BODY`, `JSON`, and `PATH` locations for `GET/POST/PUT/PATCH/DELETE`.
 
@@ -279,6 +279,7 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 |---|---|---|---|
 | `graphql` | graphql / graphql-dos | CWE-200 / CWE-770 | Introspection, field-suggestion leakage, **query batching**, **alias overloading (100)**, debug/stack-trace (DVGA-grade) |
 | `websocket` | websocket | CWE-1385 | Cross-origin WS handshake accepted (missing Origin validation) |
+| `grpc_probe` | grpc-reflection | CWE-200 | Connects over gRPC and issues a reflection `ListServices`; if the server answers, the full RPC API surface (all services) is exposed in prod. Needs the `grpc` extra |
 | `request_smuggling` | request-smuggling | CWE-444 | AGGRESSIVE; **raw-socket** CL.TE/TE.CL timing desync (TENTATIVE) **plus CL.0 differential desync** — a POST whose body is a request for a unique marker path; if the marker returns as a second HTTP response the connection desynced (FIRM) |
 | `prototype_pollution` | prototype-pollution | CWE-1321 | Browser-evaluated `Object.prototype` pollution via 4 payload shapes → **CONFIRMED** |
 | `sspp` | prototype-pollution | CWE-1321 | NORMAL; server-side JSON `__proto__` differential (clean-before / polluted-after) |
@@ -413,7 +414,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 | Metric | Value |
 |---|---|
-| Vulnerability scanners | **54** |
+| Vulnerability scanners | **55** |
 | Exploitation-confirmation modules | **17** |
 | Reconnaissance modules | **14** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
@@ -421,7 +422,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **780** (ruff clean) |
+| Automated tests | **784** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -538,7 +539,7 @@ orthrus/
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
   recon/       13 modules + spec_parsers + registry
-  scanners/    54 scanners + base + registry + _injection + _evasion
+  scanners/    55 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
