@@ -21,6 +21,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     default_creds,
     deserialization,
     directory_listing,
+    dom_taint,
     dom_xss,
     exposed_files,
     file_upload,

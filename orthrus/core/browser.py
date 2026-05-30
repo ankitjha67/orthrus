@@ -48,6 +48,48 @@ class CapturedRequest:
     resource_type: str = ""
 
 
+# Client-side taint instrumentation: hooks DOM injection/redirect *sinks* and
+# records any value that carries our URL-sourced canary (matched by the constant
+# "orthrustaint" prefix). Runs before page scripts via add_init_script, so it
+# observes the very first sink call. Hooks call through unchanged (observe-only).
+_TAINT_SCRIPT = r"""
+(() => {
+  if (window.__orthrus_installed) return;
+  window.__orthrus_installed = true;
+  window.__orthrus_taint = [];
+  var RE = /orthrustaint[0-9a-z]+/i;
+  function rec(sink, value) {
+    try {
+      var s = String(value);
+      var m = s.match(RE);
+      if (m) window.__orthrus_taint.push({sink: sink, value: m[0]});
+    } catch (e) {}
+  }
+  try { var _e = window.eval; window.eval = function (c) { rec('eval', c); return _e.call(this, c); }; } catch (e) {}
+  try {
+    var _dw = document.write.bind(document);
+    document.write = function () { for (var i = 0; i < arguments.length; i++) rec('document.write', arguments[i]); return _dw.apply(document, arguments); };
+    document.writeln = function () { for (var i = 0; i < arguments.length; i++) rec('document.writeln', arguments[i]); return _dw.apply(document, arguments); };
+  } catch (e) {}
+  try { var _st = window.setTimeout; window.setTimeout = function (f) { if (typeof f === 'string') rec('setTimeout', f); return _st.apply(window, arguments); }; } catch (e) {}
+  try { var _si = window.setInterval; window.setInterval = function (f) { if (typeof f === 'string') rec('setInterval', f); return _si.apply(window, arguments); }; } catch (e) {}
+  ['innerHTML', 'outerHTML'].forEach(function (prop) {
+    try {
+      var d = Object.getOwnPropertyDescriptor(Element.prototype, prop);
+      if (d && d.set) Object.defineProperty(Element.prototype, prop, {
+        configurable: true, get: d.get,
+        set: function (v) { rec(prop, v); return d.set.call(this, v); }
+      });
+    } catch (e) {}
+  });
+  try { var _iah = Element.prototype.insertAdjacentHTML; Element.prototype.insertAdjacentHTML = function (p, h) { rec('insertAdjacentHTML', h); return _iah.call(this, p, h); }; } catch (e) {}
+  try { var _wo = window.open; window.open = function (u) { rec('window.open', u); return _wo.apply(window, arguments); }; } catch (e) {}
+  try { var _la = window.location.assign.bind(window.location); window.location.assign = function (u) { rec('location.assign', u); return _la(u); }; } catch (e) {}
+  try { var _lr = window.location.replace.bind(window.location); window.location.replace = function (u) { rec('location.replace', u); return _lr(u); }; } catch (e) {}
+})();
+"""
+
+
 class BrowserManager:
     def __init__(
         self,
@@ -176,6 +218,26 @@ class BrowserManager:
         except Exception as exc:
             logger.debug("evaluate_on failed for %s: %s", url, exc)
             return None
+        finally:
+            await page.close()
+
+    async def trace_taint(self, url: str, *, wait_ms: int = 800) -> list[dict[str, str]]:
+        """Navigate to ``url`` with the taint instrumentation installed and return
+        the recorded source->sink flows ([{sink, value}, ...]).
+
+        The caller seeds a canary into the URL (fragment + query); any flow here
+        means that URL-controlled value reached a DOM injection / redirect sink.
+        """
+        page = await self._new_page()
+        try:
+            await page.add_init_script(_TAINT_SCRIPT)
+            await page.goto(url, wait_until="domcontentloaded", timeout=self.nav_timeout_ms)
+            await page.wait_for_timeout(wait_ms)
+            flows = await page.evaluate("window.__orthrus_taint || []")
+            return flows if isinstance(flows, list) else []
+        except Exception as exc:
+            logger.debug("trace_taint failed for %s: %s", url, exc)
+            return []
         finally:
             await page.close()
 
