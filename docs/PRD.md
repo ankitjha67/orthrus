@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 48 scanners · 17 confirmation modules · 13 recon modules · 716 passing tests · `ruff` clean |
+| Verified snapshot | 49 scanners · 17 confirmation modules · 13 recon modules · 725 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 13 mods  │   │ 42 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 13 mods  │   │ 49 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -212,7 +212,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 
 ---
 
-## 7. Vulnerability scanning subsystem (48 scanners)
+## 7. Vulnerability scanning subsystem (49 scanners)
 
 Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncIterator[Finding]`, declares `min_aggressiveness`, and self-registers. The shared injection layer (`_injection.py`) yields `InjectionPoint`s across `QUERY`, `BODY`, `JSON`, and `PATH` locations for `GET/POST/PUT/PATCH/DELETE`.
 
@@ -238,6 +238,7 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 ### 7.3 Access control & logic
 | Scanner | vuln_type | CWE | Method |
 |---|---|---|---|
+| `authz_matrix` | broken-authorization | CWE-639/285 | **Multi-identity BOLA/BFLA** (`--identities`): replays each read endpoint as N principals (first = privileged baseline) via isolated per-identity clients; flags when a lower/anonymous identity gets the baseline's successful response. Object-ref → BOLA, else BFLA. FIRM for a named user, TENTATIVE for anonymous |
 | `idor` | idor | CWE-639 | Numeric ID ±1; 200 + structurally-similar + distinct → TENTATIVE enumeration |
 | `mass_assignment` | mass-assignment | CWE-915 | Per-field nonce inject of 25 privileged fields; bound-only-after-inject differential; HIGH for role/admin/etc. |
 | `business_logic` | business-logic / parameter-pollution | CWE-472 / CWE-235 | Monetary/qty tamper (negative/zero/fractional/overflow) + HPP duplicate-param winner detection |
@@ -409,7 +410,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 | Metric | Value |
 |---|---|
-| Vulnerability scanners | **48** |
+| Vulnerability scanners | **49** |
 | Exploitation-confirmation modules | **17** |
 | Reconnaissance modules | **13** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
@@ -417,7 +418,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **716** (ruff clean) |
+| Automated tests | **725** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -426,7 +427,11 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 Prioritized into waves. Each item is a self-contained increment (detector + tests + live-verify + commit), following the existing doctrine (confirm where safely possible; never fake a confirmation).
 
-> **✅ Build-out Wave 1 shipped** (no new core infra — pure detectors, 42→48 scanners, +49 tests): CSP weakness analysis, exposed-secret scanning (redacted), CSV/formula injection, HTTP misconfig (TRACE/XST + dangerous methods), shadow/inventory API (API9), directory-listing/autoindex. See §7.9. The items below remain; the **next** dedicated wave is the **N-identity authorization matrix** (multi-session BOLA/BFLA/tenant-isolation) — the single biggest signal multiplier — which requires a new multi-session pool in `ScanContext` + a role-manifest config.
+> **✅ Build-out Wave 1 shipped** (no new core infra — pure detectors, 42→48 scanners, +49 tests): CSP weakness analysis, exposed-secret scanning (redacted), CSV/formula injection, HTTP misconfig (TRACE/XST + dangerous methods), shadow/inventory API (API9), directory-listing/autoindex. See §7.9.
+>
+> **✅ Build-out Wave 2 shipped** — item #1, the highest-leverage gap: the **N-identity authorization matrix** (`orthrus/core/identity.py` + `scanners/authz_matrix.py`, `--identities` JSON manifest). Autorize-style multi-principal replay over isolated per-identity clients flags **BOLA** (CWE-639) and **BFLA** (CWE-285); live-verified over real sockets (a named low-priv user reaching the privileged baseline's object is flagged FIRM, while properly-enforced `/admin` and anonymous redirects are not). 48→49 scanners, +9 tests. See §7.3.
+>
+> Remaining waves below. Next up: **tenant-isolation prober + step-up-auth bypass** (extend the identity engine), then **OOB-everywhere** (blind SQLi/cmd, deserialization DNS-gadget, deep SSRF).
 
 ### Wave A — Authenticated & multi-identity testing (highest impact)
 1. **Two-identity BOLA/IDOR** — drive the scan with *two* authenticated sessions; confirm true cross-tenant object access (not just enumeration). Requires a session-pool abstraction in `ScanContext`.
@@ -530,7 +535,7 @@ orthrus/
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
   recon/       13 modules + spec_parsers + registry
-  scanners/    48 scanners + base + registry + _injection + _evasion
+  scanners/    49 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin

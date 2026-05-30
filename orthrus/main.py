@@ -133,6 +133,20 @@ def _parse_headers(headers_json: str | None) -> dict[str, str]:
     return {str(k): str(v) for k, v in data.items()}
 
 
+def _load_identities(path: str | None) -> list[dict]:
+    """Load the --identities JSON file (a list of identity objects) for BOLA/BFLA."""
+    if not path:
+        return []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise click.BadParameter(f"--identities must be a readable JSON file: {exc}") from exc
+    if not isinstance(data, list):
+        raise click.BadParameter("--identities JSON must be a list of identity objects")
+    return [d for d in data if isinstance(d, dict)]
+
+
 def _log_scope(scope: ScopeConfig) -> None:
     # The engagement boundary is load-bearing, so render it as a prominent
     # bordered panel the operator can confirm before any request goes out.
@@ -328,6 +342,14 @@ def cli(no_banner: bool) -> None:
 @click.option("--proxy", default=None, help="HTTP/SOCKS5 proxy URL.")
 @click.option("--auth-cookie", default=None, help="Pre-authenticated session cookie string.")
 @click.option("--auth-script", default=None, help="Playwright login script path (deferred).")
+@click.option(
+    "--identities",
+    "identities_file",
+    default=None,
+    type=click.Path(exists=True, dir_okay=False),
+    help="JSON file of identities for authorization testing (BOLA/BFLA). "
+    'List of {"name","cookie"?,"token"?,"headers"?}; first = privileged baseline.',
+)
 @click.option("--login-url", default=None, help="URL to POST credentials to before scanning.")
 @click.option(
     "--login-data",
@@ -476,6 +498,7 @@ def scan(
     proxy: str | None,
     auth_cookie: str | None,
     auth_script: str | None,
+    identities_file: str | None,
     login_url: str | None,
     login_data: str | None,
     login_token_field: str | None,
@@ -592,6 +615,7 @@ def scan(
             waf_adapt=waf_adapt,
             auth_cookie=auth_cookie,
             auth_script=auth_script,
+            identities=_load_identities(identities_file),
             login_url=login_url,
             login_data=login_data,
             login_token_field=login_token_field,

@@ -126,6 +126,12 @@ class ScanConfig(BaseModel):
     auth_cookie: str | None = None
     auth_script: str | None = None
 
+    # Multi-identity authorization testing (BOLA/BFLA). A list of principals;
+    # the first is the privileged baseline, the rest are replayed against it.
+    # Each entry: {"name", "cookie"?, "token"?, "headers"?}. Loaded from
+    # --identities <file.json>.
+    identities: list[dict] = Field(default_factory=list)
+
     # Programmatic pre-scan login: POST credentials once before recon so the
     # rest of the scan runs authenticated (cookies persist; an optional JSON
     # token is attached to later requests). Credentials are never logged.
