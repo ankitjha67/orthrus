@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-758-test / lint-clean quality gates.
+764-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (52 scanners, 17 confirmers, 14 recon
@@ -100,7 +100,7 @@ roadmap for advanced scanners & methods.
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified) |
 | Access / logic | IDOR, **multi-identity authorization matrix (BOLA/BFLA, Autorize-style `--identities`)**, **privilege-escalation forced-browse (unlinked admin routes via the identity lattice)**, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
-| Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)** |
+| Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks, **RS->HS algorithm confusion** via published JWKS), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)** |
 | Server-side | SSRF (out-of-band + metadata), **OS command injection (output / time / OOB-callback blind RCE)**, deserialization, prototype pollution (client- & server-side) |
 | Config / transport | Security headers, **CSP weakness analysis**, **mixed-content / insecure-transport refs**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **HTTP misconfig (TRACE/XST, dangerous methods)** |
 | Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading DoS, debug/stack-trace disclosure — DVGA-grade), WebSocket, **shadow / improper-inventory API (API9)** |

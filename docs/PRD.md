@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 52 scanners · 17 confirmation modules · 14 recon modules · 758 passing tests · `ruff` clean |
+| Verified snapshot | 52 scanners · 17 confirmation modules · 14 recon modules · 764 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -250,7 +250,7 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 | Scanner | vuln_type | CWE | Method |
 |---|---|---|---|
 | `auth` | auth-session | CWE-614/1004/1275/331 | Cookie flag analysis (Secure/HttpOnly/SameSite) + Shannon-entropy token strength (<64 bits) |
-| `jwt_analyzer` | jwt | CWE-347/613/522 | alg:none, weak-HMAC brute (15-word list), missing `exp`, sensitive claims, `jku`/`x5u`/`kid` header attacks |
+| `jwt_analyzer` | jwt | CWE-347/613/522 | alg:none, weak-HMAC brute (15-word list), missing `exp`, sensitive claims, `jku`/`x5u`/`kid` header attacks; **RS->HS algorithm confusion** — fetches JWKS, derives the RSA public PEM, and forges a valid HS256 token from it (raw-HMAC, bypassing PyJWT's guard) to prove the forgery primitive |
 | `default_creds` | default-creds | CWE-1392 | 12 default credential pairs vs baseline-failure differential |
 
 ### 7.5 Transport, headers, cache
@@ -420,7 +420,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **758** (ruff clean) |
+| Automated tests | **764** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
