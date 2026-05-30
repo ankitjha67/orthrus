@@ -9,6 +9,7 @@ from orthrus.scanners.graphql import (
     GraphqlScanner,
     batching_enabled,
     confirms_graphql,
+    fragment_cycle_rejected,
     introspection_enabled,
     is_graphql_response,
     resolved_alias_count,
@@ -92,6 +93,16 @@ def test_stack_trace_leak_clean_error():
     assert stack_trace_leak('{"errors":[{"message":"Cannot query field x"}]}') is False
 
 
+# --------------------------------------------------------------- circular fragment
+def test_fragment_cycle_rejected_true():
+    body = '{"errors":[{"message":"Cannot spread fragment \\"frA\\" within itself via frB."}]}'
+    assert fragment_cycle_rejected(body) is True
+
+
+def test_fragment_cycle_rejected_false_when_executed():
+    assert fragment_cycle_rejected('{"data":{"__typename":"Query"}}') is False
+
+
 # --------------------------------------------------------------- full scan flow
 class _FakeResp:
     def __init__(self, text: str) -> None:
@@ -145,5 +156,7 @@ async def test_full_scan_surfaces_dvga_vulns():
     assert "GraphQL query batching enabled" in titles
     assert "GraphQL alias overloading (no query-cost limit)" in titles
     assert "GraphQL debug / stack-trace disclosure" in titles
+    # the DVGA fake executes the circular fragment (no cycle rejection) -> flagged
+    assert "GraphQL accepts circular fragments (recursion DoS)" in titles
     # DoS findings carry the dedicated vuln_type for accurate CVSS/availability scoring.
     assert {f.vuln_type for f in findings if "batching" in f.title} == {"graphql-dos"}

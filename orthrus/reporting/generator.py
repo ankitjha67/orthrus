@@ -84,6 +84,7 @@ OWASP_2021 = {
     "broken-authorization": "A01:2021 - Broken Access Control",
     "privilege-escalation": "A01:2021 - Broken Access Control",
     "mixed-content": "A02:2021 - Cryptographic Failures",
+    "oauth-misconfig": "A07:2021 - Identification and Authentication Failures",
     "example": "A05:2021 - Security Misconfiguration",
 }
 
@@ -108,6 +109,7 @@ PCI_DSS = {
     "csp": "6.4.1", "exposed-secret": "6.4.1", "formula-injection": "6.2.4",
     "api-misconfig": "6.4.1", "shadow-api": "6.4.1", "directory-listing": "6.4.1",
     "broken-authorization": "7.2", "privilege-escalation": "7.2", "mixed-content": "4.2.1",
+    "oauth-misconfig": "6.2.4",
 }
 
 # NIST Cybersecurity Framework function/category.

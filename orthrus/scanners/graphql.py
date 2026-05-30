@@ -67,6 +67,30 @@ ALIAS_PROBE = {
 
 _SUGGEST_RE = re.compile(r"Did you mean[^\"']*[\"']([A-Za-z_][A-Za-z0-9_]*)")
 
+# Circular-fragment probe: spec-compliant servers MUST reject fragment cycles
+# with a validation error; a server that executes it instead is open to a
+# fragment-recursion denial of service.
+CIRCULAR_FRAGMENT_PROBE = {
+    "query": (
+        "{...frA} "
+        "fragment frA on Query{__typename ...frB} "
+        "fragment frB on Query{__typename ...frA}"
+    )
+}
+_CYCLE_REJECT_MARKERS = (
+    "cannot spread fragment",
+    "within itself",
+    "fragment cycle",
+    "fragment spread",
+    "circular",
+)
+
+
+def fragment_cycle_rejected(body: str) -> bool:
+    """True if the server rejected a circular fragment with a validation error."""
+    low = (body or "").lower()
+    return any(marker in low for marker in _CYCLE_REJECT_MARKERS)
+
 
 def introspection_enabled(body: str) -> bool:
     return '"__schema"' in body or '"queryType"' in body
@@ -318,6 +342,38 @@ class GraphqlScanner(BaseScanner):
                 evidence=Evidence(matched_at="Traceback / debug page in error body"),
             )
 
+        # 5. Circular-fragment recursion: a spec-compliant server rejects fragment
+        # cycles; one that executes the query instead is open to a recursion DoS.
+        cycle_body = await self._post(ctx, url, CIRCULAR_FRAGMENT_PROBE)
+        if (
+            cycle_body is not None
+            and not fragment_cycle_rejected(cycle_body)
+            and '"data"' in cycle_body
+        ):
+            yield Finding(
+                vuln_type="graphql-dos",
+                title="GraphQL accepts circular fragments (recursion DoS)",
+                severity=Severity.MEDIUM,
+                confidence=Confidence.TENTATIVE,
+                url=url,
+                description=(
+                    "The endpoint executed a query containing a circular fragment spread instead "
+                    "of rejecting it with a validation error. Fragment cycles that a server fails "
+                    "to reject can be amplified into a recursion / resource-exhaustion denial of "
+                    "service."
+                ),
+                remediation=(
+                    "Use a spec-compliant GraphQL implementation that rejects fragment cycles, and "
+                    "enforce query depth / complexity limits."
+                ),
+                cwe="CWE-674",
+                scanner=SCANNER_NAME,
+                evidence=Evidence(
+                    request_raw=str(CIRCULAR_FRAGMENT_PROBE),
+                    matched_at="circular fragment not rejected",
+                ),
+            )
+
 
 __all__ = [
     "GraphqlScanner",
@@ -328,4 +384,5 @@ __all__ = [
     "batching_enabled",
     "resolved_alias_count",
     "stack_trace_leak",
+    "fragment_cycle_rejected",
 ]
