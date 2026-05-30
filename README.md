@@ -21,10 +21,10 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-725-test / lint-clean quality gates.
+734-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
-implemented-system PRD: every subsystem (49 scanners, 17 confirmers, 13 recon
+implemented-system PRD: every subsystem (49 scanners, 17 confirmers, 14 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -83,11 +83,11 @@ roadmap for advanced scanners & methods.
 
 ## ✨ Features
 
-**Reconnaissance (13 modules)**
+**Reconnaissance (14 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
 - Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
 - Parameter mining (Arjun-style hidden-parameter discovery)
-- JavaScript analysis (endpoint + secret extraction), content discovery
+- JavaScript analysis (endpoint + secret extraction), **source-map recovery** (recover endpoints from leaked `.map` files), content discovery
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)

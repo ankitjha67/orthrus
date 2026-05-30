@@ -42,6 +42,7 @@ from orthrus.recon.js_analyzer import JsAnalyzer
 from orthrus.recon.param_mining import ParameterMiner
 from orthrus.recon.port_scan import PortScan
 from orthrus.recon.registry import get_recon_plugins
+from orthrus.recon.sourcemap_recovery import SourceMapRecovery
 from orthrus.recon.spa_crawl import SpaCrawl
 from orthrus.recon.subdomain_enum import SubdomainEnum
 from orthrus.recon.tech_fingerprint import TechFingerprint
@@ -372,6 +373,8 @@ class Orchestrator:
             modules.append(Crawler())
         if which is None or "js" in which:
             modules.append(JsAnalyzer())
+        if which is None or "sourcemap" in which:
+            modules.append(SourceMapRecovery())
         if which is None or "content" in which:
             modules.append(ContentDiscovery())
         if which is None or "waf" in which:

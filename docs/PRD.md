@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 49 scanners · 17 confirmation modules · 13 recon modules · 725 passing tests · `ruff` clean |
+| Verified snapshot | 49 scanners · 17 confirmation modules · 14 recon modules · 734 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 13 mods  │   │ 49 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 14 mods  │   │ 49 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -188,7 +188,7 @@ SQLAlchemy 2.0 async ORM (SQLite default, Postgres via `[postgres]`). Per-call `
 
 ---
 
-## 6. Reconnaissance subsystem (13 modules)
+## 6. Reconnaissance subsystem (14 modules)
 
 Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseline`) computed first.
 
@@ -197,6 +197,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 | `tech_fingerprint` | tech-fingerprint | Server/framework/CMS/JS-lib from headers, cookies, body sigs → `Asset.technologies` | passive |
 | `crawler` | crawler | BFS static crawl; links + forms → endpoints; inline-script endpoints; content-hash dedup | `max_pages`, `crawl_depth` |
 | `js_analyzer` | js-analyzer | API/WS URLs + hardcoded secrets from external `.js` (AWS/Google/Slack/JWT/private-key regexes) | `MAX_FILES=60` |
+| `sourcemap_recovery` | sourcemap-recovery | Locates `.map` (inline `sourceMappingURL` or `<file>.map`), parses `sourcesContent`, mines endpoints from the **original un-minified source** | `MAX_JS=30`, `MAX_MAPS=30` |
 | `content_discovery` | content-discovery | Dir/file brute (35-word list) with soft-404 calibration; tags `.env/.git/backup/config` as `source="sensitive"` | — |
 | `waf_detect` | waf-detect | Passive WAF ID (Cloudflare/Akamai/AWS/Imperva/Sucuri/ModSec/F5/Barracuda/Fortinet) | passive |
 | `api_discovery` | api-discovery | Probes spec paths (OpenAPI/Swagger/GraphQL) + imports operator specs + GraphQL introspection | scope-filtered |
@@ -412,13 +413,13 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 |---|---|
 | Vulnerability scanners | **49** |
 | Exploitation-confirmation modules | **17** |
-| Reconnaissance modules | **13** |
+| Reconnaissance modules | **14** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
 | Report formats | 6 (JSON/CSV/HTML/PDF/SARIF/MD) |
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **725** (ruff clean) |
+| Automated tests | **734** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
