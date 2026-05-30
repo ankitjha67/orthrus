@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import base64
+import zlib
 from types import SimpleNamespace
 
 import pytest
 
 from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation, Severity
-from orthrus.scanners.saml import SamlScanner, analyze_saml, decode_saml
+from orthrus.scanners.saml import _MAX_SAML_BYTES, SamlScanner, analyze_saml, decode_saml
 
 pytest.importorskip("lxml")
 
@@ -47,6 +48,30 @@ def test_decode_plain_base64_xml():
 
 def test_decode_garbage_returns_none():
     assert decode_saml("!!!not base64!!!") is None or decode_saml("aGVsbG8=") is None
+
+
+def test_decode_legit_deflated_samlrequest_roundtrips():
+    """A genuine raw-DEFLATE SAMLRequest (Redirect binding) still decodes."""
+    co = zlib.compressobj(wbits=-15)  # raw DEFLATE, no zlib header
+    deflated = co.compress(_UNSIGNED.encode()) + co.flush()
+    enc = base64.b64encode(deflated).decode()
+    assert decode_saml(enc).startswith("<samlp:Response")
+
+
+def test_decode_refuses_decompression_bomb():
+    """A tiny DEFLATE blob inflating past the cap is refused, not inflated."""
+    bomb_plain = b"A" * (_MAX_SAML_BYTES + 1_000_000)  # > 10 MB inflated
+    co = zlib.compressobj(wbits=-15)
+    deflated = co.compress(bomb_plain) + co.flush()
+    assert len(deflated) < 50_000  # a few KB on the wire...
+    enc = base64.b64encode(deflated).decode()
+    # ...must NOT inflate to 11 MB in memory — refused outright.
+    assert decode_saml(enc) is None
+
+
+def test_decode_refuses_oversized_base64_input():
+    """An absurdly large encoded value is rejected before any base64 work."""
+    assert decode_saml("A" * 2_000_000) is None
 
 
 # ----------------------------------------------------------------- analyze

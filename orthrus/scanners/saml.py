@@ -43,6 +43,30 @@ logger = get_logger("scanner.saml")
 SCANNER_NAME = "saml"
 MAX_RESPONSES = 10
 
+# Decompression-bomb guards: a few hundred bytes of DEFLATE can inflate to
+# gigabytes. A SAMLRequest is attacker-influenced (it arrives in a URL parameter
+# or form field we observed), so analysing one must never be able to exhaust the
+# scanner's memory. Bound both the encoded input and the inflated output.
+_MAX_SAML_B64 = 1_000_000  # 1 MB of base64 in one param is already absurd for SAML
+_MAX_SAML_BYTES = 10_000_000  # 10 MB hard ceiling on inflated XML
+
+
+def _bounded_inflate(raw: bytes, wbits: int) -> str | None:
+    """raw-DEFLATE inflate with a hard output cap (decompression-bomb safe).
+
+    Returns the decoded text, or ``None`` if the data is not valid for this
+    ``wbits`` *or* its output would exceed the cap (treated as a bomb and
+    refused rather than truncated, so a partial bomb can't masquerade as XML).
+    """
+    try:
+        dec = zlib.decompressobj(wbits)
+        out = dec.decompress(raw, _MAX_SAML_BYTES)
+    except zlib.error:
+        return None
+    if dec.unconsumed_tail:  # output hit the cap with input left → bomb, refuse
+        return None
+    return out.decode("utf-8", "replace")
+
 _SAML_NS = "urn:oasis:names:tc:SAML:2.0:assertion"
 _PROTO_NS = "urn:oasis:names:tc:SAML:2.0:protocol"
 _DS_NS = "http://www.w3.org/2000/09/xmldsig#"
@@ -50,7 +74,7 @@ _DS_NS = "http://www.w3.org/2000/09/xmldsig#"
 
 def decode_saml(value: str) -> str | None:
     """Base64-decode a SAML message (also handling raw-deflated SAMLRequest)."""
-    if not value:
+    if not value or len(value) > _MAX_SAML_B64:
         return None
     try:
         raw = base64.b64decode(value, validate=False)
@@ -58,12 +82,12 @@ def decode_saml(value: str) -> str | None:
         return None
     if raw[:1] == b"<":
         return raw.decode("utf-8", "replace")
-    # SAMLRequest in the Redirect binding is raw-DEFLATE compressed.
+    # SAMLRequest in the Redirect binding is raw-DEFLATE compressed. Inflate with
+    # a hard output cap so a decompression bomb can't exhaust memory.
     for wbits in (-15, 15):
-        try:
-            return zlib.decompress(raw, wbits).decode("utf-8", "replace")
-        except (zlib.error, UnicodeDecodeError):
-            continue
+        text = _bounded_inflate(raw, wbits)
+        if text is not None:
+            return text
     text = raw.decode("utf-8", "replace")
     return text if "<" in text else None
 

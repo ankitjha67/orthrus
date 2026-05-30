@@ -9,6 +9,7 @@ than raw httpx so the safety boundary cannot be bypassed.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import random
 from types import TracebackType
 from urllib.parse import urlsplit
@@ -41,6 +42,14 @@ USER_AGENTS = [
 # top of a block page, and a full multi-MB body would be wasteful to scan.
 _BLOCK_BODY_LIMIT = 20_000
 
+# Hard ceiling on a single response body read into memory. A hostile target can
+# otherwise return a multi-gigabyte — or endless chunked, or gzip-bomb — body to
+# exhaust the scanner's memory. We stream the body and stop at the cap, counting
+# DECODED bytes so a small compressed bomb that inflates hugely is also caught.
+# Over-cap bodies are truncated (a scanner only needs the head of a document for
+# its signatures); a 50 MB ceiling preserves virtually all legitimate responses.
+_MAX_RESPONSE_BYTES = 50_000_000  # 50 MB
+
 
 def _body_of(response: httpx.Response) -> str:
     try:
@@ -65,6 +74,7 @@ class HttpClient:
         http2: bool = True,
         max_redirects: int = 5,
         waf_adapt: bool = True,
+        max_response_bytes: int = _MAX_RESPONSE_BYTES,
     ) -> None:
         self.scope = scope
         self.rate_limiter = rate_limiter
@@ -73,6 +83,7 @@ class HttpClient:
         self.user_agent = user_agent
         self.extra_headers = extra_headers or {}
         self.max_redirects = max_redirects
+        self.max_response_bytes = max_response_bytes
 
         self.requests_sent = 0
         self.scope_violations = 0
@@ -290,6 +301,51 @@ class HttpClient:
             logger.info("evaded WAF block on %s after identity rotation", url)
         return retried
 
+    async def _read_capped(self, response: httpx.Response) -> httpx.Response:
+        """Read a streamed body up to ``max_response_bytes``, then stop.
+
+        Guards against a hostile target returning a multi-gigabyte, endless
+        chunked, or gzip-bomb body to exhaust memory. ``aiter_bytes`` yields
+        *decoded* chunks, so the cap bounds post-decompression size (a small
+        compressed bomb is caught too). The accumulated bytes are re-seated on
+        ``response._content`` so ``.text``/``.content``/``.json()`` work
+        unchanged downstream; over-cap bodies are truncated to the cap.
+        """
+        cap = self.max_response_bytes
+        chunks: list[bytes] = []
+        total = 0
+        truncated = False
+        try:
+            async for chunk in response.aiter_bytes():
+                chunks.append(chunk)
+                total += len(chunk)
+                if total > cap:
+                    truncated = True
+                    break
+        except httpx.HTTPError:
+            # Stream/decoding failure mid-body: salvage what we read rather than
+            # letting a malformed hostile response abort the whole request.
+            truncated = True
+        # aiter_bytes does not set _content; seat it ourselves (both the normal
+        # and the truncated path) so the response is fully readable downstream.
+        response._content = b"".join(chunks)[:cap]  # noqa: SLF001
+        if truncated:
+            with contextlib.suppress(Exception):
+                await response.aclose()
+            logger.warning(
+                "response from %s exceeded the %d-byte cap — body truncated",
+                response.url, cap,
+            )
+        return response
+
+    async def _capped_request(
+        self, method: str, url: str, *, headers: dict[str, str], **kwargs: object
+    ) -> httpx.Response:
+        """Issue a request whose body is read under a hard size cap (hostile-OOM guard)."""
+        request = self._client.build_request(method, url, headers=headers, **kwargs)
+        response = await self._client.send(request, stream=True)
+        return await self._read_capped(response)
+
     async def _send(
         self,
         method: str,
@@ -303,7 +359,7 @@ class HttpClient:
         host = urlsplit(url).hostname or ""
         await self.rate_limiter.acquire(host)
 
-        response = await self._client.request(
+        response = await self._capped_request(
             method, url, headers=self._merge_headers(headers), **kwargs
         )
         self.requests_sent += 1
@@ -332,7 +388,7 @@ class HttpClient:
                 break  # stop following but return what we already have
             next_host = urlsplit(next_url).hostname or ""
             await self.rate_limiter.acquire(next_host)
-            response = await self._client.request(
+            response = await self._capped_request(
                 "GET", next_url, headers=self._merge_headers(None)
             )
             self.requests_sent += 1

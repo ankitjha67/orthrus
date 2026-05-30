@@ -126,7 +126,11 @@ class JsAnalyzer(BaseRecon):
                     ctx.websockets.append(ws)
 
             for label, value in extract_secrets(body):
-                logger.warning("possible secret in %s: %s (%s)", ep.url, label, value[:8] + "…")
+                # Redact to a non-recoverable preview (first 4 chars + ***),
+                # matching the secret_scanner doctrine — never log a usable secret.
+                logger.warning(
+                    "possible secret in %s: %s (%s)", ep.url, label, value[:4] + "***"
+                )
 
 
 __all__ = [
