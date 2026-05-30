@@ -15,10 +15,11 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | | |
 |---|---|
 | Tool | ORTHRUS v0.1.0 |
-| Date of run | 2026-05-29 |
+| Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **646 tests pass**, `ruff check orthrus tests` clean |
-| Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) |
+| Automated gates | **784 tests pass**, `ruff check orthrus tests` clean |
+| Coverage | **55 vulnerability scanners · 17 confirmation modules · 14 recon modules** |
+| Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
 ---
 
@@ -153,3 +154,48 @@ orthrus --no-banner scan -t "https://pentest-ground.com:6379/" \
 ```
 
 Run the full pipeline (recon → scan → confirm → report) by dropping `--modules`.
+
+---
+
+## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
+
+The roadmap build-out grew ORTHRUS from 42 → **55 scanners**, 13 → **14 recon**,
+and 667 → **784 tests**. Every new capability was verified against a **real**
+target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
+sockets, the real OOB collaborator) — never a mock of the thing under test. These
+are deterministic and reproducible, which is why they make better evidence than a
+WAN scan that depends on a third-party target exhibiting a specific bug.
+
+| New capability | Live target | Verified result |
+|---|---|---|
+| **N-identity authz matrix (BOLA)** | localhost multi-tenant app, real sockets | `user` reached `admin`'s `/doc/1` → **HIGH / CWE-639**; enforced `/admin` (403) & anonymous → not flagged |
+| **Privilege-escalation forced-browse (BFLA)** | localhost, real sockets | low-priv `user` reached the *unlinked* `/admin/users` → **HIGH / CWE-285**; enforced `/admin` → not flagged |
+| **Blind OS command injection (OOB)** | real `LocalCallbackServer` + sim app | injected `curl <callback>` executed → callback hit → **CRITICAL / CWE-78** |
+| **JWT RS→HS algorithm confusion** | localhost JWKS endpoint, real socket | fetched the published RSA public key, forged a valid HS256 token from it → **HIGH / CWE-347** |
+| **CL.0 request-smuggling desync** | two purpose-built raw-socket servers | desynced backend → **HIGH / CWE-444** (marker returned as 2nd response); CL-honouring server → **0** (no FP) |
+| **SAML response inspection** | crafted SAML XML (offline) | unsigned-assertion / multi-assertion XSW / NameID comment-truncation flagged; an XXE entity doc parses safely (no resolution) |
+| **Browser taint engine (DOM source→sink)** | real headless **Chromium** + localhost page | URL canary reached `document.write` **and** `innerHTML` → 2 × **HIGH DOM-XSS / CWE-79** (sinks named); static page → **0** |
+| **gRPC server-reflection** | real gRPC server (reflection on) | `ListServices` returned `billing.v1.Payments`, `orthrus.test.Greeter` → **MEDIUM / CWE-200** |
+| **Source-map recovery (recon)** | localhost JS + `.map`, real socket | recovered 2 endpoints invisible in the minified bundle (`/api/internal/v3/users`, `/admin/secret-action`) |
+
+### Low-false-positive discipline, demonstrated live
+
+A fresh GraphQL run against **DVGA (`pentest-ground.com:5013`)** returned 3
+genuine findings — introspection enabled, query batching, alias overloading — and
+the new **circular-fragment** check *correctly stayed silent*: DVGA's spec-
+compliant graphql-core rejects fragment cycles with a validation error, so the
+scanner does **not** flag it. New detectors are built to fire on the vulnerable
+case and stay quiet on the safe one.
+
+```
+$ orthrus --no-banner scan -t https://pentest-ground.com:5013/ \
+    --scope pentest-ground.com --modules graphql --no-exploit
+  [MEDIUM] graphql      GraphQL introspection enabled
+  [MEDIUM] graphql-dos  GraphQL query batching enabled
+  [MEDIUM] graphql-dos  GraphQL alias overloading (no query-cost limit)
+  # circular-fragment: not flagged (DVGA correctly rejects fragment cycles)
+```
+
+> Note on optional runtimes: the browser taint engine needs
+> `playwright install chromium` and the gRPC scanner needs the `grpc` extra
+> (`pip install "orthrus-framework[grpc]"`); both no-op cleanly when absent.
