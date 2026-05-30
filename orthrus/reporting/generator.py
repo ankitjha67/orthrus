@@ -82,6 +82,7 @@ OWASP_2021 = {
     "shadow-api": "A05:2021 - Security Misconfiguration",
     "directory-listing": "A05:2021 - Security Misconfiguration",
     "broken-authorization": "A01:2021 - Broken Access Control",
+    "privilege-escalation": "A01:2021 - Broken Access Control",
     "mixed-content": "A02:2021 - Cryptographic Failures",
     "example": "A05:2021 - Security Misconfiguration",
 }
@@ -106,7 +107,7 @@ PCI_DSS = {
     "iac-misconfig": "2.2",
     "csp": "6.4.1", "exposed-secret": "6.4.1", "formula-injection": "6.2.4",
     "api-misconfig": "6.4.1", "shadow-api": "6.4.1", "directory-listing": "6.4.1",
-    "broken-authorization": "7.2",
+    "broken-authorization": "7.2", "privilege-escalation": "7.2", "mixed-content": "4.2.1",
 }
 
 # NIST Cybersecurity Framework function/category.
@@ -116,6 +117,7 @@ NIST_CSF = {
     "default-creds": "PR.AC-1 (Identities & credentials)",
     "jwt": "PR.AC-7 (Authentication)", "idor": "PR.AC-4 (Access permissions)",
     "broken-authorization": "PR.AC-4 (Access permissions)",
+    "privilege-escalation": "PR.AC-4 (Access permissions)",
 }
 _NIST_DEFAULT = "PR.IP-1 / PR.DS-5 (Secure config / data leak protection)"
 
