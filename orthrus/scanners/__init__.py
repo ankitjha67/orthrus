@@ -33,6 +33,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     lfi,
     llm,
     mass_assignment,
+    mixed_content,
     nosql,
     open_redirect,
     product_cve,

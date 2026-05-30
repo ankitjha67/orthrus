@@ -82,6 +82,7 @@ OWASP_2021 = {
     "shadow-api": "A05:2021 - Security Misconfiguration",
     "directory-listing": "A05:2021 - Security Misconfiguration",
     "broken-authorization": "A01:2021 - Broken Access Control",
+    "mixed-content": "A02:2021 - Cryptographic Failures",
     "example": "A05:2021 - Security Misconfiguration",
 }
 

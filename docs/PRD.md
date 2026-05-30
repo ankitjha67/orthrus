@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 49 scanners · 17 confirmation modules · 14 recon modules · 737 passing tests · `ruff` clean |
+| Verified snapshot | 50 scanners · 17 confirmation modules · 14 recon modules · 744 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 14 mods  │   │ 49 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 14 mods  │   │ 50 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -213,7 +213,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 
 ---
 
-## 7. Vulnerability scanning subsystem (49 scanners)
+## 7. Vulnerability scanning subsystem (50 scanners)
 
 Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncIterator[Finding]`, declares `min_aggressiveness`, and self-registers. The shared injection layer (`_injection.py`) yields `InjectionPoint`s across `QUERY`, `BODY`, `JSON`, and `PATH` locations for `GET/POST/PUT/PATCH/DELETE`.
 
@@ -411,7 +411,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 | Metric | Value |
 |---|---|
-| Vulnerability scanners | **49** |
+| Vulnerability scanners | **50** |
 | Exploitation-confirmation modules | **17** |
 | Reconnaissance modules | **14** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
@@ -419,7 +419,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **737** (ruff clean) |
+| Automated tests | **744** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -536,7 +536,7 @@ orthrus/
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
   recon/       13 modules + spec_parsers + registry
-  scanners/    49 scanners + base + registry + _injection + _evasion
+  scanners/    50 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
