@@ -881,6 +881,7 @@ def _run_distributed(
 @click.option("--waf/--no-waf", "waf_detect", default=True, help="Run WAF detection.")
 @click.option("--api/--no-api", "api_discovery", default=True, help="Run API discovery.")
 @click.option("--dns/--no-dns", "dns_enum", default=True, help="Run DNS enumeration (domain targets).")
+@click.option("--ip-intel/--no-ip-intel", "ip_intel", default=True, help="Resolve the target's IP intelligence (PTR/ASN/geo/cloud).")
 @click.option("--mine-params/--no-mine-params", "mine_params", default=True, help="Mine endpoints for hidden parameters.")
 @click.option("--subdomains", is_flag=True, help="Run subdomain enumeration (needs *.domain scope).")
 @click.option("--wayback", is_flag=True, help="Query the Wayback Machine for historical URLs.")
@@ -923,6 +924,7 @@ def recon(
     waf_detect: bool,
     api_discovery: bool,
     dns_enum: bool,
+    ip_intel: bool,
     mine_params: bool,
     subdomains: bool,
     wayback: bool,
@@ -965,7 +967,7 @@ def recon(
     flags = {
         "fingerprint": fingerprint, "crawl": crawl, "js": js_analysis,
         "content": content_discovery, "waf": waf_detect, "api": api_discovery,
-        "dns": dns_enum, "params": mine_params,
+        "dns": dns_enum, "ip-intel": ip_intel, "params": mine_params,
         "subdomains": subdomains, "wayback": wayback, "ports": ports,
     }
     which = {name for name, on in flags.items() if on}

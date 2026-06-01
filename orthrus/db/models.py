@@ -72,6 +72,7 @@ class Asset(Base):
     https_available: Mapped[bool] = mapped_column(Boolean, default=False)
     status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ip_intel_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     scan: Mapped[Scan] = relationship(back_populates="assets")
     endpoints: Mapped[list[Endpoint]] = relationship(

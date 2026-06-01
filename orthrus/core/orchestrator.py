@@ -38,6 +38,7 @@ from orthrus.recon.browser_crawl import BrowserCrawl
 from orthrus.recon.content_discovery import ContentDiscovery
 from orthrus.recon.crawler import Crawler
 from orthrus.recon.dns_enum import DnsEnum
+from orthrus.recon.ip_intel import IpIntelRecon
 from orthrus.recon.js_analyzer import JsAnalyzer
 from orthrus.recon.param_mining import ParameterMiner
 from orthrus.recon.port_scan import PortScan
@@ -392,6 +393,8 @@ class Orchestrator:
             modules.append(SpaCrawl())
         if which is None or "dns" in which:
             modules.append(DnsEnum())  # applicable() skips IP targets
+        if which is None or "ip-intel" in which:
+            modules.append(IpIntelRecon())  # PTR/ASN/geo/cloud for resolved IP(s)
         if which is not None and "subdomains" in which:
             modules.append(SubdomainEnum())
         if which is not None and "wayback" in which:

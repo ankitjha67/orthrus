@@ -84,6 +84,25 @@ class Technology(BaseModel):
     confidence: Confidence = Confidence.FIRM
 
 
+class IpIntel(BaseModel):
+    """Network-infrastructure intelligence for a single resolved IP address.
+
+    Built from passive sources (reverse DNS + Team Cymru's IP-to-ASN service
+    over DNS), so enriching a target never touches the target host itself. The
+    ``country`` is the registry's *allocation* country, not a precise geo-fix.
+    """
+
+    ip: str
+    ptr: list[str] = Field(default_factory=list)  # reverse-DNS hostname(s)
+    asn: str | None = None  # e.g. "AS15169"
+    as_org: str | None = None  # e.g. "GOOGLE - Google LLC, US"
+    network: str | None = None  # announced BGP prefix, e.g. "8.8.8.0/24"
+    country: str | None = None  # registry allocation country code
+    registry: str | None = None  # arin / ripe / apnic / lacnic / afrinic
+    allocated: str | None = None  # allocation date (ISO)
+    cloud_provider: str | None = None  # attributed hosting/cloud, e.g. "AWS"
+
+
 class Asset(BaseModel):
     """A discovered host: subdomain, virtual host, or IP-backed service."""
 
@@ -98,6 +117,7 @@ class Asset(BaseModel):
     status_code: int | None = None
     title: str | None = None
     technologies: list[Technology] = Field(default_factory=list)
+    ip_intel: IpIntel | None = None  # network intel for the primary resolved IP
     discovered_at: datetime = Field(default_factory=_utcnow)
 
 
@@ -178,6 +198,7 @@ __all__ = [
     "ParamLocation",
     "Aggressiveness",
     "Technology",
+    "IpIntel",
     "Asset",
     "Param",
     "Endpoint",

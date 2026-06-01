@@ -39,6 +39,9 @@ def _asset_to_schema(row: AssetRow) -> schemas.Asset:
         https_available=row.https_available,
         status_code=row.status_code,
         title=row.title,
+        ip_intel=(
+            schemas.IpIntel.model_validate(row.ip_intel_json) if row.ip_intel_json else None
+        ),
     )
 
 
@@ -97,6 +100,10 @@ class Store:
         columns = {c["name"] for c in inspect(conn).get_columns("scans")}
         if "phase" not in columns:
             conn.execute(text("ALTER TABLE scans ADD COLUMN phase VARCHAR(16)"))
+        # ip_intel_json (IP-intelligence recon) was added to assets after launch.
+        asset_columns = {c["name"] for c in inspect(conn).get_columns("assets")}
+        if "ip_intel_json" not in asset_columns:
+            conn.execute(text("ALTER TABLE assets ADD COLUMN ip_intel_json JSON"))
 
     def session(self) -> AsyncSession:
         return self._session_factory()
@@ -184,6 +191,7 @@ class Store:
                 https_available=asset.https_available,
                 status_code=asset.status_code,
                 title=asset.title,
+                ip_intel_json=asset.ip_intel.model_dump(mode="json") if asset.ip_intel else None,
             )
             session.add(row)
             await session.commit()

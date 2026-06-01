@@ -17,8 +17,8 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **784 tests pass**, `ruff check orthrus tests` clean |
-| Coverage | **55 vulnerability scanners · 17 confirmation modules · 14 recon modules** |
+| Automated gates | **802 tests pass**, `ruff check orthrus tests` clean |
+| Coverage | **55 vulnerability scanners · 17 confirmation modules · 15 recon modules** |
 | Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
 ---
@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-784 passed, 4 warnings
+802 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -159,8 +159,10 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 
 ## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
 
-The roadmap build-out grew ORTHRUS from 42 → **55 scanners**, 13 → **14 recon**,
-and 667 → **784 tests**. Every new capability was verified against a **real**
+The roadmap build-out grew ORTHRUS from 42 → **55 scanners**, 13 → **15 recon**,
+and 667 → **802 tests**. (Recon's latest addition is passive IP-address
+intelligence — PTR/ASN/geo/cloud — verified live below.) Every new capability
+was verified against a **real**
 target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
 sockets, the real OOB collaborator) — never a mock of the thing under test. These
 are deterministic and reproducible, which is why they make better evidence than a
@@ -177,6 +179,7 @@ WAN scan that depends on a third-party target exhibiting a specific bug.
 | **Browser taint engine (DOM source→sink)** | real headless **Chromium** + localhost page | URL canary reached `document.write` **and** `innerHTML` → 2 × **HIGH DOM-XSS / CWE-79** (sinks named); static page → **0** |
 | **gRPC server-reflection** | real gRPC server (reflection on) | `ListServices` returned `billing.v1.Payments`, `orthrus.test.Greeter` → **MEDIUM / CWE-200** |
 | **Source-map recovery (recon)** | localhost JS + `.map`, real socket | recovered 2 endpoints invisible in the minified bundle (`/api/internal/v3/users`, `/admin/secret-action`) |
+| **IP-address intelligence (recon)** | `pentest-ground.com`, **real DNS + Team Cymru** | resolved `178.79.134.182` → PTR `…linodeusercontent.com`, **AS63949 (Akamai Connected Cloud)**, prefix `178.79.128.0/18`, RIPE/US, cloud=**Akamai**; survived a real SQLite round-trip; out-of-scope target → **0** |
 
 ### Low-false-positive discipline, demonstrated live
 
