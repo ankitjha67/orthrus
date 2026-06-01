@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 55 scanners · 17 confirmation modules · 15 recon modules · 802 passing tests · `ruff` clean |
+| Verified snapshot | 55 scanners · 17 confirmation modules · 16 recon modules · 811 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -394,7 +394,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **802 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **811 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -422,7 +422,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **802** (ruff clean) |
+| Automated tests | **811** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -435,7 +435,7 @@ Prioritized into waves. Each item is a self-contained increment (detector + test
 >
 > **✅ Build-out Wave 2 shipped** — item #1, the highest-leverage gap: the **N-identity authorization matrix** (`orthrus/core/identity.py` + `scanners/authz_matrix.py`, `--identities` JSON manifest). Autorize-style multi-principal replay over isolated per-identity clients flags **BOLA** (CWE-639) and **BFLA** (CWE-285); live-verified over real sockets. 48→49 scanners, +9 tests. See §7.3.
 >
-> **✅ Build-out Waves 3+ shipped** (49→55 scanners, 13→15 recon, all live-verified against real targets — see PROOF.md §5):
+> **✅ Build-out Waves 3+ shipped** (49→55 scanners, 13→16 recon, all live-verified against real targets — see PROOF.md §5):
 > - **Privilege-escalation forced-browse** (BFLA on *unlinked* admin routes via the identity lattice) — `privilege_escalation`, CWE-285.
 > - **Blind OS command injection via OOB** — `cmd_injection` now mints a callback per point and polls (Interactsh/local collaborator), proving blind RCE (CWE-78).
 > - **JWT RS→HS algorithm confusion** — fetches JWKS, derives the RSA public PEM, forges a valid HS256 token from it (raw HMAC) — `jwt_analyzer`, CWE-347.
@@ -563,7 +563,7 @@ orthrus/
   mcp_server.py  FastMCP tools
   main.py      Click CLI (13 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (802 tests)
+tests/         unit + integration (811 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```

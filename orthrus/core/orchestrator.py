@@ -38,6 +38,7 @@ from orthrus.recon.browser_crawl import BrowserCrawl
 from orthrus.recon.content_discovery import ContentDiscovery
 from orthrus.recon.crawler import Crawler
 from orthrus.recon.dns_enum import DnsEnum
+from orthrus.recon.host_gathering import HostGathering
 from orthrus.recon.ip_intel import IpIntelRecon
 from orthrus.recon.js_analyzer import JsAnalyzer
 from orthrus.recon.param_mining import ParameterMiner
@@ -397,6 +398,9 @@ class Orchestrator:
             modules.append(IpIntelRecon())  # PTR/ASN/geo/cloud for resolved IP(s)
         if which is not None and "subdomains" in which:
             modules.append(SubdomainEnum())
+        # Opt-in (third-party OSINT + a /24 reverse-DNS sweep): only on request.
+        if which is not None and "host-gather" in which:
+            modules.append(HostGathering())
         if which is not None and "wayback" in which:
             modules.append(Wayback())
         if which is not None and "ports" in which:

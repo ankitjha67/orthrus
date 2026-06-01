@@ -884,6 +884,7 @@ def _run_distributed(
 @click.option("--ip-intel/--no-ip-intel", "ip_intel", default=True, help="Resolve the target's IP intelligence (PTR/ASN/geo/cloud).")
 @click.option("--mine-params/--no-mine-params", "mine_params", default=True, help="Mine endpoints for hidden parameters.")
 @click.option("--subdomains", is_flag=True, help="Run subdomain enumeration (needs *.domain scope).")
+@click.option("--host-gather", "host_gather", is_flag=True, help="Gather the host footprint (CT logs, reverse-IP, /24 reverse-DNS, Wayback).")
 @click.option("--wayback", is_flag=True, help="Query the Wayback Machine for historical URLs.")
 @click.option("--ports", is_flag=True, help="Run Nmap port scan (needs the nmap binary).")
 @click.option("--crawl-depth", default=5, type=int, help="Maximum crawl depth.")
@@ -927,6 +928,7 @@ def recon(
     ip_intel: bool,
     mine_params: bool,
     subdomains: bool,
+    host_gather: bool,
     wayback: bool,
     ports: bool,
     crawl_depth: int,
@@ -968,7 +970,8 @@ def recon(
         "fingerprint": fingerprint, "crawl": crawl, "js": js_analysis,
         "content": content_discovery, "waf": waf_detect, "api": api_discovery,
         "dns": dns_enum, "ip-intel": ip_intel, "params": mine_params,
-        "subdomains": subdomains, "wayback": wayback, "ports": ports,
+        "subdomains": subdomains, "host-gather": host_gather,
+        "wayback": wayback, "ports": ports,
     }
     which = {name for name, on in flags.items() if on}
     _log_scope(scope)
@@ -1194,6 +1197,148 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
 
     section(console, f"FINDINGS · {scan_id}")
     console.print(findings_table(rows))
+
+
+@cli.command(name="hosts")
+@click.argument("target", required=False)
+@click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
+@click.option("--scan-id", default=None, help="List hosts from a stored scan instead of gathering live.")
+@click.option("--no-reverse-ip", "no_reverse_ip", is_flag=True, help="Skip reverse-IP / co-hosting lookup.")
+@click.option("--no-netblock", "no_netblock", is_flag=True, help="Skip the /24 reverse-DNS sweep.")
+@click.option("--no-ct", "no_ct", is_flag=True, help="Skip Certificate Transparency (crt.sh).")
+@click.option("--no-wayback", "no_wayback", is_flag=True, help="Skip Wayback Machine hostnames.")
+@click.option("--in-scope-only", is_flag=True, help="Hide co-hosted / out-of-scope hosts.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the host inventory as JSON (stdout).")
+@click.option("--csv", "csv_path", default=None, help="Write the host inventory to a CSV file.")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def hosts(
+    target: str | None,
+    scope_str: str | None,
+    scan_id: str | None,
+    no_reverse_ip: bool,
+    no_netblock: bool,
+    no_ct: bool,
+    no_wayback: bool,
+    in_scope_only: bool,
+    as_json: bool,
+    csv_path: str | None,
+    exclude_paths: str | None,
+    verbose: str,
+) -> None:
+    """Gather and list the host footprint for a TARGET (or a stored scan).
+
+    Casts a passive net — Certificate Transparency, reverse-IP / co-hosting, a
+    /24 reverse-DNS sweep, and Wayback — and folds the results into one
+    deduplicated inventory. In-scope hosts are listed first; co-hosted hosts
+    that fall outside scope are shown (flagged) for situational awareness but are
+    never scanned. Use --scan-id to instead list the hosts a prior scan stored.
+    """
+    configure_logging(verbose)
+    if not target and not scan_id:
+        raise click.UsageError("provide a TARGET to gather, or --scan-id to list a stored scan.")
+    asyncio.run(
+        _gather_hosts_cmd(
+            target, scope_str, scan_id, exclude_paths,
+            reverse_ip=not no_reverse_ip, netblock=not no_netblock,
+            ct_logs=not no_ct, wayback=not no_wayback,
+            in_scope_only=in_scope_only, as_json=as_json, csv_path=csv_path,
+        )
+    )
+
+
+async def _gather_hosts_cmd(
+    target, scope_str, scan_id, exclude_paths, *,
+    reverse_ip, netblock, ct_logs, wayback, in_scope_only, as_json, csv_path,
+):
+    from orthrus.recon.host_gathering import GatheredHost, _host_of, gather_hosts
+
+    label = scan_id or _host_of(target)
+    if scan_id:
+        settings = get_settings()
+        store = Store(settings.db_url, encryption_key=settings.encryption_key)
+        try:
+            await store.init()
+            scan = await store.get_scan(scan_id)
+            assets = await store.get_assets(scan_id) if scan is not None else []
+        finally:
+            await store.close()
+        if scan is None:
+            logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+            return
+        rows = [
+            GatheredHost(
+                fqdn=a.fqdn, ips=list(a.ips),
+                sources=[a.discovery_method], in_scope=True,
+            )
+            for a in assets
+        ]
+        rows.sort(key=lambda g: g.fqdn)
+    else:
+        from orthrus.utils.scope import ScopeValidator
+
+        host = _host_of(target)
+        scope_cfg = build_scope(scope_str, target, exclude_paths)
+        _log_scope(scope_cfg)
+        logger.warning("gathering hosts for %s — this queries CT/Wayback/reverse-IP and sweeps a /24…", host)
+        rows = await gather_hosts(
+            host, ScopeValidator(scope_cfg),
+            reverse_ip=reverse_ip, netblock=netblock, ct_logs=ct_logs, wayback=wayback,
+        )
+
+    if in_scope_only:
+        rows = [g for g in rows if g.in_scope]
+
+    if as_json:
+        click.echo(json.dumps(
+            [{"fqdn": g.fqdn, "ips": g.ips, "sources": g.sources, "in_scope": g.in_scope}
+             for g in rows],
+            indent=2,
+        ))
+    if csv_path:
+        await asyncio.to_thread(_write_hosts_csv, csv_path, rows)
+        logger.info("wrote %d host(s) to %s", len(rows), csv_path)
+    if as_json:
+        return
+
+    from rich.table import Table
+
+    in_scope = sum(1 for g in rows if g.in_scope)
+    section(console, f"HOSTS · {label}")
+    if not rows:
+        console.print("[orthrus.muted]No hosts gathered.[/]")
+        return
+    table = Table(border_style="orthrus.muted")
+    table.add_column("Host", style="orthrus.accent", no_wrap=True)
+    table.add_column("IP(s)")
+    table.add_column("Sources", style="orthrus.muted")
+    table.add_column("Scope")
+    for g in rows:
+        scope_cell = (
+            "[status.completed]in-scope[/]" if g.in_scope else "[orthrus.muted]co-hosted[/]"
+        )
+        table.add_row(
+            g.fqdn,
+            ", ".join(g.ips) or "[orthrus.muted]—[/]",
+            ", ".join(g.sources),
+            scope_cell,
+        )
+    console.print(table)
+    console.print(
+        f"\n[orthrus.muted]{len(rows)} host(s) gathered · "
+        f"{in_scope} in-scope · {len(rows) - in_scope} co-hosted/out-of-scope[/]"
+    )
+
+
+def _write_hosts_csv(csv_path: str, rows: list) -> None:
+    """Write the gathered host inventory to a CSV file (sync; runs off-loop)."""
+    import csv as _csv
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as fh:
+        writer = _csv.writer(fh)
+        writer.writerow(["fqdn", "ips", "sources", "in_scope"])
+        for g in rows:
+            writer.writerow([g.fqdn, ";".join(g.ips), ";".join(g.sources), g.in_scope])
 
 
 def _finding_key(row: object) -> tuple[str, str, str]:
