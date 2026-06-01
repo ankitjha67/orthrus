@@ -1347,6 +1347,7 @@ def _write_hosts_csv(csv_path: str, rows: list) -> None:
 @click.option("--baseline", default=None, help="Scan id to diff against (default: this target's most recent prior scan).")
 @click.option("--webhook", default=None, help="POST a JSON drift alert to this URL (Slack/Teams/custom).")
 @click.option("--fail-on-change", is_flag=True, help="Exit non-zero when drift is detected (for cron/CI).")
+@click.option("--deep", is_flag=True, help="Run a full vuln scan and also report NEW/RESOLVED findings (not just hosts).")
 @click.option("--no-host-gather", "no_host_gather", is_flag=True, help="Skip the host-gather pass (faster, fewer sources).")
 @click.option("--json", "as_json", is_flag=True, help="Emit the drift report as JSON (stdout).")
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
@@ -1360,6 +1361,7 @@ def monitor(
     baseline: str | None,
     webhook: str | None,
     fail_on_change: bool,
+    deep: bool,
     no_host_gather: bool,
     as_json: bool,
     exclude_paths: str | None,
@@ -1368,21 +1370,22 @@ def monitor(
     timeout: float,
     verbose: str,
 ) -> None:
-    """Re-recon a TARGET and report attack-surface drift vs the previous run.
+    """Re-scan a TARGET and report drift vs the previous run.
 
-    Continuous attack-surface monitoring: each run takes a fresh recon snapshot
-    (DNS, IP-intel, subdomains, host-gather), stores it, and diffs it against the
-    target's previous snapshot — surfacing hosts that appeared or vanished, new
-    IPs, and newly-exposed ports. Wire it to cron + --webhook to get paged when
-    the attack surface changes, and --fail-on-change for a CI gate.
+    Continuous monitoring: each run takes a fresh snapshot, stores it, and diffs
+    it against the target's previous snapshot. By default it monitors the
+    *attack surface* (recon only) — hosts that appeared/vanished, new IPs, newly
+    exposed ports. With --deep it runs a full vulnerability scan and also reports
+    NEW and RESOLVED findings. Wire it to cron + --webhook to get paged on change,
+    and --fail-on-change for a CI gate.
     """
     configure_logging(verbose)
     scope = build_scope(scope_str, target, exclude_paths)
     config = ScanConfig(scan_id=scan_id, target=target, scope=scope, timeout=timeout)
     config.rate_limit.requests_per_second = rate_limit
-    config.use_browser = False  # recon-only; no need to spin up a browser
+    config.use_browser = deep  # browser only matters for the deep vuln scan
     _log_scope(scope)
-    changed = asyncio.run(_monitor(config, baseline, webhook, no_host_gather, as_json))
+    changed = asyncio.run(_monitor(config, baseline, webhook, deep, no_host_gather, as_json))
     if fail_on_change and changed:
         raise SystemExit(2)
 
@@ -1391,10 +1394,11 @@ async def _monitor(
     config: ScanConfig,
     baseline_id: str | None,
     webhook: str | None,
+    deep: bool,
     no_host_gather: bool,
     as_json: bool,
 ) -> bool:
-    from orthrus.core.drift import compute_asset_drift
+    from orthrus.core.drift import compute_asset_drift, compute_finding_drift
     from orthrus.core.orchestrator import Orchestrator
 
     which = {"dns", "ip-intel", "subdomains"}
@@ -1404,41 +1408,59 @@ async def _monitor(
     orch = Orchestrator(config, get_settings())
     status = "completed"
     drift = None
+    finding_drift = None
     try:
         await orch.setup()
         prior = await orch.store.get_prior_scan(config.target, exclude_id=orch.scan_id)
         baseline_ref = baseline_id or (prior.id if prior else None)
-        await orch.run_recon(which)
+        if deep:
+            await orch.run_recon()       # full recon set
+            await orch.run_scan()        # vulnerability scan
+            await orch.run_exploit()     # confirmation
+        else:
+            await orch.run_recon(which)  # recon-only attack-surface snapshot
         current = list(orch.ctx.assets)
         baseline_assets = await orch.store.get_assets(baseline_ref) if baseline_ref else []
         drift = compute_asset_drift(
             baseline_assets, current, is_baseline=baseline_ref is None
         )
-        _render_drift(config.target, baseline_ref, orch.scan_id, drift, as_json)
+        if deep:
+            current_findings = await orch.store.get_findings(orch.scan_id)
+            baseline_findings = await orch.store.get_findings(baseline_ref) if baseline_ref else []
+            finding_drift = compute_finding_drift(baseline_findings, current_findings)
+        _render_drift(config.target, baseline_ref, orch.scan_id, drift, finding_drift, as_json)
         if webhook:
-            await _post_drift_webhook(webhook, config.target, baseline_ref, orch.scan_id, drift)
+            await _post_drift_webhook(
+                webhook, config.target, baseline_ref, orch.scan_id, drift, finding_drift
+            )
     except Exception:
         status = "failed"
         logger.exception("monitor aborted")
     finally:
         await orch.teardown(status)
-    return bool(drift and drift.has_changes)
+    asset_changed = bool(drift and drift.has_changes)
+    finding_changed = bool(finding_drift and finding_drift.has_changes)
+    return asset_changed or finding_changed
 
 
-def _render_drift(target, baseline_id, current_id, drift, as_json) -> None:
+def _render_drift(target, baseline_id, current_id, drift, finding_drift, as_json) -> None:
     if as_json:
-        click.echo(json.dumps(
-            {"target": target, "baseline_scan": baseline_id, "current_scan": current_id,
-             **drift.to_dict()},
-            indent=2, default=str,
-        ))
+        payload = {"target": target, "baseline_scan": baseline_id, "current_scan": current_id,
+                   "asset_drift": drift.to_dict()}
+        if finding_drift is not None:
+            payload["finding_drift"] = finding_drift.to_dict()
+        click.echo(json.dumps(payload, indent=2, default=str))
         return
 
     from rich.table import Table
 
     section(console, f"DRIFT · {target}")
     console.print(f"[orthrus.muted]baseline {baseline_id or '(none)'} → current {current_id}[/]\n")
-    console.print(drift.summary() + "\n")
+    console.print(drift.summary())
+    if finding_drift is not None:
+        console.print(finding_drift.summary())
+    console.print()
+    _render_finding_drift(finding_drift)
     if drift.is_baseline:
         console.print(
             f"[orthrus.muted]First snapshot — {drift.current_count} host(s) recorded "
@@ -1475,13 +1497,37 @@ def _render_drift(target, baseline_id, current_id, drift, as_json) -> None:
         console.print(t)
 
 
-async def _post_drift_webhook(url, target, baseline_id, current_id, drift) -> None:
+def _render_finding_drift(finding_drift) -> None:
+    if finding_drift is None or not finding_drift.has_changes:
+        return
+    from rich.table import Table
+
+    if finding_drift.new_findings:
+        t = Table(title="[status.failed]NEW findings[/]", border_style="orthrus.muted")
+        t.add_column("Severity")
+        t.add_column("Type", style="orthrus.accent")
+        t.add_column("URL", style="orthrus.muted", overflow="fold")
+        for f in sorted(finding_drift.new_findings, key=_diff_sort_key):
+            t.add_row(str(f.severity), f.vuln_type, f.url)
+        console.print(t)
+    if finding_drift.resolved_findings:
+        console.print(
+            "[status.completed]RESOLVED findings:[/] "
+            + ", ".join(sorted({f.vuln_type for f in finding_drift.resolved_findings}))
+        )
+
+
+async def _post_drift_webhook(url, target, baseline_id, current_id, drift, finding_drift=None) -> None:
     import httpx
 
     payload = {
         "tool": "orthrus", "event": "asset_drift", "target": target,
-        "baseline_scan": baseline_id, "current_scan": current_id, **drift.to_dict(),
+        "baseline_scan": baseline_id, "current_scan": current_id,
+        "asset_drift": drift.to_dict(),
     }
+    if finding_drift is not None:
+        payload["event"] = "drift"
+        payload["finding_drift"] = finding_drift.to_dict()
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(url, json=payload)
@@ -1509,23 +1555,17 @@ def _partition_diff(base_rows: list, against_rows: list) -> dict[str, list]:
     """Split findings into NEW / FIXED / STILL-PRESENT across two scans.
 
     'new' is in the newer scan only, 'fixed' is in the baseline only, and
-    'persisting' is in both (keyed by :func:`_finding_key`). The newer row is
-    kept for persisting items so its current severity is what's shown.
+    'persisting' is in both (keyed by (vuln_type, url, parameter)). The newer row
+    is kept for persisting items so its current severity is what's shown. Shares
+    the drift engine with ``orthrus monitor --deep``.
     """
-    base_map: dict[tuple, object] = {}
-    for r in base_rows:
-        base_map.setdefault(_finding_key(r), r)
-    against_map: dict[tuple, object] = {}
-    for r in against_rows:
-        against_map.setdefault(_finding_key(r), r)
+    from orthrus.core.drift import compute_finding_drift
 
-    base_keys, against_keys = set(base_map), set(against_map)
+    drift = compute_finding_drift(base_rows, against_rows)
     return {
-        "new": sorted((against_map[k] for k in against_keys - base_keys), key=_diff_sort_key),
-        "fixed": sorted((base_map[k] for k in base_keys - against_keys), key=_diff_sort_key),
-        "persisting": sorted(
-            (against_map[k] for k in base_keys & against_keys), key=_diff_sort_key
-        ),
+        "new": sorted(drift.new_findings, key=_diff_sort_key),
+        "fixed": sorted(drift.resolved_findings, key=_diff_sort_key),
+        "persisting": sorted(drift.persisting, key=_diff_sort_key),
     }
 
 

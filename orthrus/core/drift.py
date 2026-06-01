@@ -80,6 +80,75 @@ class AssetDrift:
         }
 
 
+@dataclass
+class FindingDrift:
+    """The difference between two scans' findings — new vs resolved vulns.
+
+    Identity is (vuln_type, url, parameter) — severity/confidence are excluded so
+    a finding that merely changes severity between runs still counts as the same
+    issue (persisting), and a fixed-then-reappearing bug re-registers as new.
+    """
+
+    new_findings: list = field(default_factory=list)
+    resolved_findings: list = field(default_factory=list)
+    persisting: list = field(default_factory=list)
+
+    @property
+    def has_changes(self) -> bool:
+        return bool(self.new_findings or self.resolved_findings)
+
+    def summary(self) -> str:
+        if not self.has_changes:
+            return f"no finding drift — {len(self.persisting)} still present"
+        return (
+            f"{len(self.new_findings)} new, {len(self.resolved_findings)} resolved finding(s) "
+            f"({len(self.persisting)} still present)"
+        )
+
+    def to_dict(self) -> dict:
+        def _f(f) -> dict:
+            return {
+                "vuln_type": f.vuln_type,
+                "url": f.url,
+                "parameter": getattr(f, "parameter", None),
+                "severity": str(getattr(f, "severity", "")),
+            }
+
+        return {
+            "summary": self.summary(),
+            "has_changes": self.has_changes,
+            "persisting": len(self.persisting),
+            "new_findings": [_f(f) for f in self.new_findings],
+            "resolved_findings": [_f(f) for f in self.resolved_findings],
+        }
+
+
+def _finding_identity(finding) -> tuple[str, str, str]:
+    return (finding.vuln_type, finding.url, getattr(finding, "parameter", None) or "")
+
+
+def compute_finding_drift(baseline: list, current: list) -> FindingDrift:
+    """Diff two finding lists by (vuln_type, url, parameter).
+
+    Accepts any objects exposing ``vuln_type``/``url``/``parameter`` — both the
+    ``Finding`` schema and persisted DB rows qualify — so the same engine backs
+    both ``orthrus diff`` and ``orthrus monitor --deep``.
+    """
+    base: dict[tuple, object] = {}
+    for f in baseline:
+        base.setdefault(_finding_identity(f), f)
+    cur: dict[tuple, object] = {}
+    for f in current:
+        cur.setdefault(_finding_identity(f), f)
+
+    base_keys, cur_keys = set(base), set(cur)
+    return FindingDrift(
+        new_findings=[cur[k] for k in cur_keys - base_keys],
+        resolved_findings=[base[k] for k in base_keys - cur_keys],
+        persisting=[cur[k] for k in base_keys & cur_keys],
+    )
+
+
 def compute_asset_drift(
     baseline: list[schemas.Asset],
     current: list[schemas.Asset],
@@ -123,4 +192,10 @@ def compute_asset_drift(
     )
 
 
-__all__ = ["AssetDrift", "HostChange", "compute_asset_drift"]
+__all__ = [
+    "AssetDrift",
+    "HostChange",
+    "compute_asset_drift",
+    "FindingDrift",
+    "compute_finding_drift",
+]

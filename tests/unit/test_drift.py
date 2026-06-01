@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
-from orthrus.core.drift import compute_asset_drift
+from types import SimpleNamespace
+
+from orthrus.core.drift import compute_asset_drift, compute_finding_drift
 from orthrus.core.schemas import Asset
 from orthrus.db.store import Store
+
+
+def _f(vuln_type, url, parameter=None, severity="high"):
+    return SimpleNamespace(vuln_type=vuln_type, url=url, parameter=parameter, severity=severity)
 
 
 # ------------------------------------------------------------- drift engine
@@ -65,6 +71,42 @@ def test_explicit_is_baseline_suppresses_diff():
     cur = [Asset(fqdn="y.com")]
     d = compute_asset_drift(base, cur, is_baseline=True)
     assert d.is_baseline and not d.has_changes
+
+
+# ----------------------------------------------------------- finding drift
+def test_finding_drift_new_and_resolved():
+    base = [_f("xss", "/a", "q"), _f("sqli", "/b")]
+    cur = [_f("xss", "/a", "q"), _f("ssrf", "/c", "url")]
+    d = compute_finding_drift(base, cur)
+    assert [(f.vuln_type, f.url) for f in d.new_findings] == [("ssrf", "/c")]
+    assert [f.vuln_type for f in d.resolved_findings] == ["sqli"]
+    assert len(d.persisting) == 1
+    assert d.has_changes
+    assert "1 new, 1 resolved" in d.summary()
+
+
+def test_finding_drift_identity_ignores_severity():
+    # Same issue, severity escalated — counts as persisting, not new+resolved.
+    base = [_f("xss", "/a", "q", severity="low")]
+    cur = [_f("xss", "/a", "q", severity="critical")]
+    d = compute_finding_drift(base, cur)
+    assert not d.has_changes and len(d.persisting) == 1
+
+
+def test_finding_drift_no_change():
+    rows = [_f("xss", "/a", "q")]
+    d = compute_finding_drift(list(rows), list(rows))
+    assert not d.has_changes
+    assert "no finding drift" in d.summary()
+
+
+def test_finding_drift_to_dict_for_alerts():
+    base = []
+    cur = [_f("sqli", "/login", "user", severity="critical")]
+    out = compute_finding_drift(base, cur).to_dict()
+    assert out["has_changes"] is True
+    assert out["new_findings"][0]["vuln_type"] == "sqli"
+    assert out["new_findings"][0]["severity"] == "critical"
 
 
 # ------------------------------------------------ store prior-scan baseline
