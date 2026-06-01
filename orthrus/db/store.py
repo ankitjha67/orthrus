@@ -154,6 +154,24 @@ class Store:
         async with self.session() as session:
             return await session.get(ScanRow, scan_id)
 
+    async def get_prior_scan(
+        self, target: str, *, exclude_id: str | None = None, status: str | None = "completed"
+    ) -> ScanRow | None:
+        """The most recent scan of ``target`` (excluding ``exclude_id``).
+
+        Serves as the drift baseline for ``orthrus monitor`` — the previous
+        snapshot of the same target's attack surface.
+        """
+        async with self.session() as session:
+            stmt = select(ScanRow).where(ScanRow.target == target)
+            if status:
+                stmt = stmt.where(ScanRow.status == status)
+            stmt = stmt.order_by(ScanRow.started_at.desc())
+            for row in (await session.execute(stmt)).scalars():
+                if row.id != exclude_id:
+                    return row
+            return None
+
     async def list_scans(
         self, *, limit: int = 50, status: str | None = None
     ) -> list[tuple[ScanRow, int]]:

@@ -1341,6 +1341,155 @@ def _write_hosts_csv(csv_path: str, rows: list) -> None:
             writer.writerow([g.fqdn, ";".join(g.ips), ";".join(g.sources), g.in_scope])
 
 
+@cli.command(name="monitor")
+@click.argument("target")
+@click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
+@click.option("--baseline", default=None, help="Scan id to diff against (default: this target's most recent prior scan).")
+@click.option("--webhook", default=None, help="POST a JSON drift alert to this URL (Slack/Teams/custom).")
+@click.option("--fail-on-change", is_flag=True, help="Exit non-zero when drift is detected (for cron/CI).")
+@click.option("--no-host-gather", "no_host_gather", is_flag=True, help="Skip the host-gather pass (faster, fewer sources).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the drift report as JSON (stdout).")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
+@click.option("--scan-id", default=None, help="Custom scan identifier for this snapshot.")
+@click.option("--rate-limit", default=50.0, type=float, help="Max requests/sec per domain.")
+@click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def monitor(
+    target: str,
+    scope_str: str | None,
+    baseline: str | None,
+    webhook: str | None,
+    fail_on_change: bool,
+    no_host_gather: bool,
+    as_json: bool,
+    exclude_paths: str | None,
+    scan_id: str | None,
+    rate_limit: float,
+    timeout: float,
+    verbose: str,
+) -> None:
+    """Re-recon a TARGET and report attack-surface drift vs the previous run.
+
+    Continuous attack-surface monitoring: each run takes a fresh recon snapshot
+    (DNS, IP-intel, subdomains, host-gather), stores it, and diffs it against the
+    target's previous snapshot — surfacing hosts that appeared or vanished, new
+    IPs, and newly-exposed ports. Wire it to cron + --webhook to get paged when
+    the attack surface changes, and --fail-on-change for a CI gate.
+    """
+    configure_logging(verbose)
+    scope = build_scope(scope_str, target, exclude_paths)
+    config = ScanConfig(scan_id=scan_id, target=target, scope=scope, timeout=timeout)
+    config.rate_limit.requests_per_second = rate_limit
+    config.use_browser = False  # recon-only; no need to spin up a browser
+    _log_scope(scope)
+    changed = asyncio.run(_monitor(config, baseline, webhook, no_host_gather, as_json))
+    if fail_on_change and changed:
+        raise SystemExit(2)
+
+
+async def _monitor(
+    config: ScanConfig,
+    baseline_id: str | None,
+    webhook: str | None,
+    no_host_gather: bool,
+    as_json: bool,
+) -> bool:
+    from orthrus.core.drift import compute_asset_drift
+    from orthrus.core.orchestrator import Orchestrator
+
+    which = {"dns", "ip-intel", "subdomains"}
+    if not no_host_gather:
+        which.add("host-gather")
+
+    orch = Orchestrator(config, get_settings())
+    status = "completed"
+    drift = None
+    try:
+        await orch.setup()
+        prior = await orch.store.get_prior_scan(config.target, exclude_id=orch.scan_id)
+        baseline_ref = baseline_id or (prior.id if prior else None)
+        await orch.run_recon(which)
+        current = list(orch.ctx.assets)
+        baseline_assets = await orch.store.get_assets(baseline_ref) if baseline_ref else []
+        drift = compute_asset_drift(
+            baseline_assets, current, is_baseline=baseline_ref is None
+        )
+        _render_drift(config.target, baseline_ref, orch.scan_id, drift, as_json)
+        if webhook:
+            await _post_drift_webhook(webhook, config.target, baseline_ref, orch.scan_id, drift)
+    except Exception:
+        status = "failed"
+        logger.exception("monitor aborted")
+    finally:
+        await orch.teardown(status)
+    return bool(drift and drift.has_changes)
+
+
+def _render_drift(target, baseline_id, current_id, drift, as_json) -> None:
+    if as_json:
+        click.echo(json.dumps(
+            {"target": target, "baseline_scan": baseline_id, "current_scan": current_id,
+             **drift.to_dict()},
+            indent=2, default=str,
+        ))
+        return
+
+    from rich.table import Table
+
+    section(console, f"DRIFT · {target}")
+    console.print(f"[orthrus.muted]baseline {baseline_id or '(none)'} → current {current_id}[/]\n")
+    console.print(drift.summary() + "\n")
+    if drift.is_baseline:
+        console.print(
+            f"[orthrus.muted]First snapshot — {drift.current_count} host(s) recorded "
+            f"as the baseline for future runs.[/]"
+        )
+        return
+    if not drift.has_changes:
+        console.print("[status.completed]✓ No attack-surface drift.[/]")
+        return
+    if drift.new_hosts:
+        t = Table(title="[status.failed]NEW hosts[/]", border_style="orthrus.muted")
+        t.add_column("Host", style="orthrus.accent")
+        t.add_column("IP(s)")
+        t.add_column("Source", style="orthrus.muted")
+        for a in drift.new_hosts:
+            t.add_row(a.fqdn, ", ".join(a.ips) or "—", a.discovery_method)
+        console.print(t)
+    if drift.removed_hosts:
+        console.print("[status.running]REMOVED hosts:[/] " + ", ".join(drift.removed_hosts))
+    if drift.changed_hosts:
+        t = Table(title="[status.running]CHANGED hosts[/]", border_style="orthrus.muted")
+        t.add_column("Host", style="orthrus.accent")
+        t.add_column("New IP(s)")
+        t.add_column("New port(s)")
+        t.add_column("Removed", style="orthrus.muted")
+        for c in drift.changed_hosts:
+            removed = ", ".join([*c.removed_ips, *(str(p) for p in c.removed_ports)])
+            t.add_row(
+                c.fqdn,
+                ", ".join(c.new_ips) or "—",
+                ", ".join(str(p) for p in c.new_ports) or "—",
+                removed or "—",
+            )
+        console.print(t)
+
+
+async def _post_drift_webhook(url, target, baseline_id, current_id, drift) -> None:
+    import httpx
+
+    payload = {
+        "tool": "orthrus", "event": "asset_drift", "target": target,
+        "baseline_scan": baseline_id, "current_scan": current_id, **drift.to_dict(),
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload)
+        logger.info("drift alert POSTed to webhook (HTTP %s)", resp.status_code)
+    except httpx.HTTPError as exc:
+        logger.warning("drift webhook POST failed: %s", exc)
+
+
 def _finding_key(row: object) -> tuple[str, str, str]:
     """Stable cross-scan identity for diffing: what + where + which parameter.
 
