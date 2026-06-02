@@ -734,7 +734,46 @@ class Orchestrator:
         # The per-finding triage list: only worth showing when something fired.
         if self.ctx is not None and self.ctx.findings:
             console.print(findings_table(self.ctx.findings))
+        self._print_analysis()
         self._print_scanner_metrics()
+
+    def _print_analysis(self) -> None:
+        """Surface the high-signal analysis (dedup count + attack paths) inline.
+
+        Computes triage clustering and attack-path correlation over the in-memory
+        findings, so every scan ends with "here are the paths an attacker would
+        walk" — not just a flat list — without a separate command or the report.
+        """
+        if self.ctx is None or not self.ctx.findings:
+            return
+        from orthrus.chains import correlate_findings
+        from orthrus.triage import triage_findings
+
+        triage = triage_findings(self.ctx.findings)
+        if triage.collapsed:
+            console.print(
+                f"\n[orthrus.muted]Triaged {triage.total} finding(s) → "
+                f"{triage.unique} distinct issue(s) ({triage.collapsed} folded).[/]"
+            )
+
+        chains = correlate_findings(self.ctx.findings)
+        if not chains:
+            return
+        crit = sum(1 for c in chains if c.severity == "critical")
+        section(console, "ATTACK PATHS")
+        console.print(
+            f"[orthrus.muted]{len(chains)} attacker-walkable path(s) "
+            f"({crit} critical) — prioritise breaking these:[/]\n"
+        )
+        for c in chains:
+            style = severity_style(c.severity)
+            console.print(
+                f"[{style}]\\[{c.severity.upper()}][/] [orthrus.accent]{c.name}[/] "
+                f"[orthrus.muted]@ {c.host}[/]"
+            )
+            console.print(
+                "   [orthrus.muted]" + "  →  ".join(s.vuln_type for s in c.steps) + "[/]"
+            )
 
     def _print_scanner_metrics(self) -> None:
         if not self.scanner_metrics:
