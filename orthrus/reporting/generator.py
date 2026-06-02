@@ -55,6 +55,7 @@ OWASP_2021 = {
     "auth-session": "A07:2021 - Identification and Authentication Failures",
     "jwt": "A07:2021 - Identification and Authentication Failures",
     "deserialization": "A08:2021 - Software and Data Integrity Failures",
+    "dependency-confusion": "A08:2021 - Software and Data Integrity Failures",
     "prototype-pollution": "A08:2021 - Software and Data Integrity Failures",
     "tls": "A02:2021 - Cryptographic Failures",
     "cve": "A06:2021 - Vulnerable and Outdated Components",
@@ -102,7 +103,8 @@ PCI_DSS = {
     "exposed-file": "6.4.1", "websocket": "6.2.4", "race-condition": "6.2.4",
     "parameter-tampering": "6.2.4", "parameter-pollution": "6.2.4",
     "host-header-injection": "6.2.4", "framework-debug": "6.4.1",
-    "vulnerable-component": "6.3.3", "web-cache-deception": "6.4.1",
+    "vulnerable-component": "6.3.3", "dependency-confusion": "6.3.3",
+    "web-cache-deception": "6.4.1",
     "nosql-injection": "6.2.4", "subdomain-takeover": "6.4.1",
     "crlf-injection": "6.2.4", "file-upload": "6.2.4",
     "request-smuggling": "6.2.4", "exposed-service": "1.3",
@@ -117,6 +119,7 @@ PCI_DSS = {
 # NIST Cybersecurity Framework function/category.
 NIST_CSF = {
     "tls": "PR.DS-2 (Data-in-transit)", "cve": "ID.RA-1 (Vulnerabilities identified)",
+    "dependency-confusion": "ID.SC-2 (Supply chain risk)",
     "auth-session": "PR.AC-1 (Identities & credentials)",
     "default-creds": "PR.AC-1 (Identities & credentials)",
     "jwt": "PR.AC-7 (Authentication)", "idor": "PR.AC-4 (Access permissions)",
@@ -135,6 +138,7 @@ MITRE_ATTACK = {
     "idor": "T1083 / T1530 Data from Cloud/Repo", "cve": "T1190 Exploit Public-Facing App",
     "exposed-file": "T1213 Data from Information Repositories",
     "tls": "T1040 Network Sniffing",
+    "dependency-confusion": "T1195.001 Supply Chain Compromise: Software Dependencies",
 }
 _MITRE_DEFAULT = "T1190 Exploit Public-Facing Application"
 

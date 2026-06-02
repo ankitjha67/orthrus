@@ -19,6 +19,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     csv_injection,
     cve_matcher,
     default_creds,
+    dependency_confusion,
     deserialization,
     directory_listing,
     dom_taint,
