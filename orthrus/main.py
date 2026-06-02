@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import json
+import os
 import re
 import sys
 import tomllib
@@ -1197,6 +1198,98 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
 
     section(console, f"FINDINGS · {scan_id}")
     console.print(findings_table(rows))
+
+
+@cli.command(name="triage")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option("--llm", is_flag=True, help="Use an LLM judge to flag likely false positives (needs ORTHRUS_ANTHROPIC_API_KEY).")
+@click.option("--model", default=None, help="LLM model id for --llm (default: a fast Claude Haiku).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the triaged report as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def triage(scan_id: str, llm: bool, model: str | None, as_json: bool, verbose: str) -> None:
+    """Deduplicate + cluster a scan's findings into distinct issues.
+
+    A real scan reports the same bug at many URLs (IDOR on /order/1..999, a
+    missing header on every route). This folds id-like URLs together
+    (/order/{id}) and clusters by type + location, so a 600-finding list becomes
+    the handful of issues that actually need fixing — each with its severity, a
+    count, and the affected URLs. With --llm, an LLM judge additionally flags
+    clusters that look like false positives (opt-in; no-ops without an API key).
+    """
+    configure_logging(verbose)
+    asyncio.run(_triage_cmd(scan_id, llm, model, as_json))
+
+
+async def _triage_cmd(scan_id: str, use_llm: bool, model: str | None, as_json: bool) -> None:
+    from orthrus.triage import DEFAULT_MODEL, llm_assess, triage_findings
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return
+
+    report = triage_findings(rows)
+
+    verdicts: dict[int, object] = {}
+    if use_llm:
+        api_key = os.environ.get("ORTHRUS_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning(
+                "--llm requested but ORTHRUS_ANTHROPIC_API_KEY/ANTHROPIC_API_KEY is unset; "
+                "showing dedup/cluster triage without the LLM judge"
+            )
+        else:
+            for cluster in report.clusters:
+                verdict = await llm_assess(cluster, api_key, model=model or DEFAULT_MODEL)
+                if verdict is not None:
+                    verdicts[id(cluster)] = verdict
+
+    if as_json:
+        out = report.to_dict()
+        for cluster_dict, cluster in zip(out["clusters"], report.clusters, strict=False):
+            v = verdicts.get(id(cluster))
+            if v is not None:
+                cluster_dict["false_positive"] = {
+                    "is_fp": v.is_false_positive, "confidence": v.confidence,
+                    "rationale": v.rationale,
+                }
+        click.echo(json.dumps(out, indent=2))
+        return
+
+    from rich.table import Table
+
+    section(console, f"TRIAGE · {scan_id}")
+    console.print(report.summary() + "\n")
+    if not report.clusters:
+        console.print("[orthrus.muted]No findings to triage.[/]")
+        return
+    table = Table(border_style="orthrus.muted")
+    table.add_column("Severity")
+    table.add_column("Type", style="orthrus.accent")
+    table.add_column("Issue (templated)", style="orthrus.muted", overflow="fold")
+    table.add_column("×", justify="right")
+    if verdicts:
+        table.add_column("Judge")
+    for cluster in report.clusters:
+        where = cluster.template + (f"  [{cluster.parameter}]" if cluster.parameter else "")
+        row = [cluster.severity, cluster.vuln_type, where, str(cluster.count)]
+        if verdicts:
+            v = verdicts.get(id(cluster))
+            if v is None:
+                row.append("—")
+            elif v.is_false_positive:
+                row.append("[status.failed]likely FP[/]")
+            else:
+                row.append("[status.completed]real[/]")
+        table.add_row(*row)
+    console.print(table)
 
 
 @cli.command(name="hosts")
