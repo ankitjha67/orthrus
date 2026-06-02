@@ -1292,6 +1292,64 @@ async def _triage_cmd(scan_id: str, use_llm: bool, model: str | None, as_json: b
     console.print(table)
 
 
+@cli.command(name="chains")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the attack paths as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def chains(scan_id: str, as_json: bool, verbose: str) -> None:
+    """Correlate a scan's findings into attack paths (kill-chains).
+
+    A flat finding list hides impact: one SSRF and one exposed Redis are two
+    mediums — together they're RCE on the internal network. This matches the
+    findings against a catalog of known attack chains and shows the paths an
+    attacker would actually walk, each with an escalated severity and an impact
+    narrative, prioritised above the raw list.
+    """
+    configure_logging(verbose)
+    asyncio.run(_chains_cmd(scan_id, as_json))
+
+
+async def _chains_cmd(scan_id: str, as_json: bool) -> None:
+    from orthrus.chains import build_chain_report
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return
+
+    report = build_chain_report(rows)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    section(console, f"ATTACK PATHS · {scan_id}")
+    console.print(report.summary() + "\n")
+    if not report.chains:
+        console.print(
+            "[orthrus.muted]No multi-step attack chains correlated from the current findings.[/]"
+        )
+        return
+    for chain in report.chains:
+        sev_style = {
+            "critical": "status.failed", "high": "status.running",
+        }.get(chain.severity, "orthrus.muted")
+        console.print(
+            f"[{sev_style}]\\[{chain.severity.upper()}][/] [orthrus.accent]{chain.name}[/] "
+            f"[orthrus.muted]@ {chain.host}[/]"
+        )
+        for i, step in enumerate(chain.steps, 1):
+            console.print(f"   [orthrus.muted]{i}.[/] {step.label} [orthrus.muted]({step.vuln_type})[/]")
+        console.print(f"   [orthrus.muted]→ {chain.impact}[/]\n")
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
