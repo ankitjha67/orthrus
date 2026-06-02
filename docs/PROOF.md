@@ -17,7 +17,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **826 tests pass**, `ruff check orthrus tests` clean |
+| Automated gates | **834 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **55 vulnerability scanners · 17 confirmation modules · 16 recon modules** |
 | Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-826 passed, 4 warnings
+834 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -160,7 +160,7 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 ## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **55 scanners**, 13 → **16 recon**,
-and 667 → **826 tests**. (Recon's latest addition is passive IP-address
+and 667 → **834 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) Every new capability
 was verified against a **real**
 target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
@@ -183,6 +183,7 @@ WAN scan that depends on a third-party target exhibiting a specific bug.
 | **Host gathering (recon)** | `pentest-ground.com`, **real crt.sh + reverse-IP + /24 PTR sweep** | folded CT-log + reverse-IP + a live 256-address reverse-DNS sweep into one inventory: `pentest-ground.com` flagged **in-scope**, **114** neighbouring `178.79.134.0/24` hosts gathered and flagged **co-hosted/out-of-scope (never scanned)** |
 | **ASM drift monitor** | `pentest-ground.com` (real recon ×2) + real SQLite + real webhook socket | `orthrus monitor` run 1 **established a 4-host baseline**, run 2 diffed it → **"no drift"**; a seeded snapshot correctly surfaced **1 new / 1 removed / 1 changed (+IP +port)** host and **delivered the alert to a live webhook** (HTTP 200) |
 | **Finding drift (`monitor --deep`)** | real SQLite + real webhook socket | across two stored scans the engine flagged **1 new (`ssrf`) / 1 resolved (`sqli`)** finding while `xss` correctly **persisted despite a severity change** (low→high); the `finding_drift` alert reached a live webhook (HTTP 200). Shares one engine with `orthrus diff` |
+| **Race condition — last-byte sync** | two localhost servers, **real raw-socket synchronized bursts** | the upgraded scanner opened **20 last-byte-synchronized connections**; a non-atomic one-shot endpoint (leaked 3 grants) was flagged **HIGH/firm CWE-362** (`accepted=3 limit-rejected=17`), while an atomic (locked) endpoint returned 1×200 + 19×409 and was correctly **not flagged** (no FP) |
 
 ### Low-false-positive discipline, demonstrated live
 
