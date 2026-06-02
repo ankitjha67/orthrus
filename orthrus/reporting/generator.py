@@ -451,6 +451,7 @@ def _write_markdown(context: dict[str, Any]) -> str:
 # scanning, Azure DevOps, etc.). GitHub derives its severity bucket from the
 # numeric `security-severity` property; `level` is the coarse error/warning/note.
 ORTHRUS_URI = "https://github.com/anthropics/orthrus"
+CHAIN_RULE_ID = "attack-path-chain"
 _SARIF_LEVEL = {
     "critical": "error",
     "high": "error",
@@ -487,6 +488,66 @@ def _finding_fingerprint(f: dict[str, Any]) -> str:
     """Stable hash so a consumer can track the same finding across runs."""
     raw = f"{f['vuln_type']}|{f['url']}|{f.get('parameter') or ''}|{f.get('param_location') or ''}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:32]
+
+
+def _severity_score_str(severity: str) -> str:
+    return f"{_SEVERITY_SCORE.get(severity, 0.0):.1f}"
+
+
+def _chain_results(chains: list[dict[str, Any]], rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Render attack-path chains as SARIF results with a step-through codeFlow.
+
+    Each chain becomes one result under a synthetic ``attack-path-chain`` rule; its
+    steps populate a SARIF ``codeFlows``/``threadFlows`` so consumers (GitHub code
+    scanning, etc.) render the path as an ordered walk-through, not a flat finding.
+    """
+    if not chains:
+        return []
+    rule_index = len(rules)
+    rules.append({
+        "id": CHAIN_RULE_ID,
+        "name": "AttackPathChain",
+        "shortDescription": {"text": "Correlated multi-step attack path"},
+        "fullDescription": {
+            "text": "Two or more findings that combine into an attacker-walkable kill-chain."
+        },
+        "defaultConfiguration": {"level": "error"},
+        "properties": {"tags": ["security", "attack-path"]},
+    })
+
+    results: list[dict[str, Any]] = []
+    for c in chains:
+        steps = c.get("steps") or []
+        primary_uri = (steps[0].get("url") if steps else None) or c.get("host") or ORTHRUS_URI
+        thread_locations = [
+            {
+                "location": {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": s.get("url") or c.get("host") or ""}
+                    },
+                    "message": {"text": f"Step {i}: {s.get('label')} ({s.get('vuln_type')})"},
+                }
+            }
+            for i, s in enumerate(steps, 1)
+        ]
+        fp = hashlib.sha256(
+            f"{c.get('name')}|{c.get('host')}".encode()
+        ).hexdigest()[:32]
+        results.append({
+            "ruleId": CHAIN_RULE_ID,
+            "ruleIndex": rule_index,
+            "level": _SARIF_LEVEL.get(c.get("severity", ""), "warning"),
+            "message": {"text": f"Attack path: {c.get('name')} on {c.get('host')} — {c.get('impact')}"},
+            "locations": [{"physicalLocation": {"artifactLocation": {"uri": primary_uri}}}],
+            "codeFlows": [{"threadFlows": [{"locations": thread_locations}]}],
+            "partialFingerprints": {"orthrusChainHash/v1": fp},
+            "properties": {
+                "security-severity": _severity_score_str(c.get("severity", "info")),
+                "attack-path": True,
+                "steps": [f"{s.get('label')} ({s.get('vuln_type')})" for s in steps],
+            },
+        })
+    return results
 
 
 def _write_sarif(context: dict[str, Any]) -> str:
@@ -540,6 +601,9 @@ def _write_sarif(context: dict[str, Any]) -> str:
             "partialFingerprints": {"orthrusFindingHash/v1": _finding_fingerprint(f)},
             "properties": props,
         })
+
+    # Append correlated attack paths as codeFlow results under their own rule.
+    results.extend(_chain_results(context.get("chains") or [], rules))
 
     sarif = {
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",

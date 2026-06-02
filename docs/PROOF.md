@@ -17,7 +17,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **868 tests pass**, `ruff check orthrus tests` clean |
+| Automated gates | **870 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **56 vulnerability scanners · 17 confirmation modules · 16 recon modules** |
 | Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-868 passed, 4 warnings
+870 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -160,7 +160,7 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 ## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **56 scanners**, 13 → **16 recon**,
-and 667 → **868 tests**. (Recon's latest addition is passive IP-address
+and 667 → **870 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) Every new capability
 was verified against a **real**
 target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
@@ -189,6 +189,7 @@ WAN scan that depends on a third-party target exhibiting a specific bug.
 | **Attack-path chaining (`orthrus chains`)** | real SQLite round-trip | correlated 5 stored findings into **2 CRITICAL attack paths** — `SSRF → internal-service compromise` (matched the SSRF and the exposed Redis **across ports** `:443`↔`:6379` via hostname keying) and `Session foothold → privilege escalation` (jwt + BFLA); a lone header finding formed no chain, and cross-host findings don't fabricate paths |
 | **Triage + chains in the report** | real SQLite → report render | the report context computes chains + triage and renders an **Attack Paths** section (technical + executive HTML), a `## Attack Paths` block and "duplicate(s) folded" note (Markdown), and `chains`/`triage` keys (JSON) — verified live across all four formats; the section is omitted when no chains exist |
 | **Dependency confusion** | localhost app + **real npm/PyPI registries** | the scanner fetched an exposed `package.json`, queried the live npm registry, and flagged **only** the unclaimed internal package `orthrus-private-internal-…` as **HIGH/firm CWE-829** (claimable → build-time RCE) while ignoring the real public `react`; npm + PyPI 404/200 checks verified directly |
+| **Attack paths in SARIF** | real SQLite → SARIF 2.1.0 | each attack chain emits a result under an `attack-path-chain` rule with a **`codeFlows` step-through** (`ssrf @ /fetch` → `exposed-service @ :6379`), `level: error`, `security-severity: 9.5` — so GitHub code-scanning renders the path as an ordered walk-through; the rule is absent when no chains exist |
 
 ### Low-false-positive discipline, demonstrated live
 
