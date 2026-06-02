@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import orthrus.scanners.grpc_probe as grpc_probe
 from orthrus.scanners.grpc_probe import GrpcReflectionScanner, user_services
 
 
@@ -22,7 +23,11 @@ def test_user_services_empty():
 
 
 async def test_scan_noop_when_reflection_unavailable(monkeypatch):
-    # Force the "no service answered" path: _list_services returns None.
+    # Satisfy the grpcio-availability guard so we test the "no service answered"
+    # path itself (not the "grpc not installed" early-return). Keeps the test
+    # hermetic — it runs identically with or without the optional grpc extra.
+    monkeypatch.setattr(grpc_probe, "grpc", object())
+
     async def none_list(self, host, port, tls):  # noqa: ANN001
         return None
 
@@ -36,6 +41,11 @@ async def test_scan_noop_when_reflection_unavailable(monkeypatch):
 
 
 async def test_scan_flags_when_services_returned(monkeypatch):
+    # Satisfy the grpcio guard so the scan logic runs even where the optional
+    # grpc extra isn't installed (e.g. base CI) — the real reflection call is
+    # replaced by `fake_list`, so grpcio itself is never needed.
+    monkeypatch.setattr(grpc_probe, "grpc", object())
+
     async def fake_list(self, host, port, tls):  # noqa: ANN001
         return ["orthrus.test.Greeter", "grpc.reflection.v1alpha.ServerReflection"]
 
