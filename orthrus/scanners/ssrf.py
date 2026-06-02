@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Confidence, Evidence, Finding, Severity
+from orthrus.scanners._cloud_metadata import extract_credentials
 from orthrus.scanners._injection import InjectionPoint, injection_points, send, used_url
 from orthrus.scanners._payloads import SSRF_METADATA
 from orthrus.scanners.base_scanner import BaseScanner
@@ -135,6 +136,43 @@ class SsrfScanner(BaseScanner):
                 if resp is None:
                     continue
                 if detect_metadata_leak(resp.text):
+                    creds = extract_credentials(resp.text)
+                    if creds is not None:
+                        # Escalation: the metadata response leaked live credentials.
+                        yield Finding(
+                            vuln_type="ssrf",
+                            title=(
+                                f"SSRF → cloud credential theft ({creds.provider.upper()}) "
+                                f"via '{point.param}'"
+                            ),
+                            severity=Severity.CRITICAL,
+                            confidence=Confidence.FIRM,
+                            url=used_url(point, payload),
+                            parameter=point.param,
+                            param_location=point.location,
+                            description=(
+                                f"Injecting a cloud-metadata URL into '{point.param}' returned live "
+                                f"{creds.summary} from the instance metadata service. These are "
+                                "short-lived credentials for the instance's role — an attacker can "
+                                "use them to act as that role across the cloud account (read storage, "
+                                "pivot to other services, escalate), so impact scales with the role's "
+                                "permissions. This is full SSRF-to-cloud-takeover, not just metadata "
+                                "reachability."
+                            ),
+                            remediation=(
+                                "Enforce IMDSv2 (token-required, hop-limit 1) and disable IMDSv1; "
+                                "block 169.254.169.254 and link-local/private ranges at the app and "
+                                "network layers; scope the instance role to least privilege; "
+                                "allow-list outbound destinations and schemes."
+                            ),
+                            cwe="CWE-918",
+                            scanner=SCANNER_NAME,
+                            evidence=Evidence(
+                                request_raw=f"{point.param}={payload}",
+                                notes=f"{creds.summary}; leaked fields (redacted): {creds.fields}",
+                            ),
+                        )
+                        return
                     yield Finding(
                         vuln_type="ssrf",
                         title=f"SSRF to cloud metadata via '{point.param}'",
