@@ -29,6 +29,42 @@ async def test_watch_bounds_runs_and_chains_baseline(monkeypatch):
     assert all(c["scan_id"] is None for c in calls)
 
 
+async def test_monitor_batch_runs_each_target_and_summarises(monkeypatch):
+    from orthrus.main import console
+
+    calls = []
+
+    async def fake_monitor(config, baseline, webhook, deep, no_host_gather, as_json):
+        calls.append(config.target)
+        return config.target == "https://b.test/"  # only b drifts
+
+    monkeypatch.setattr(m, "_monitor", fake_monitor)
+    with console.capture() as cap:
+        changed = await m._monitor_batch(
+            ["https://a.test/", "https://b.test/"], None, None, False, True, None, 50.0, 30.0
+        )
+    out = cap.get()
+
+    assert calls == ["https://a.test/", "https://b.test/"]   # each target monitored
+    assert changed is True                                    # at least one drifted
+    assert "2 target(s) monitored" in out and "1 with drift" in out
+    assert "drift" in out and "no change" in out
+
+
+async def test_monitor_batch_no_drift_returns_false(monkeypatch):
+    async def fake_monitor(config, baseline, webhook, deep, no_host_gather, as_json):
+        return False
+
+    monkeypatch.setattr(m, "_monitor", fake_monitor)
+    from orthrus.main import console
+
+    with console.capture():
+        changed = await m._monitor_batch(
+            ["https://a.test/", "https://b.test/"], None, None, False, True, None, 50.0, 30.0
+        )
+    assert changed is False
+
+
 async def test_watch_passes_through_deep_and_webhook(monkeypatch):
     seen = {}
 

@@ -1493,7 +1493,8 @@ def _write_hosts_csv(csv_path: str, rows: list) -> None:
 
 
 @cli.command(name="monitor")
-@click.argument("target")
+@click.argument("target", required=False)
+@click.option("--target-file", "target_file", default=None, help="File of targets (one per line; '#' comments ok) to monitor as a portfolio.")
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
 @click.option("--baseline", default=None, help="Scan id to diff against (default: this target's most recent prior scan).")
 @click.option("--webhook", default=None, help="POST a JSON drift alert to this URL (Slack/Teams/custom).")
@@ -1509,7 +1510,8 @@ def _write_hosts_csv(csv_path: str, rows: list) -> None:
 @click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def monitor(
-    target: str,
+    target: str | None,
+    target_file: str | None,
     scope_str: str | None,
     baseline: str | None,
     webhook: str | None,
@@ -1536,6 +1538,23 @@ def monitor(
     and --fail-on-change for a CI gate.
     """
     configure_logging(verbose)
+    if not target and not target_file:
+        raise click.UsageError("provide a TARGET or --target-file.")
+    if target and target_file:
+        raise click.UsageError("use either a TARGET or --target-file, not both.")
+
+    # Portfolio monitoring: one drift pass per target, consolidated summary.
+    if target_file:
+        targets = _read_targets(target_file)
+        if not targets:
+            raise click.UsageError(f"no targets found in {target_file}")
+        any_change = asyncio.run(_monitor_batch(
+            targets, scope_str, webhook, deep, no_host_gather, exclude_paths, rate_limit, timeout
+        ))
+        if fail_on_change and any_change:
+            raise SystemExit(2)
+        return
+
     scope = build_scope(scope_str, target, exclude_paths)
     config = ScanConfig(scan_id=scan_id, target=target, scope=scope, timeout=timeout)
     config.rate_limit.requests_per_second = rate_limit
@@ -1552,6 +1571,43 @@ def monitor(
     changed = asyncio.run(_monitor(config, baseline, webhook, deep, no_host_gather, as_json))
     if fail_on_change and changed:
         raise SystemExit(2)
+
+
+async def _monitor_batch(
+    targets: list[str],
+    scope_str: str | None,
+    webhook: str | None,
+    deep: bool,
+    no_host_gather: bool,
+    exclude_paths: str | None,
+    rate_limit: float,
+    http_timeout: float,
+) -> bool:
+    """Run one drift pass per target (portfolio ASM), then a consolidated summary.
+
+    Each target gets its own auto-derived scope and chains against its own prior
+    snapshot. Returns True if *any* target drifted (drives --fail-on-change).
+    """
+    results: list[tuple[str, bool]] = []
+    for t in targets:
+        scope = build_scope(scope_str, t, exclude_paths)
+        config = ScanConfig(target=t, scope=scope, timeout=http_timeout)
+        config.rate_limit.requests_per_second = rate_limit
+        config.use_browser = deep
+        logger.info("monitor portfolio: %s (%d/%d)", t, len(results) + 1, len(targets))
+        changed = await _monitor(config, None, webhook, deep, no_host_gather, as_json=False)
+        results.append((t, changed))
+
+    drifted = [t for t, c in results if c]
+    section(console, "MONITOR · PORTFOLIO")
+    console.print(
+        f"[orthrus.muted]{len(results)} target(s) monitored · "
+        f"{len(drifted)} with drift[/]\n"
+    )
+    for t, c in results:
+        mark = "[status.failed]drift[/]" if c else "[status.completed]no change[/]"
+        console.print(f"  {mark}  {t}")
+    return bool(drifted)
 
 
 async def _watch_monitor(

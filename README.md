@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-873-test / lint-clean quality gates.
+875-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (56 scanners, 17 confirmers, 16 recon
@@ -283,8 +283,8 @@ targets:
   `tests/integration/reflecting_target.py` that exercises every scanner locally:
 
   ```bash
-  python tests/integration/reflecting_target.py 8731     # terminal 1
-  orthrus scan -t http://127.0.0.1:8731 --aggressive -o report.json   # terminal 2
+  python tests/integration/reflecting_target.py 8751     # terminal 1
+  orthrus scan -t http://127.0.0.1:8751 --aggressive -o report.json   # terminal 2
   ```
 
 - **Self-hosted labs** (you own the instance): OWASP Juice Shop, DVWA, OWASP
@@ -455,7 +455,7 @@ findings table) and exports an **SVG + HTML** frame (and a **PNG** when the
 `[browser]` extra is installed) — useful for docs, slides, and tickets:
 
 ```bash
-orthrus scan -t http://127.0.0.1:8731 -o report.json
+orthrus scan -t http://127.0.0.1:8751 -o report.json
 python examples/render_report_ui.py report.json -o out/scan
 # → out/scan.svg, out/scan.html, out/scan.png
 ```
