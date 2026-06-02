@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 55 scanners · 17 confirmation modules · 16 recon modules · 824 passing tests · `ruff` clean |
+| Verified snapshot | 55 scanners · 17 confirmation modules · 16 recon modules · 826 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -394,7 +394,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **824 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **826 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -422,7 +422,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **824** (ruff clean) |
+| Automated tests | **826** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -563,7 +563,7 @@ orthrus/
   mcp_server.py  FastMCP tools
   main.py      Click CLI (13 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (824 tests)
+tests/         unit + integration (826 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```

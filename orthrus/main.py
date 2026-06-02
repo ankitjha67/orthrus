@@ -1348,6 +1348,8 @@ def _write_hosts_csv(csv_path: str, rows: list) -> None:
 @click.option("--webhook", default=None, help="POST a JSON drift alert to this URL (Slack/Teams/custom).")
 @click.option("--fail-on-change", is_flag=True, help="Exit non-zero when drift is detected (for cron/CI).")
 @click.option("--deep", is_flag=True, help="Run a full vuln scan and also report NEW/RESOLVED findings (not just hosts).")
+@click.option("--watch", default=None, type=int, metavar="SECONDS", help="Run continuously, re-snapshotting every N seconds (Ctrl-C to stop).")
+@click.option("--max-runs", default=0, type=int, help="With --watch, stop after N iterations (0 = run until stopped).")
 @click.option("--no-host-gather", "no_host_gather", is_flag=True, help="Skip the host-gather pass (faster, fewer sources).")
 @click.option("--json", "as_json", is_flag=True, help="Emit the drift report as JSON (stdout).")
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
@@ -1362,6 +1364,8 @@ def monitor(
     webhook: str | None,
     fail_on_change: bool,
     deep: bool,
+    watch: int | None,
+    max_runs: int,
     no_host_gather: bool,
     as_json: bool,
     exclude_paths: str | None,
@@ -1376,7 +1380,8 @@ def monitor(
     it against the target's previous snapshot. By default it monitors the
     *attack surface* (recon only) — hosts that appeared/vanished, new IPs, newly
     exposed ports. With --deep it runs a full vulnerability scan and also reports
-    NEW and RESOLVED findings. Wire it to cron + --webhook to get paged on change,
+    NEW and RESOLVED findings. Use --watch to run hands-off on an interval (each
+    pass auto-diffs against the previous one), --webhook to get paged on change,
     and --fail-on-change for a CI gate.
     """
     configure_logging(verbose)
@@ -1385,9 +1390,46 @@ def monitor(
     config.rate_limit.requests_per_second = rate_limit
     config.use_browser = deep  # browser only matters for the deep vuln scan
     _log_scope(scope)
+    if watch:
+        try:
+            asyncio.run(_watch_monitor(
+                config, baseline, webhook, deep, no_host_gather, as_json, watch, max_runs
+            ))
+        except KeyboardInterrupt:
+            logger.info("monitor watch stopped")
+        return  # a CI gate makes no sense for an endless watch loop
     changed = asyncio.run(_monitor(config, baseline, webhook, deep, no_host_gather, as_json))
     if fail_on_change and changed:
         raise SystemExit(2)
+
+
+async def _watch_monitor(
+    config: ScanConfig,
+    baseline_id: str | None,
+    webhook: str | None,
+    deep: bool,
+    no_host_gather: bool,
+    as_json: bool,
+    interval: int,
+    max_runs: int,
+) -> None:
+    """Run :func:`_monitor` on a fixed interval (hands-off continuous ASM).
+
+    Each pass stores a fresh snapshot; the next pass auto-diffs against it via
+    the prior-scan lookup, so the loop chains baselines without bookkeeping. The
+    explicit ``--baseline`` only applies to the first pass.
+    """
+    run = 0
+    while True:
+        run += 1
+        suffix = f"/{max_runs}" if max_runs else ""
+        logger.info("monitor watch · run %d%s (target %s)", run, suffix, config.target)
+        config.scan_id = None  # fresh snapshot id each pass; prior lookup chains them
+        await _monitor(config, baseline_id if run == 1 else None, webhook, deep,
+                       no_host_gather, as_json)
+        if max_runs and run >= max_runs:
+            break
+        await asyncio.sleep(interval)
 
 
 async def _monitor(
