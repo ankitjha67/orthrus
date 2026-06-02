@@ -16,6 +16,25 @@
   {{ sevbar(sev, summary.counts[sev], summary.total) }}
 {% endfor %}
 
+{% if chains %}
+<h2>Attack Paths</h2>
+<p>
+  Beyond individual issues, <strong>{{ chains|length }}</strong> finding(s) combine into
+  attacker-walkable paths — the routes that turn separate weaknesses into real compromise.
+  These are the highest-leverage things to fix.
+</p>
+<table>
+  <tr><th>Severity</th><th>Attack path</th><th>Host</th></tr>
+  {% for c in chains %}
+  <tr>
+    <td><span class="sev sev-{{ c.severity }}">{{ c.severity }}</span></td>
+    <td>{{ c.name }}</td>
+    <td><code>{{ c.host }}</code></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
 <h2>Top Findings</h2>
 <table>
   <tr><th>Severity</th><th>CVSS</th><th>Status</th><th>Issue</th><th>Affected</th></tr>

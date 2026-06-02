@@ -17,7 +17,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **857 tests pass**, `ruff check orthrus tests` clean |
+| Automated gates | **860 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **55 vulnerability scanners · 17 confirmation modules · 16 recon modules** |
 | Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-857 passed, 4 warnings
+860 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -160,7 +160,7 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 ## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **55 scanners**, 13 → **16 recon**,
-and 667 → **857 tests**. (Recon's latest addition is passive IP-address
+and 667 → **860 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) Every new capability
 was verified against a **real**
 target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
@@ -187,6 +187,7 @@ WAN scan that depends on a third-party target exhibiting a specific bug.
 | **Finding triage (`orthrus triage`)** | real SQLite round-trip | 11 raw findings deduped to **7 distinct issues** — 5 IDOR across `/order/1..5` folded into one `/order/{id}` cluster (×5), `/product/42`→`/product/{id}`, sorted critical-first. Optional LLM false-positive judge (prompt/parse unit-tested; no-ops without an API key) |
 | **SSRF → IMDS credential theft** | localhost SSRF app + mock metadata, **real HttpClient** | the full SSRF scanner coerced `/fetch?url=` to the metadata service and **escalated to CRITICAL/firm CWE-918** (`SSRF → cloud credential theft (AWS)`): the AccessKeyId/role was surfaced while the SecretAccessKey + session Token were **redacted** (never stored). AWS/GCP/Azure extraction unit-tested |
 | **Attack-path chaining (`orthrus chains`)** | real SQLite round-trip | correlated 5 stored findings into **2 CRITICAL attack paths** — `SSRF → internal-service compromise` (matched the SSRF and the exposed Redis **across ports** `:443`↔`:6379` via hostname keying) and `Session foothold → privilege escalation` (jwt + BFLA); a lone header finding formed no chain, and cross-host findings don't fabricate paths |
+| **Triage + chains in the report** | real SQLite → report render | the report context computes chains + triage and renders an **Attack Paths** section (technical + executive HTML), a `## Attack Paths` block and "duplicate(s) folded" note (Markdown), and `chains`/`triage` keys (JSON) — verified live across all four formats; the section is omitted when no chains exist |
 
 ### Low-false-positive discipline, demonstrated live
 

@@ -228,6 +228,15 @@ async def _build_context(
     for f in findings:
         owasp_counts[f["owasp"]] = owasp_counts.get(f["owasp"], 0) + 1
 
+    # Higher-order analysis over the raw findings: attack-path chains and a
+    # deduplicated issue view. Computed over all rows (not the severity-filtered
+    # display set) so a low-severity link can't hide a real chain.
+    from orthrus.chains import correlate_findings
+    from orthrus.triage import triage_findings
+
+    chains = [c.to_dict() for c in correlate_findings(rows)]
+    triage = triage_findings(rows).to_dict()
+
     return {
         "generated_at": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M %Z"),
         "scan": {
@@ -246,6 +255,8 @@ async def _build_context(
         },
         "findings": findings,
         "top_findings": findings[:5],
+        "chains": chains,
+        "triage": triage,
         "branding": _resolve_branding(branding),
     }
 
@@ -349,6 +360,31 @@ def _write_markdown(context: dict[str, Any]) -> str:
         lines.append("| --- | ---: |")
         for cat, n in sorted(owasp_counts.items(), key=lambda kv: kv[1], reverse=True):
             lines.append(f"| {_md_cell(cat)} | {n} |")
+        lines.append("")
+
+    # --- attack paths -----------------------------------------------------
+    chains = context.get("chains") or []
+    if chains:
+        lines.append("## Attack Paths")
+        lines.append("")
+        lines.append(
+            f"{len(chains)} attacker-walkable path(s) — findings that combine into real "
+            "compromise. Prioritise breaking these."
+        )
+        lines.append("")
+        for c in chains:
+            steps = " → ".join(f"{s['label']} (`{s['vuln_type']}`)" for s in c["steps"])
+            lines.append(f"- **[{c['severity'].upper()}] {_md_cell(c['name'])}** "
+                         f"on `{c['host']}`: {steps}")
+            lines.append(f"  - _{_md_cell(c['impact'])}_")
+        lines.append("")
+
+    triage = context.get("triage") or {}
+    if triage.get("collapsed"):
+        lines.append(
+            f"_Triaged to **{triage['unique']}** distinct issue(s) "
+            f"({triage['collapsed']} duplicate finding(s) folded)._"
+        )
         lines.append("")
 
     # --- findings ---------------------------------------------------------

@@ -11,6 +11,32 @@
 {% for sev in ["critical", "high", "medium", "low", "info"] %}
   {{ sevbar(sev, summary.counts[sev], summary.total) }}
 {% endfor %}
+{% if triage and triage.collapsed %}
+<p class="kv">Triaged to <strong>{{ triage.unique }}</strong> distinct issue(s)
+  ({{ triage.collapsed }} duplicate finding(s) folded).</p>
+{% endif %}
+
+{% if chains %}
+<h2>Attack Paths</h2>
+<p>The findings below combine into {{ chains|length }} attacker-walkable path(s),
+  ordered by impact. Prioritise breaking these chains.</p>
+{% for c in chains %}
+<div class="finding">
+  <div class="hd">
+    <span class="sev sev-{{ c.severity }}">{{ c.severity }}</span>
+    <h3>{{ c.name }}</h3>
+  </div>
+  <div class="kv">host: <code>{{ c.host }}</code></div>
+  <ol>
+    {% for s in c.steps %}
+    <li>{{ s.label }} <span class="pill">{{ s.vuln_type }}</span>
+      {% if s.url %}<br><code>{{ s.url }}</code>{% endif %}</li>
+    {% endfor %}
+  </ol>
+  <p><strong>Impact.</strong> {{ c.impact }}</p>
+</div>
+{% endfor %}
+{% endif %}
 
 <h2>Findings</h2>
 {% for f in findings %}
