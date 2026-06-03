@@ -175,6 +175,15 @@ class GraphqlScanner(BaseScanner):
             return None
         return resp.text
 
+    async def _get_query(self, ctx: ScanContext, url: str, query: str) -> str | None:
+        """Execute a GraphQL query over an HTTP GET (?query=...) — the CSRF probe."""
+        try:
+            resp = await ctx.http.get(url, params={"query": query}, follow_redirects=False)
+        except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL) as exc:
+            logger.debug("graphql GET probe failed for %s: %s", url, exc)
+            return None
+        return resp.text
+
     async def scan(self, ctx: ScanContext) -> AsyncIterator[Finding]:
         for url in self._candidates(ctx):
             if not ctx.scope.is_allowed(url):
@@ -192,6 +201,38 @@ class GraphqlScanner(BaseScanner):
                 if typename_body is None or '"__typename"' not in typename_body:
                     continue
                 confirmed = True
+
+            # GraphQL CSRF: a query that executes over an HTTP GET (?query=...)
+            # can be triggered cross-site (no preflight) — state-changing mutations
+            # over GET are forgeable. Executed iff the result contains __typename
+            # (the GraphiQL playground returns HTML, so this won't false-positive).
+            get_body = await self._get_query(ctx, url, "{__typename}")
+            if get_body is not None and '"__typename"' in get_body:
+                yield Finding(
+                    vuln_type="csrf",
+                    title="GraphQL queries executable over HTTP GET (CSRF)",
+                    severity=Severity.MEDIUM,
+                    confidence=Confidence.FIRM,
+                    url=url,
+                    description=(
+                        "The GraphQL endpoint executed a query supplied via an HTTP GET request "
+                        "(?query=...). GET requests carry cookies, trigger no CORS preflight, and "
+                        "can be fired cross-site (e.g. via an <img>/<script>/navigation), so any "
+                        "state-changing operation reachable over GET is forgeable — cross-site "
+                        "request forgery against the GraphQL API."
+                    ),
+                    remediation=(
+                        "Only accept GraphQL over POST with a JSON content-type, reject mutations "
+                        "over GET, and require an anti-CSRF token or a custom header (which forces "
+                        "a CORS preflight)."
+                    ),
+                    cwe="CWE-352",
+                    scanner=SCANNER_NAME,
+                    evidence=Evidence(
+                        request_raw=f"GET {url}?query={{__typename}}",
+                        notes="GraphQL executed a query over GET (result contained __typename)",
+                    ),
+                )
 
             intro_on = introspection_enabled(intro_body)
             if intro_on:

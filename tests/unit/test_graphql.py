@@ -136,6 +136,13 @@ class _DvgaHttp:
             )
         return _FakeResp('{"data":{"__typename":"Query"}}')
 
+    async def get(self, url: str, params: dict | None = None, **kw: object) -> _FakeResp:
+        # DVGA executes queries over GET too (CSRF-able).
+        query = (params or {}).get("query", "")
+        if "__typename" in query:
+            return _FakeResp('{"data":{"__typename":"Query"}}')
+        return _FakeResp("<html>graphiql</html>")
+
 
 def _scan_ctx(http: object) -> SimpleNamespace:
     return SimpleNamespace(
@@ -160,3 +167,36 @@ async def test_full_scan_surfaces_dvga_vulns():
     assert "GraphQL accepts circular fragments (recursion DoS)" in titles
     # DoS findings carry the dedicated vuln_type for accurate CVSS/availability scoring.
     assert {f.vuln_type for f in findings if "batching" in f.title} == {"graphql-dos"}
+    # DVGA executes queries over GET → CSRF flagged with the csrf vuln_type.
+    assert "GraphQL queries executable over HTTP GET (CSRF)" in titles
+    assert {f.vuln_type for f in findings if "GET (CSRF)" in f.title} == {"csrf"}
+
+
+class _GetOnlyHttp:
+    """A GraphQL endpoint that confirms over POST; GET behaviour is configurable."""
+
+    def __init__(self, get_executes: bool) -> None:
+        self._get_executes = get_executes
+
+    async def post(self, url: str, json: object = None, **kw: object) -> _FakeResp:
+        if not url.endswith("/graphql"):
+            return _FakeResp("<html>404</html>")
+        return _FakeResp('{"data":{"__typename":"Query"}}')  # confirms GraphQL, introspection-ish off
+
+    async def get(self, url: str, params: dict | None = None, **kw: object) -> _FakeResp:
+        if self._get_executes and "__typename" in (params or {}).get("query", ""):
+            return _FakeResp('{"data":{"__typename":"Query"}}')  # executed → CSRF
+        return _FakeResp("<html>GraphiQL playground</html>")     # not executed (HTML)
+
+
+async def test_graphql_get_csrf_flagged_when_get_executes():
+    findings = [f async for f in GraphqlScanner().scan(_scan_ctx(_GetOnlyHttp(get_executes=True)))]
+    csrf = [f for f in findings if "GET (CSRF)" in f.title]
+    assert csrf and all(f.vuln_type == "csrf" and f.cwe == "CWE-352" for f in csrf)
+
+
+async def test_graphql_get_csrf_not_flagged_when_get_returns_html():
+    # A server that returns only the GraphiQL HTML on GET (no query execution)
+    # must NOT be flagged — avoids the playground false positive.
+    findings = [f async for f in GraphqlScanner().scan(_scan_ctx(_GetOnlyHttp(get_executes=False)))]
+    assert not any("GET (CSRF)" in f.title for f in findings)
