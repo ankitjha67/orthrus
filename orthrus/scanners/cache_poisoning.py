@@ -8,6 +8,7 @@ poisoning; cacheability indicators raise the severity.
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import AsyncIterator
 from urllib.parse import urlsplit
 
@@ -86,6 +87,38 @@ class CachePoisoningScanner(BaseScanner):
             seen_findings.add(host)
 
             cacheable = is_cacheable(headers)
+            # Active confirmation: if the response looks cacheable, prove the cache
+            # actually serves the attacker value by re-fetching a cache-buster key
+            # *without* the header and checking the marker comes back from cache.
+            if cacheable and await self._confirm_poisoning(ctx, norm):
+                yield Finding(
+                    vuln_type="cache-poisoning",
+                    title="Confirmed web cache poisoning (clean request served attacker value)",
+                    severity=Severity.HIGH,
+                    confidence=Confidence.CONFIRMED,
+                    url=norm,
+                    description=(
+                        "After injecting an unkeyed header (X-Forwarded-Host) on a unique "
+                        "cache-buster URL, a subsequent *clean* request (no injected header) to the "
+                        "same URL returned the attacker-controlled value — proving the cache stored "
+                        "and serves a response an attacker fully controls to every other visitor of "
+                        "that page. (Testing used a cache-buster, so only the throwaway key was "
+                        "poisoned, not production URLs.)"
+                    ),
+                    remediation=(
+                        "Do not reflect unkeyed request headers into responses; include all "
+                        "influential headers in the cache key, or strip X-Forwarded-* at the edge."
+                    ),
+                    cwe="CWE-444",
+                    scanner=SCANNER_NAME,
+                    evidence=Evidence(
+                        request_raw=f"X-Forwarded-Host: {MARKER} (then a clean re-fetch)",
+                        matched_at=MARKER,
+                        notes="clean request to the cache-buster URL served the poisoned marker",
+                    ),
+                )
+                continue
+
             yield Finding(
                 vuln_type="cache-poisoning",
                 title="Unkeyed header reflected (web cache poisoning candidate)",
@@ -109,6 +142,28 @@ class CachePoisoningScanner(BaseScanner):
                     notes="cacheable response" if cacheable else "reflection without cache headers",
                 ),
             )
+
+    async def _confirm_poisoning(self, ctx: ScanContext, url: str) -> bool:
+        """Prove the cache serves the attacker value to a clean request.
+
+        Poison a unique cache-buster key with the unkeyed header, then re-fetch the
+        same key *without* the header. If the marker comes back, the cache stored
+        and serves the attacker-controlled response. The cache-buster isolates the
+        poison to a throwaway URL so production pages are never affected.
+        """
+        sep = "&" if "?" in url else "?"
+        probe_url = f"{url}{sep}orthrus_cb={secrets.token_hex(6)}"
+        try:
+            poisoned = await ctx.http.get(
+                probe_url, headers=UNKEYED_HEADERS, follow_redirects=False
+            )
+            if MARKER not in poisoned.text:
+                return False
+            clean = await ctx.http.get(probe_url, follow_redirects=False)
+            return MARKER in clean.text
+        except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL) as exc:
+            logger.debug("cache-poison confirmation failed for %s: %s", url, exc)
+            return False
 
 
 __all__ = ["CachePoisoningScanner", "reflects_marker", "is_cacheable"]
