@@ -18,9 +18,12 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 
 from orthrus.core.schemas import Severity
+
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _KEV_FILE = os.path.join(_DATA_DIR, "cisa_kev_seed.json")
@@ -61,6 +64,21 @@ def enrich(cve_id: str) -> CveIntel:
     """Look up KEV membership and EPSS score for a CVE id (offline)."""
     cid = (cve_id or "").strip().upper()
     return CveIntel(cve_id=cid, kev=cid in _KEV, epss=_EPSS.get(cid))
+
+
+def cve_ids_in(text: str) -> list[str]:
+    """All CVE ids mentioned in ``text`` (e.g. a finding title), upper-cased."""
+    return [m.upper() for m in _CVE_RE.findall(text or "")]
+
+
+def epss_for_text(text: str) -> float | None:
+    """Highest EPSS probability among any CVE ids mentioned in ``text``.
+
+    Lets report/triage rank a finding by exploit probability without a dedicated
+    schema field — the CVE id already appears in the finding's title/description.
+    """
+    scores = [s for cid in cve_ids_in(text) if (s := _EPSS.get(cid)) is not None]
+    return max(scores) if scores else None
 
 
 def escalate_severity(base: Severity, intel: CveIntel) -> Severity:
@@ -127,6 +145,8 @@ def refresh_epss(data: object) -> int:
 __all__ = [
     "CveIntel",
     "enrich",
+    "cve_ids_in",
+    "epss_for_text",
     "escalate_severity",
     "summary",
     "refresh_kev",

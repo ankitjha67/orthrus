@@ -24,6 +24,7 @@ from orthrus.core.config import get_settings
 from orthrus.db.models import Exploitation as ExploitationRow
 from orthrus.db.models import Finding as FindingRow
 from orthrus.db.store import Store
+from orthrus.intel.cve_intel import epss_for_text
 from orthrus.reporting.cvss import DEFAULT_VECTORS, base_score, v4_for
 from orthrus.utils import crypto
 from orthrus.utils.logger import get_logger
@@ -197,6 +198,7 @@ def _finding_dict(
         "mitre_attack": MITRE_ATTACK.get(row.vuln_type, _MITRE_DEFAULT),
         "cvss_score": score,
         "cvss_vector": vector,
+        "epss": epss_for_text(f"{row.title} {row.description}"),
         "cvss_v4_score": v4_score,
         "cvss_v4_vector": v4_vector,
         "scanner": row.scanner,
@@ -224,7 +226,17 @@ async def _build_context(
         floor = _SEVERITY_ORDER.get(min_severity.lower(), 0)
         findings = [f for f in findings if _SEVERITY_ORDER.get(f["severity"], 0) >= floor]
 
-    findings.sort(key=lambda f: (f["cvss_score"] or 0.0), reverse=True)
+    # Rank by severity tier first (a critical never drops below a medium), then by
+    # EPSS exploit-probability, then CVSS — so actively-exploitable CVEs rise to
+    # the top of their severity band.
+    findings.sort(
+        key=lambda f: (
+            _SEVERITY_ORDER.get(f["severity"], 0),
+            f.get("epss") or 0.0,
+            f["cvss_score"] or 0.0,
+        ),
+        reverse=True,
+    )
 
     counts = {sev: 0 for sev in _SEVERITY_ORDER}
     for f in findings:

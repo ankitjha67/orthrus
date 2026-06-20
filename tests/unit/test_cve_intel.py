@@ -6,7 +6,32 @@ import contextlib
 
 from orthrus.core.schemas import Severity
 from orthrus.intel import cve_intel
-from orthrus.intel.cve_intel import enrich, escalate_severity, refresh_epss, refresh_kev, summary
+from orthrus.intel.cve_intel import (
+    cve_ids_in,
+    enrich,
+    epss_for_text,
+    escalate_severity,
+    refresh_epss,
+    refresh_kev,
+    summary,
+)
+
+
+def test_cve_ids_in_extracts_all_case_insensitive() -> None:
+    ids = cve_ids_in("matched CVE-2021-44228 and cve-2017-0144 in scan")
+    assert ids == ["CVE-2021-44228", "CVE-2017-0144"]
+    assert cve_ids_in("no cve here") == []
+
+
+def test_epss_for_text_scores_known_cve() -> None:
+    # Log4Shell is in the EPSS seed with a high probability.
+    score = epss_for_text("CVE matcher: CVE-2021-44228 affects log4j-core")
+    assert score is not None and score > 0.9
+
+
+def test_epss_for_text_none_without_known_cve() -> None:
+    assert epss_for_text("Reflected XSS in parameter q") is None
+    assert epss_for_text("CVE-2099-0001 not in seed") is None
 
 
 def test_enrich_known_kev_and_epss() -> None:
