@@ -162,6 +162,10 @@ def ssti_templates(expr: str) -> list[tuple[str, str]]:
         ("Thymeleaf-star", "*{" + expr + "}"),
         ("Razor", "@(" + expr + ")"),
         ("Velocity", "#set($x=" + expr + ")${x}"),
+        # Distinct syntaxes that evaluate arithmetic and aren't a delimiter family
+        # already probed above:
+        ("Latte", "{=" + expr + "}"),  # Nette/Latte {=...} prints an evaluated expression
+        ("Smarty-math", "{" + expr + "}"),  # Smarty default {..} delimiters evaluate math
     ]
 
 
