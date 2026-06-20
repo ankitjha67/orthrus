@@ -2200,23 +2200,52 @@ def doctor(as_json: bool) -> None:
 
 @cli.command(name="update")
 def update() -> None:
-    """Refresh threat-intel feeds (CISA KEV) used to enrich CVE findings.
+    """Refresh threat-intel feeds (CISA KEV + EPSS) used to enrich CVE findings.
 
-    Fetches the CISA Known Exploited Vulnerabilities catalog from cisa.gov (a
-    trusted data source, not the target) and rewrites the bundled seed so CVE
-    findings are flagged when actively exploited in the wild.
+    Fetches the CISA Known Exploited Vulnerabilities catalog from cisa.gov and the
+    full EPSS dataset from FIRST.org (both trusted data sources, not the target)
+    and rewrites the bundled seeds so CVE findings are flagged when actively
+    exploited (KEV) and prioritised by exploit probability (EPSS). Each feed
+    refreshes independently — one failing does not abort the other.
     """
+    import csv
+    import gzip
+    import io
+
     import httpx
 
-    from orthrus.intel.cve_intel import CISA_KEV_FEED, refresh_kev
+    from orthrus.intel.cve_intel import CISA_KEV_FEED, EPSS_FEED, refresh_epss, refresh_kev
+
+    failures: list[str] = []
 
     try:
         resp = httpx.get(CISA_KEV_FEED, timeout=30.0, follow_redirects=True)
         resp.raise_for_status()
-        count = refresh_kev(resp.json())
+        kev_count = refresh_kev(resp.json())
+        click.echo(f"Updated CISA KEV catalog: {kev_count} known-exploited CVEs.")
     except (httpx.HTTPError, ValueError) as exc:
-        raise click.ClickException(f"KEV update failed: {type(exc).__name__}: {exc}") from exc
-    click.echo(f"Updated CISA KEV catalog: {count} known-exploited CVEs.")
+        failures.append(f"KEV: {type(exc).__name__}: {exc}")
+
+    try:
+        resp = httpx.get(EPSS_FEED, timeout=60.0, follow_redirects=True)
+        resp.raise_for_status()
+        text = gzip.decompress(resp.content).decode("utf-8", "replace")
+        # The CSV begins with a '#model_version' comment line before the header.
+        body = io.StringIO("\n".join(ln for ln in text.splitlines() if not ln.startswith("#")))
+        mapping = {
+            row["cve"]: row["epss"]
+            for row in csv.DictReader(body)
+            if row.get("cve") and row.get("epss")
+        }
+        epss_count = refresh_epss(mapping)
+        click.echo(f"Updated EPSS scores: {epss_count} CVEs.")
+    except (httpx.HTTPError, OSError, ValueError) as exc:
+        failures.append(f"EPSS: {type(exc).__name__}: {exc}")
+
+    if len(failures) == 2:  # both feeds failed
+        raise click.ClickException("threat-intel update failed: " + "; ".join(failures))
+    for msg in failures:
+        click.echo(f"warning: {msg} (other feed updated)", err=True)
 
 
 @cli.command(name="serve")

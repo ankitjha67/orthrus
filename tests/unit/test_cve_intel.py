@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import contextlib
+
 from orthrus.core.schemas import Severity
 from orthrus.intel import cve_intel
-from orthrus.intel.cve_intel import enrich, escalate_severity, refresh_kev, summary
+from orthrus.intel.cve_intel import enrich, escalate_severity, refresh_epss, refresh_kev, summary
 
 
 def test_enrich_known_kev_and_epss() -> None:
@@ -58,3 +60,45 @@ def test_refresh_kev_roundtrip() -> None:
             fh.write(original_bytes)
         cve_intel._KEV.clear()
         cve_intel._KEV.update(original_kev)
+
+
+@contextlib.contextmanager
+def _preserve_epss_seed():
+    """Back up the shipped EPSS seed (file bytes + in-memory map) and restore it
+    so refresh_epss never mutates the committed catalog."""
+    with open(cve_intel._EPSS_FILE, "rb") as fh:
+        original_bytes = fh.read()
+    original_epss = dict(cve_intel._EPSS)
+    try:
+        yield
+    finally:
+        with open(cve_intel._EPSS_FILE, "wb") as fh:
+            fh.write(original_bytes)
+        cve_intel._EPSS.clear()
+        cve_intel._EPSS.update(original_epss)
+
+
+def test_refresh_epss_from_mapping() -> None:
+    with _preserve_epss_seed():
+        assert refresh_epss({"CVE-2030-1111": 0.42}) == 1
+        intel = enrich("CVE-2030-1111")
+        assert intel.epss is not None and abs(intel.epss - 0.42) < 1e-9
+
+
+def test_refresh_epss_from_api_envelope() -> None:
+    with _preserve_epss_seed():
+        envelope = {"status": "OK", "data": [{"cve": "CVE-2030-2222", "epss": "0.97"}]}
+        assert refresh_epss(envelope) == 1
+        assert enrich("cve-2030-2222").epss == 0.97  # case-insensitive lookup
+
+
+def test_refresh_epss_from_row_list_and_skips_garbage() -> None:
+    with _preserve_epss_seed():
+        rows = [
+            {"cve": "CVE-2030-3333", "epss": "0.5"},
+            {"cve": "CVE-2030-4444", "epss": "not-a-number"},  # skipped
+            {"cve": "", "epss": "0.1"},  # skipped (no id)
+        ]
+        assert refresh_epss(rows) == 1
+        assert enrich("CVE-2030-3333").epss == 0.5
+        assert enrich("CVE-2030-4444").epss is None

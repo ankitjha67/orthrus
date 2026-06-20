@@ -27,6 +27,8 @@ _KEV_FILE = os.path.join(_DATA_DIR, "cisa_kev_seed.json")
 _EPSS_FILE = os.path.join(_DATA_DIR, "epss_seed.json")
 
 CISA_KEV_FEED = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+# FIRST.org publishes the full daily EPSS dataset as a gzipped CSV (no API key).
+EPSS_FEED = "https://epss.cyentia.com/epss_scores-current.csv.gz"
 
 
 def _load_json(path: str, default: object) -> object:
@@ -91,4 +93,44 @@ def refresh_kev(kev_json: dict) -> int:
     return len(cves)
 
 
-__all__ = ["CveIntel", "enrich", "escalate_severity", "summary", "refresh_kev", "CISA_KEV_FEED"]
+def _epss_pairs(data: object):
+    """Yield (cve, score) from a {cve: score} mapping, a FIRST.org API envelope
+    ({"data": [{"cve","epss"}, ...]}), or a bare list of such row dicts."""
+    rows = data.get("data", data) if isinstance(data, dict) else data
+    if isinstance(rows, dict):
+        yield from rows.items()
+    elif isinstance(rows, list):
+        for row in rows:
+            if isinstance(row, dict):
+                yield (row.get("cve") or row.get("cveID")), row.get("epss")
+
+
+def refresh_epss(data: object) -> int:
+    """Rewrite the EPSS seed from EPSS data. Accepts a {cve: score} mapping, a
+    FIRST.org API envelope, or a list of row dicts. Returns the entry count."""
+    mapping: dict[str, float] = {}
+    for cve, score in _epss_pairs(data):
+        if not cve or score is None:
+            continue
+        try:
+            mapping[str(cve).strip().upper()] = float(score)
+        except (TypeError, ValueError):
+            continue
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    with open(_EPSS_FILE, "w", encoding="utf-8") as fh:
+        json.dump(mapping, fh)
+    _EPSS.clear()
+    _EPSS.update(mapping)
+    return len(mapping)
+
+
+__all__ = [
+    "CveIntel",
+    "enrich",
+    "escalate_severity",
+    "summary",
+    "refresh_kev",
+    "refresh_epss",
+    "CISA_KEV_FEED",
+    "EPSS_FEED",
+]
