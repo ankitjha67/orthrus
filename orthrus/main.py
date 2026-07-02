@@ -1350,6 +1350,64 @@ async def _chains_cmd(scan_id: str, as_json: bool) -> None:
         console.print(f"   [orthrus.muted]→ {chain.impact}[/]\n")
 
 
+@cli.command(name="graph")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the attack graph as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def graph(scan_id: str, as_json: bool, verbose: str) -> None:
+    """Collapse a scan's findings into the few reachable attack paths.
+
+    Where `chains` matches each catalog rule independently, this builds a
+    reachability graph and *merges* rules that share a finding into maximal
+    kill-chains — e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
+    path. Reports how many raw findings collapse onto how few reachable paths.
+    """
+    configure_logging(verbose)
+    asyncio.run(_graph_cmd(scan_id, as_json))
+
+
+async def _graph_cmd(scan_id: str, as_json: bool) -> None:
+    from orthrus.attack_graph import build_attack_graph
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return
+
+    report = build_attack_graph(rows)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    section(console, f"ATTACK GRAPH · {scan_id}")
+    console.print(report.summary() + "\n")
+    if not report.paths:
+        console.print(
+            "[orthrus.muted]No reachable attack paths from the current findings.[/]"
+        )
+        return
+    for p in report.paths:
+        sev_style = {
+            "critical": "status.failed", "high": "status.running",
+        }.get(p.severity, "orthrus.muted")
+        console.print(
+            f"[{sev_style}]\\[{p.severity.upper()}][/] "
+            f"[orthrus.accent]{p.length}-step path[/] [orthrus.muted]@ {p.host}[/]"
+        )
+        console.print(
+            "   " + " [orthrus.muted]→[/] ".join(f"{s.vuln_type}" for s in p.steps)
+        )
+        console.print(f"   [orthrus.muted]⇒ {p.impact}[/]\n")
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
