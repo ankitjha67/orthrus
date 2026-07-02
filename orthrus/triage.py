@@ -25,6 +25,8 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from orthrus.intel.cve_intel import epss_for_text
+
 _SEV_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
 # A path segment that is an opaque identifier rather than a route name: a pure
@@ -120,8 +122,22 @@ def triage_findings(findings: list) -> TriageReport:
             vuln_type=vuln_type, template=template, parameter=parameter,
             severity=_sev_str(rep), count=len(items), urls=urls, representative=rep,
         ))
-    clusters.sort(key=lambda c: (-_SEV_ORDER.get(c.severity, 0), c.vuln_type, c.template))
+    clusters.sort(
+        key=lambda c: (
+            -_SEV_ORDER.get(c.severity, 0),
+            -(_cluster_epss(c) or 0.0),  # actively-exploitable CVEs rank first in their tier
+            c.vuln_type,
+            c.template,
+        )
+    )
     return TriageReport(clusters=clusters, total=len(findings))
+
+
+def _cluster_epss(cluster: object) -> float | None:
+    """Highest EPSS among the CVE ids in a cluster's representative finding."""
+    rep = getattr(cluster, "representative", None)
+    text = f"{getattr(rep, 'title', '')} {getattr(rep, 'description', '')}"
+    return epss_for_text(text)
 
 
 # --------------------------------------------------------------- LLM judge

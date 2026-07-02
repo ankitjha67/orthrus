@@ -33,6 +33,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     host_header,
     idor,
     jwt_analyzer,
+    ldap,
     lfi,
     llm,
     mass_assignment,
@@ -59,6 +60,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     tls_analyzer,
     web_cache_deception,
     websocket,
+    xpath,
     xss,
     xxe,
 )

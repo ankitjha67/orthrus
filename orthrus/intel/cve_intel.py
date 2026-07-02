@@ -18,15 +18,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
 
 from orthrus.core.schemas import Severity
+
+_CVE_RE = re.compile(r"CVE-\d{4}-\d{4,}", re.IGNORECASE)
 
 _DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 _KEV_FILE = os.path.join(_DATA_DIR, "cisa_kev_seed.json")
 _EPSS_FILE = os.path.join(_DATA_DIR, "epss_seed.json")
 
 CISA_KEV_FEED = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
+# FIRST.org publishes the full daily EPSS dataset as a gzipped CSV (no API key).
+EPSS_FEED = "https://epss.cyentia.com/epss_scores-current.csv.gz"
 
 
 def _load_json(path: str, default: object) -> object:
@@ -61,6 +66,21 @@ def enrich(cve_id: str) -> CveIntel:
     return CveIntel(cve_id=cid, kev=cid in _KEV, epss=_EPSS.get(cid))
 
 
+def cve_ids_in(text: str) -> list[str]:
+    """All CVE ids mentioned in ``text`` (e.g. a finding title), upper-cased."""
+    return [m.upper() for m in _CVE_RE.findall(text or "")]
+
+
+def epss_for_text(text: str) -> float | None:
+    """Highest EPSS probability among any CVE ids mentioned in ``text``.
+
+    Lets report/triage rank a finding by exploit probability without a dedicated
+    schema field — the CVE id already appears in the finding's title/description.
+    """
+    scores = [s for cid in cve_ids_in(text) if (s := _EPSS.get(cid)) is not None]
+    return max(scores) if scores else None
+
+
 def escalate_severity(base: Severity, intel: CveIntel) -> Severity:
     """KEV (actively exploited) raises a sub-HIGH severity to HIGH."""
     if intel.kev and base in (Severity.MEDIUM, Severity.LOW, Severity.INFO):
@@ -91,4 +111,46 @@ def refresh_kev(kev_json: dict) -> int:
     return len(cves)
 
 
-__all__ = ["CveIntel", "enrich", "escalate_severity", "summary", "refresh_kev", "CISA_KEV_FEED"]
+def _epss_pairs(data: object):
+    """Yield (cve, score) from a {cve: score} mapping, a FIRST.org API envelope
+    ({"data": [{"cve","epss"}, ...]}), or a bare list of such row dicts."""
+    rows = data.get("data", data) if isinstance(data, dict) else data
+    if isinstance(rows, dict):
+        yield from rows.items()
+    elif isinstance(rows, list):
+        for row in rows:
+            if isinstance(row, dict):
+                yield (row.get("cve") or row.get("cveID")), row.get("epss")
+
+
+def refresh_epss(data: object) -> int:
+    """Rewrite the EPSS seed from EPSS data. Accepts a {cve: score} mapping, a
+    FIRST.org API envelope, or a list of row dicts. Returns the entry count."""
+    mapping: dict[str, float] = {}
+    for cve, score in _epss_pairs(data):
+        if not cve or score is None:
+            continue
+        try:
+            mapping[str(cve).strip().upper()] = float(score)
+        except (TypeError, ValueError):
+            continue
+    os.makedirs(_DATA_DIR, exist_ok=True)
+    with open(_EPSS_FILE, "w", encoding="utf-8") as fh:
+        json.dump(mapping, fh)
+    _EPSS.clear()
+    _EPSS.update(mapping)
+    return len(mapping)
+
+
+__all__ = [
+    "CveIntel",
+    "enrich",
+    "cve_ids_in",
+    "epss_for_text",
+    "escalate_severity",
+    "summary",
+    "refresh_kev",
+    "refresh_epss",
+    "CISA_KEV_FEED",
+    "EPSS_FEED",
+]

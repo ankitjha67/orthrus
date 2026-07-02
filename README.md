@@ -7,7 +7,7 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 56 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 58 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -21,10 +21,10 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-879-test / lint-clean quality gates.
+894-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
-implemented-system PRD: every subsystem (56 scanners, 17 confirmers, 16 recon
+implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -92,11 +92,11 @@ roadmap for advanced scanners & methods.
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (56)**
+**Vulnerability scanners (58)**
 
 | Category | Scanners |
 |---|---|
-| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL + **CL.0 desync**), CSV / formula injection |
+| Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, **LDAP**, **XPath / XQuery**, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL + **CL.0 desync**), CSV / formula injection |
 | XSS | Reflected (content-type aware), DOM-based, stored (browser-verified), **browser taint engine** (instrumented source→sink: URL data reaching eval/innerHTML/document.write = DOM XSS, location.assign/window.open = client-side redirect) |
 | Access / logic | IDOR, **multi-identity authorization matrix (BOLA/BFLA, Autorize-style `--identities`)**, **privilege-escalation forced-browse (unlinked admin routes via the identity lattice)**, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
@@ -485,7 +485,7 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    56 scanners + base interface + registry
+  scanners/    58 scanners + base interface + registry
   exploits/    17 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)

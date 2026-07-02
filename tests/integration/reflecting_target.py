@@ -207,19 +207,29 @@ def fetch_url(u: str) -> str:
         return f"error: {type(exc).__name__}"
 
 
+def _hdr_safe(value: str) -> str:
+    """Coerce a header value to latin-1 (HTTP header charset).
+
+    Real servers reject non-latin-1 header bytes; this toy target still reflects
+    the value (so open-redirect/CORS detection works) but must not crash its
+    handler thread when a scanner sends a Unicode homoglyph evasion payload.
+    """
+    return value.encode("latin-1", "replace").decode("latin-1")
+
+
 class Handler(BaseHTTPRequestHandler):
     def _headers(
         self, length: int, status: int = 200, location: str | None = None, cookies: bool = False
     ) -> None:
         self.send_response(status)
         if location is not None:
-            self.send_header("Location", location)
+            self.send_header("Location", _hdr_safe(location))
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Content-Length", str(length))
         self.send_header("X-Cache", "MISS")  # cache indicator
         origin = self.headers.get("Origin")
         if origin:  # reflect any origin with credentials -> CORS misconfig
-            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Access-Control-Allow-Origin", _hdr_safe(origin))
             self.send_header("Access-Control-Allow-Credentials", "true")
         if cookies:
             for cookie in INSECURE_COOKIES:
