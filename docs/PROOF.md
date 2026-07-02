@@ -17,7 +17,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **936 tests pass**, `ruff check orthrus tests` clean |
+| Automated gates | **996 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **58 vulnerability scanners · 17 confirmation modules · 16 recon modules** |
 | Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
 
@@ -30,7 +30,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-936 passed, 4 warnings
+996 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -160,13 +160,16 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 ## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **58 scanners**, 13 → **16 recon**,
-and 667 → **936 tests**. (Recon's latest addition is passive IP-address
+and 667 → **996 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) A correlation & delivery
 layer now sits on top of the detectors: an attack-**graph** that merges chain
 rules into maximal kill-chains, finding **lifecycle** (status/owner), a
 consolidated remediation **runbook** ordered by attack-path leverage, and
-**notify** (Slack/Jira push, dry-run by default). Every new capability
-was verified against a **real**
+**notify** (Slack/Jira push, dry-run by default). Beyond that sit an autonomous
+**agent** (a bounded LLM planner over the existing scope-enforced scanners — hard
+allow-list, no shells/code-exec), read-only **cloud** posture (CSPM/IAM +
+toxic-combination graph), automated **patch** generation, and a scope-aware
+capturing **proxy**. Every new capability was verified against a **real**
 target (a live JWKS endpoint, a real headless Chromium, a real gRPC server, raw
 sockets, the real OOB collaborator) — never a mock of the thing under test. These
 are deterministic and reproducible, which is why they make better evidence than a

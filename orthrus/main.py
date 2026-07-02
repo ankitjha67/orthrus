@@ -1626,6 +1626,96 @@ async def _runbook_load(scan_id: str, min_severity: str):
     return build_runbook(rows, target=scan.target, scan_id=scan_id)
 
 
+@cli.command(name="patch")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--min-severity", default="info",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only patch findings at or above this severity.",
+)
+@click.option("--vuln-type", default=None, help="Only generate patches for this vuln_type.")
+@click.option("--llm", "use_llm", is_flag=True,
+              help="Ask an Anthropic model for a patch where no template fits (needs API key).")
+@click.option("--model", default=None, help="LLM model id (with --llm).")
+@click.option("--output", "-o", type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Write the patch bundle to this file instead of stdout.")
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON instead of Markdown.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def patch(
+    scan_id: str, min_severity: str, vuln_type: str | None, use_llm: bool, model: str | None,
+    output: str | None, as_json: bool, verbose: str,
+) -> None:
+    """Generate concrete remediation patches (config/code) for a scan's findings.
+
+    Groups findings by fix and attaches paste-able templated patches per vuln type
+    (security headers, parameterized queries, cookie flags, CSP, Terraform for cloud
+    posture, …). With --llm, types without a template get a context-specific patch
+    from an Anthropic model (opt-in, best-effort). Markdown to stdout by default.
+    """
+    configure_logging(verbose)
+    report = asyncio.run(_patch_load(scan_id, min_severity, vuln_type, use_llm, model))
+    if report is None:
+        return
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+        return
+    markdown = report.to_markdown()
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            fh.write(markdown)
+        console.print(f"[status.completed]Patches written to {output}[/] — {report.summary()}")
+    else:
+        click.echo(markdown)
+
+
+async def _patch_load(
+    scan_id: str, min_severity: str, vuln_type: str | None, use_llm: bool, model: str | None
+):
+    """Load findings, build the deterministic patch report, optionally LLM-enrich."""
+    from orthrus.reporting.patches import build_patch_report, llm_patch, normalize_vuln_type
+    from orthrus.triage import DEFAULT_MODEL
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return None
+
+    order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+    floor = order[min_severity]
+
+    def _rank(row: object) -> int:
+        sev = getattr(row, "severity", "info")
+        return order.get(getattr(sev, "value", sev) or "info", 0)
+
+    rows = [r for r in rows if _rank(r) >= floor]
+    if vuln_type:
+        rows = [r for r in rows if getattr(r, "vuln_type", "") == vuln_type]
+    report = build_patch_report(rows, target=scan.target, scan_id=scan_id)
+
+    if use_llm:
+        api_key = os.environ.get("ORTHRUS_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning("--llm requested but ORTHRUS_ANTHROPIC_API_KEY/ANTHROPIC_API_KEY is unset; "
+                           "emitting templated patches only")
+        else:
+            reps: dict[str, object] = {}
+            for r in rows:
+                reps.setdefault(normalize_vuln_type(getattr(r, "vuln_type", "") or "finding"), r)
+            for g in report.groups:
+                if not g.patches and g.vuln_type in reps:
+                    ai = await llm_patch(reps[g.vuln_type], api_key, model=model or DEFAULT_MODEL)
+                    if ai is not None:
+                        g.patches.append(ai)
+    return report
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
@@ -2563,6 +2653,183 @@ def mcp_cmd() -> None:
     server.run()
 
 
+@cli.command(name="proxy")
+@click.option("--port", default=8080, type=int, help="Local port to listen on.")
+@click.option("--host", default="127.0.0.1", help="Local bind address.")
+@click.option("--scope", "scope_str", default=None,
+              help="Authorized scope: comma-separated domains / CIDRs (required — deny by default).")
+@click.option("--scan-id", default=None, help="Persist captured endpoints into this existing scan.")
+@click.option("--allow-out-of-scope", is_flag=True,
+              help="Pass through (don't block) out-of-scope requests; they are never captured.")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to never forward.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def proxy_cmd(
+    port: int, host: str, scope_str: str | None, scan_id: str | None,
+    allow_out_of_scope: bool, exclude_paths: str | None, verbose: str,
+) -> None:
+    """Run a scope-aware capturing proxy to feed the scanner from a manual browse.
+
+    Point your browser / HTTP client at http://HOST:PORT and browse the authorized
+    target; every in-scope request's endpoint + parameters are captured (into a
+    scan with --scan-id). Deny-by-default: out-of-scope requests are blocked unless
+    --allow-out-of-scope is set (pass-through traffic is never captured). HTTPS is
+    tunneled opaquely (no TLS interception).
+    """
+    configure_logging(verbose)
+    if not scope_str:
+        raise click.UsageError(
+            "--scope is required (deny by default): pass the authorized host(s)/CIDR(s)"
+        )
+    scope = build_scope(scope_str, "", exclude_paths, block_third_party=not allow_out_of_scope)
+    asyncio.run(_proxy_cmd(host, port, scope, scan_id, allow_out_of_scope))
+
+
+async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
+    from orthrus.proxy import ProxyServer
+
+    settings = get_settings()
+    store = None
+    on_capture = None
+    if scan_id:
+        store = Store(settings.db_url, encryption_key=settings.encryption_key)
+        await store.init()
+        if await store.get_scan(scan_id) is None:
+            logger.error("no such scan: %s (create one with `orthrus scan`)", scan_id)
+            await store.close()
+            return
+
+        async def on_capture(endpoint) -> None:
+            try:
+                await store.add_endpoint(scan_id, endpoint)
+            except Exception as exc:  # noqa: BLE001 - a capture failure must not kill the proxy
+                logger.debug("capture persist failed: %s", exc)
+
+    server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope)
+    srv = await server.serve(host, port)
+    section(console, f"PROXY · {host}:{port}")
+    console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] — set your client's HTTP proxy to it.")
+    scope_desc = ", ".join(scope.domains + scope.ip_ranges) or "auto"
+    console.print(
+        f"[orthrus.muted]scope: {scope_desc} · out-of-scope: "
+        f"{'passthrough' if allow_out_of_scope else 'blocked'}"
+        f"{' · capturing into ' + scan_id if scan_id else ' · not persisting (use --scan-id)'}[/]"
+    )
+    console.print("[orthrus.muted]Ctrl-C to stop.[/]")
+    try:
+        async with srv:
+            await srv.serve_forever()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
+        console.print(
+            f"\n[status.completed]Captured {server.captured} in-scope request(s); "
+            f"blocked {server.blocked} out-of-scope.[/]"
+        )
+        if store is not None:
+            await store.close()
+
+
+@cli.command(name="agent")
+@click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
+@click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
+@click.option(
+    "--aggressiveness", type=click.Choice(["passive", "normal", "aggressive"]), default="normal",
+    help="Caps which scanners the agent may choose.",
+)
+@click.option("--max-steps", default=2, type=int, help="Max plan→execute→re-plan iterations.")
+@click.option("--dry-run", is_flag=True, help="Show the plan; execute nothing.")
+@click.option("--llm/--no-llm", "use_llm", default=True,
+              help="Plan with an Anthropic model (needs API key); else a deterministic policy.")
+@click.option("--model", default=None, help="LLM model id (with --llm).")
+@click.option("--crawl-depth", default=2, type=int, help="Crawl depth per executed step.")
+@click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the run report as JSON.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def agent_cmd(
+    target: str, scope_str: str, aggressiveness: str, max_steps: int, dry_run: bool, use_llm: bool,
+    model: str | None, crawl_depth: int, timeout: float, exclude_paths: str | None, as_json: bool,
+    verbose: str,
+) -> None:
+    """Autonomous orchestrator: an LLM plans which scope-enforced scanners to run, in a loop.
+
+    The agent reasons over the target and findings-so-far and picks the next batch
+    of ORTHRUS's own scanners to run, up to --max-steps. Its action space is a hard
+    allow-list of registered modules — no shells, no arbitrary code — and every
+    request still passes the deny-by-default scope check and non-destructive
+    doctrine. Use --dry-run to see the plan without running anything.
+    """
+    configure_logging(verbose)
+    scope = build_scope(scope_str, target, exclude_paths)
+    api_key = None
+    if use_llm:
+        api_key = os.environ.get("ORTHRUS_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key and not dry_run:
+            logger.warning("--llm set but no API key; using the deterministic planning policy")
+    asyncio.run(_agent_cmd(
+        target, scope, aggressiveness, max_steps, dry_run, api_key, model, crawl_depth, timeout, as_json,
+    ))
+
+
+async def _agent_cmd(
+    target, scope, aggressiveness, max_steps, dry_run, api_key, model, crawl_depth, timeout_s, as_json,
+) -> None:
+    from orthrus.agent import AgentRunner, build_catalog
+    from orthrus.core.orchestrator import Orchestrator
+
+    catalog = build_catalog()
+    execute_fn = None
+    if not dry_run:
+        async def execute_fn(modules: list[str], state) -> list[dict]:
+            # Each step is one real, scope-enforced scan restricted to the chosen modules.
+            config = ScanConfig(
+                target=target, scope=scope, modules=modules,
+                aggressiveness=Aggressiveness(aggressiveness), timeout=timeout_s, crawl_depth=crawl_depth,
+            )
+            orch = Orchestrator(config, get_settings())
+            status, rows = "completed", []
+            try:
+                await orch.setup()
+                await orch.run_recon()
+                await orch.run_scan()
+                rows = await orch.store.get_findings(orch.scan_id)
+            except Exception as exc:  # noqa: BLE001 - one bad step shouldn't abort the whole run
+                status = "failed"
+                logger.error("agent step failed: %s", exc)
+            finally:
+                await orch.teardown(status)
+            return [
+                {"vuln_type": r.vuln_type, "severity": getattr(r.severity, "value", r.severity), "url": r.url}
+                for r in rows
+            ]
+
+    runner = AgentRunner(
+        target, catalog, aggressiveness=aggressiveness, max_steps=max_steps,
+        execute_fn=execute_fn, api_key=api_key, model=model,
+    )
+    report = await runner.run(dry_run=dry_run)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, default=str))
+        return
+    section(console, f"AGENT · {target}")
+    planner_kind = "LLM" if api_key else "deterministic"
+    console.print(
+        f"[orthrus.muted]planner: {planner_kind} · aggressiveness: {aggressiveness} · "
+        f"max-steps: {max_steps} · scope-enforced · non-destructive[/]\n"
+    )
+    if report.plan:
+        console.print("[orthrus.accent]Plan:[/]")
+        for a in report.plan:
+            console.print(f"  • {a.tool}[orthrus.muted] — {a.rationale}[/]")
+    for i, step in enumerate(report.steps, 1):
+        console.print(
+            f"\n[orthrus.accent]Step {i}:[/] ran {', '.join(step.modules)} "
+            f"[orthrus.muted]→ {step.new_findings} finding(s)[/]"
+        )
+    console.print(f"\n[status.completed]{report.summary()}[/]")
+
+
 @cli.command(name="iac")
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
@@ -2590,6 +2857,73 @@ def iac_cmd(path: str, output: str | None, fail_on: str | None, verbose: str) ->
         console.print(findings_table(findings))
     else:
         console.print("[green]No IaC misconfigurations found.[/]")
+
+    if output:
+        payload = {"findings": [f.model_dump(mode="json") for f in findings]}
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, default=str)
+        console.print(f"wrote {len(findings)} finding(s) to {output}")
+
+    if fail_on:
+        order = ["info", "low", "medium", "high", "critical"]
+        threshold = order.index(fail_on)
+        worst = max((order.index(f.severity.value) for f in findings), default=-1)
+        if worst >= threshold:
+            raise SystemExit(1)
+
+
+@cli.command(name="cloud")
+@click.argument("snapshot", type=click.Path(exists=True), required=False)
+@click.option("--provider", type=click.Choice(["aws"]), default="aws", help="Cloud provider (for --live).")
+@click.option("--live", is_flag=True,
+              help="Collect a read-only inventory from the provider (needs credentials + [cloud] extra).")
+@click.option("--regions", default="us-east-1", help="Comma-separated regions for --live collection.")
+@click.option("--toxic-only", is_flag=True, help="Show only the correlated toxic-combination paths.")
+@click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
+@click.option(
+    "--fail-on", type=click.Choice(["critical", "high", "medium", "low", "info"]), default=None,
+    help="Exit non-zero if a finding at/above this severity is found (for CI).",
+)
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def cloud_cmd(
+    snapshot: str | None, provider: str, live: bool, regions: str, toxic_only: bool,
+    output: str | None, fail_on: str | None, verbose: str,
+) -> None:
+    """Assess cloud security posture (CSPM/IAM) from a snapshot or read-only collection.
+
+    Consumes a normalized inventory JSON (SNAPSHOT) — or, with --live, collects one
+    read-only from the provider using your own credentials — and reports public /
+    unencrypted / over-privileged resources plus the CRITICAL *toxic combinations*
+    an attacker would chain (internet-reachable workload + privileged role, admin
+    user without MFA, PassRole escalation). Read-only: it never modifies anything.
+    """
+    configure_logging(verbose)
+    from orthrus.cloud.models import CloudInventory
+    from orthrus.cloud.toxic import analyze_cloud, toxic_combinations
+
+    if live:
+        from orthrus.cloud.collect import collect_aws
+        try:
+            inv = collect_aws(regions=tuple(r.strip() for r in regions.split(",") if r.strip()))
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
+    elif snapshot:
+        with open(snapshot, encoding="utf-8") as fh:
+            inv = CloudInventory.from_dict(json.load(fh))
+    else:
+        raise click.UsageError("provide a SNAPSHOT inventory file, or use --live to collect one")
+
+    findings = toxic_combinations(inv) if toxic_only else analyze_cloud(inv)
+    section(console, f"CLOUD POSTURE · {inv.provider} {inv.account_id}".rstrip())
+    if findings:
+        console.print(findings_table(findings))
+        combos = sum(1 for f in findings if f.vuln_type == "cloud-toxic-combo")
+        console.print(
+            f"\n[orthrus.muted]{len(inv.resources)} resource(s) · {len(findings)} finding(s) · "
+            f"{combos} toxic combination(s)[/]"
+        )
+    else:
+        console.print("[green]No cloud posture issues found.[/]")
 
     if output:
         payload = {"findings": [f.model_dump(mode="json") for f in findings]}

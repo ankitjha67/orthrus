@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-936-test / lint-clean quality gates.
+996-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
@@ -83,13 +83,14 @@ roadmap for advanced scanners & methods.
 
 ## ✨ Features
 
-**Reconnaissance (14 modules)**
+**Reconnaissance (16 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
 - Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
 - Parameter mining (Arjun-style hidden-parameter discovery)
 - JavaScript analysis (endpoint + secret extraction), **source-map recovery** (recover endpoints from leaked `.map` files), content discovery
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
+- Passive IP-address intelligence (reverse-DNS / ASN / geo / cloud attribution) + co-hosted host gathering
 - Nmap port scan (optional; needs the `nmap` binary)
 
 **Vulnerability scanners (58)**
@@ -305,7 +306,12 @@ post-scan analysis and delivery: `findings` (terminal triage view), `triage`
 (correlate findings into attack paths / maximal kill-chains), `runbook`
 (consolidated remediation plan, ordered so the highest-leverage fix — one that
 breaks an attack path — comes first), `finding` (set a finding's status/owner),
-and `notify` (push high-severity findings to Slack / Jira, with `--dry-run`).
+`notify` (push high-severity findings to Slack / Jira, with `--dry-run`), and
+`patch` (generate concrete config/code remediation patches per finding).
+Autonomous & posture: `agent` (a bounded LLM planner that sequences the existing
+scope-enforced, non-destructive scanners — no shells, no arbitrary code), `cloud`
+(read-only CSPM/IAM posture + toxic-combination analysis), and `proxy` (a
+scope-aware capturing proxy that feeds the scanner from a manual browse).
 Utility commands: `doctor` (environment readiness), `modules` (module inventory),
 `diff` (compare two scans), `scans` (list past scans), `benchmark`
 (detection-accuracy harness), `update` (refresh CISA-KEV intel), `serve` (REST
