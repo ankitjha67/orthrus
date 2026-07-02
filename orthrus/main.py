@@ -1626,6 +1626,96 @@ async def _runbook_load(scan_id: str, min_severity: str):
     return build_runbook(rows, target=scan.target, scan_id=scan_id)
 
 
+@cli.command(name="patch")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--min-severity", default="info",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only patch findings at or above this severity.",
+)
+@click.option("--vuln-type", default=None, help="Only generate patches for this vuln_type.")
+@click.option("--llm", "use_llm", is_flag=True,
+              help="Ask an Anthropic model for a patch where no template fits (needs API key).")
+@click.option("--model", default=None, help="LLM model id (with --llm).")
+@click.option("--output", "-o", type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Write the patch bundle to this file instead of stdout.")
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON instead of Markdown.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def patch(
+    scan_id: str, min_severity: str, vuln_type: str | None, use_llm: bool, model: str | None,
+    output: str | None, as_json: bool, verbose: str,
+) -> None:
+    """Generate concrete remediation patches (config/code) for a scan's findings.
+
+    Groups findings by fix and attaches paste-able templated patches per vuln type
+    (security headers, parameterized queries, cookie flags, CSP, Terraform for cloud
+    posture, …). With --llm, types without a template get a context-specific patch
+    from an Anthropic model (opt-in, best-effort). Markdown to stdout by default.
+    """
+    configure_logging(verbose)
+    report = asyncio.run(_patch_load(scan_id, min_severity, vuln_type, use_llm, model))
+    if report is None:
+        return
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+        return
+    markdown = report.to_markdown()
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            fh.write(markdown)
+        console.print(f"[status.completed]Patches written to {output}[/] — {report.summary()}")
+    else:
+        click.echo(markdown)
+
+
+async def _patch_load(
+    scan_id: str, min_severity: str, vuln_type: str | None, use_llm: bool, model: str | None
+):
+    """Load findings, build the deterministic patch report, optionally LLM-enrich."""
+    from orthrus.reporting.patches import build_patch_report, llm_patch, normalize_vuln_type
+    from orthrus.triage import DEFAULT_MODEL
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return None
+
+    order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+    floor = order[min_severity]
+
+    def _rank(row: object) -> int:
+        sev = getattr(row, "severity", "info")
+        return order.get(getattr(sev, "value", sev) or "info", 0)
+
+    rows = [r for r in rows if _rank(r) >= floor]
+    if vuln_type:
+        rows = [r for r in rows if getattr(r, "vuln_type", "") == vuln_type]
+    report = build_patch_report(rows, target=scan.target, scan_id=scan_id)
+
+    if use_llm:
+        api_key = os.environ.get("ORTHRUS_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            logger.warning("--llm requested but ORTHRUS_ANTHROPIC_API_KEY/ANTHROPIC_API_KEY is unset; "
+                           "emitting templated patches only")
+        else:
+            reps: dict[str, object] = {}
+            for r in rows:
+                reps.setdefault(normalize_vuln_type(getattr(r, "vuln_type", "") or "finding"), r)
+            for g in report.groups:
+                if not g.patches and g.vuln_type in reps:
+                    ai = await llm_patch(reps[g.vuln_type], api_key, model=model or DEFAULT_MODEL)
+                    if ai is not None:
+                        g.patches.append(ai)
+    return report
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
