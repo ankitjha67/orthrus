@@ -2729,6 +2729,107 @@ async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
             await store.close()
 
 
+@cli.command(name="agent")
+@click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
+@click.option("--scope", "scope_str", default="auto", help="Scope: wildcard domains / CIDR ranges.")
+@click.option(
+    "--aggressiveness", type=click.Choice(["passive", "normal", "aggressive"]), default="normal",
+    help="Caps which scanners the agent may choose.",
+)
+@click.option("--max-steps", default=2, type=int, help="Max plan→execute→re-plan iterations.")
+@click.option("--dry-run", is_flag=True, help="Show the plan; execute nothing.")
+@click.option("--llm/--no-llm", "use_llm", default=True,
+              help="Plan with an Anthropic model (needs API key); else a deterministic policy.")
+@click.option("--model", default=None, help="LLM model id (with --llm).")
+@click.option("--crawl-depth", default=2, type=int, help="Crawl depth per executed step.")
+@click.option("--timeout", default=30.0, type=float, help="HTTP request timeout (s).")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to exclude (scope).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the run report as JSON.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def agent_cmd(
+    target: str, scope_str: str, aggressiveness: str, max_steps: int, dry_run: bool, use_llm: bool,
+    model: str | None, crawl_depth: int, timeout: float, exclude_paths: str | None, as_json: bool,
+    verbose: str,
+) -> None:
+    """Autonomous orchestrator: an LLM plans which scope-enforced scanners to run, in a loop.
+
+    The agent reasons over the target and findings-so-far and picks the next batch
+    of ORTHRUS's own scanners to run, up to --max-steps. Its action space is a hard
+    allow-list of registered modules — no shells, no arbitrary code — and every
+    request still passes the deny-by-default scope check and non-destructive
+    doctrine. Use --dry-run to see the plan without running anything.
+    """
+    configure_logging(verbose)
+    scope = build_scope(scope_str, target, exclude_paths)
+    api_key = None
+    if use_llm:
+        api_key = os.environ.get("ORTHRUS_ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key and not dry_run:
+            logger.warning("--llm set but no API key; using the deterministic planning policy")
+    asyncio.run(_agent_cmd(
+        target, scope, aggressiveness, max_steps, dry_run, api_key, model, crawl_depth, timeout, as_json,
+    ))
+
+
+async def _agent_cmd(
+    target, scope, aggressiveness, max_steps, dry_run, api_key, model, crawl_depth, timeout_s, as_json,
+) -> None:
+    from orthrus.agent import AgentRunner, build_catalog
+    from orthrus.core.orchestrator import Orchestrator
+
+    catalog = build_catalog()
+    execute_fn = None
+    if not dry_run:
+        async def execute_fn(modules: list[str], state) -> list[dict]:
+            # Each step is one real, scope-enforced scan restricted to the chosen modules.
+            config = ScanConfig(
+                target=target, scope=scope, modules=modules,
+                aggressiveness=Aggressiveness(aggressiveness), timeout=timeout_s, crawl_depth=crawl_depth,
+            )
+            orch = Orchestrator(config, get_settings())
+            status, rows = "completed", []
+            try:
+                await orch.setup()
+                await orch.run_recon()
+                await orch.run_scan()
+                rows = await orch.store.get_findings(orch.scan_id)
+            except Exception as exc:  # noqa: BLE001 - one bad step shouldn't abort the whole run
+                status = "failed"
+                logger.error("agent step failed: %s", exc)
+            finally:
+                await orch.teardown(status)
+            return [
+                {"vuln_type": r.vuln_type, "severity": getattr(r.severity, "value", r.severity), "url": r.url}
+                for r in rows
+            ]
+
+    runner = AgentRunner(
+        target, catalog, aggressiveness=aggressiveness, max_steps=max_steps,
+        execute_fn=execute_fn, api_key=api_key, model=model,
+    )
+    report = await runner.run(dry_run=dry_run)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, default=str))
+        return
+    section(console, f"AGENT · {target}")
+    planner_kind = "LLM" if api_key else "deterministic"
+    console.print(
+        f"[orthrus.muted]planner: {planner_kind} · aggressiveness: {aggressiveness} · "
+        f"max-steps: {max_steps} · scope-enforced · non-destructive[/]\n"
+    )
+    if report.plan:
+        console.print("[orthrus.accent]Plan:[/]")
+        for a in report.plan:
+            console.print(f"  • {a.tool}[orthrus.muted] — {a.rationale}[/]")
+    for i, step in enumerate(report.steps, 1):
+        console.print(
+            f"\n[orthrus.accent]Step {i}:[/] ran {', '.join(step.modules)} "
+            f"[orthrus.muted]→ {step.new_findings} finding(s)[/]"
+        )
+    console.print(f"\n[status.completed]{report.summary()}[/]")
+
+
 @cli.command(name="iac")
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
