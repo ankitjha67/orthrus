@@ -176,6 +176,20 @@ class Finding(BaseModel):
     scanner: str = "unknown"
     evidence: Evidence = Field(default_factory=Evidence)
     created_at: datetime = Field(default_factory=_utcnow)
+    # Post-scan triage lifecycle (set via `orthrus finding …`, not by scanners).
+    status: str = "open"
+    owner: str | None = None
+
+
+# Allowed triage statuses for a finding's lifecycle.
+FINDING_STATUSES: tuple[str, ...] = (
+    "open",
+    "triaged",
+    "in-progress",
+    "resolved",
+    "accepted-risk",
+    "false-positive",
+)
 
 
 class ExploitResult(BaseModel):

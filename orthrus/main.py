@@ -22,7 +22,7 @@ import click
 
 from orthrus import __version__
 from orthrus.core.config import ScanConfig, ScopeConfig, get_settings
-from orthrus.core.schemas import Aggressiveness
+from orthrus.core.schemas import FINDING_STATUSES, Aggressiveness
 from orthrus.db.store import Store
 from orthrus.reporting.generator import generate_report
 from orthrus.utils.logger import configure_logging, console, get_logger
@@ -1130,6 +1130,7 @@ def _finding_summary(row: object) -> dict:
     the encrypted store and the full report, never on stdout.
     """
     return {
+        "id": getattr(row, "id", None),
         "vuln_type": row.vuln_type,
         "title": row.title,
         "severity": row.severity,
@@ -1139,6 +1140,8 @@ def _finding_summary(row: object) -> dict:
         "cwe": row.cwe,
         "cvss_score": row.cvss_score,
         "scanner": row.scanner,
+        "status": getattr(row, "status", None) or "open",
+        "owner": getattr(row, "owner", None),
     }
 
 
@@ -1198,6 +1201,63 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
 
     section(console, f"FINDINGS · {scan_id}")
     console.print(findings_table(rows))
+    console.print(
+        "[orthrus.muted]Triage: set status/owner with "
+        "`orthrus finding status <id> <state>` / `orthrus finding assign <id> <owner>` "
+        "(ids in `--json`).[/]"
+    )
+
+
+_UNSET = object()  # sentinel: "owner argument not provided" vs "clear owner to None"
+
+
+@cli.group(name="finding")
+def finding() -> None:
+    """Manage a stored finding's triage lifecycle (status / ownership)."""
+
+
+@finding.command(name="status")
+@click.argument("finding_id", type=int)
+@click.argument("state", type=click.Choice(FINDING_STATUSES))
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def finding_status(finding_id: int, state: str, verbose: str) -> None:
+    """Set a finding's triage STATE (open/triaged/in-progress/resolved/…).
+
+    FINDING_ID is the integer id shown by `orthrus findings --json`.
+    """
+    configure_logging(verbose)
+    asyncio.run(_set_finding_field(finding_id, status=state))
+
+
+@finding.command(name="assign")
+@click.argument("finding_id", type=int)
+@click.argument("owner")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def finding_assign(finding_id: int, owner: str, verbose: str) -> None:
+    """Assign a finding to an OWNER (use '-' to clear the assignment)."""
+    configure_logging(verbose)
+    asyncio.run(_set_finding_field(finding_id, owner=None if owner == "-" else owner))
+
+
+async def _set_finding_field(
+    finding_id: int, *, status: str | None = None, owner: str | None | object = _UNSET
+) -> None:
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        if status is not None:
+            ok = await store.set_finding_status(finding_id, status)
+            msg = f"status → {status}"
+        else:
+            ok = await store.set_finding_owner(finding_id, owner)  # type: ignore[arg-type]
+            msg = f"owner → {owner or '(unassigned)'}"
+    finally:
+        await store.close()
+    if ok:
+        console.print(f"[status.completed]finding {finding_id}: {msg}[/]")
+    else:
+        logger.error("no such finding id: %s (see `orthrus findings --scan-id <id> --json`)", finding_id)
 
 
 @cli.command(name="triage")
@@ -1348,6 +1408,222 @@ async def _chains_cmd(scan_id: str, as_json: bool) -> None:
         for i, step in enumerate(chain.steps, 1):
             console.print(f"   [orthrus.muted]{i}.[/] {step.label} [orthrus.muted]({step.vuln_type})[/]")
         console.print(f"   [orthrus.muted]→ {chain.impact}[/]\n")
+
+
+@cli.command(name="graph")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the attack graph as JSON (stdout).")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def graph(scan_id: str, as_json: bool, verbose: str) -> None:
+    """Collapse a scan's findings into the few reachable attack paths.
+
+    Where `chains` matches each catalog rule independently, this builds a
+    reachability graph and *merges* rules that share a finding into maximal
+    kill-chains — e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
+    path. Reports how many raw findings collapse onto how few reachable paths.
+    """
+    configure_logging(verbose)
+    asyncio.run(_graph_cmd(scan_id, as_json))
+
+
+async def _graph_cmd(scan_id: str, as_json: bool) -> None:
+    from orthrus.attack_graph import build_attack_graph
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return
+
+    report = build_attack_graph(rows)
+
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2))
+        return
+
+    section(console, f"ATTACK GRAPH · {scan_id}")
+    console.print(report.summary() + "\n")
+    if not report.paths:
+        console.print(
+            "[orthrus.muted]No reachable attack paths from the current findings.[/]"
+        )
+        return
+    for p in report.paths:
+        sev_style = {
+            "critical": "status.failed", "high": "status.running",
+        }.get(p.severity, "orthrus.muted")
+        console.print(
+            f"[{sev_style}]\\[{p.severity.upper()}][/] "
+            f"[orthrus.accent]{p.length}-step path[/] [orthrus.muted]@ {p.host}[/]"
+        )
+        console.print(
+            "   " + " [orthrus.muted]→[/] ".join(f"{s.vuln_type}" for s in p.steps)
+        )
+        console.print(f"   [orthrus.muted]⇒ {p.impact}[/]\n")
+
+
+@cli.command(name="notify")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--min-severity", default="high",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only notify on findings at or above this severity.",
+)
+@click.option("--slack", "slack_webhook", default=None, envvar="ORTHRUS_SLACK_WEBHOOK",
+              help="Slack incoming-webhook URL (or ORTHRUS_SLACK_WEBHOOK).")
+@click.option("--jira-url", default=None, envvar="ORTHRUS_JIRA_URL", help="Jira base URL.")
+@click.option("--jira-user", default=None, envvar="ORTHRUS_JIRA_USER", help="Jira account email.")
+@click.option("--jira-token", default=None, envvar="ORTHRUS_JIRA_TOKEN", help="Jira API token.")
+@click.option("--jira-project", default=None, envvar="ORTHRUS_JIRA_PROJECT", help="Jira project key.")
+@click.option("--dry-run", is_flag=True, help="Print the payloads instead of sending them.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def notify(
+    scan_id: str,
+    min_severity: str,
+    slack_webhook: str | None,
+    jira_url: str | None,
+    jira_user: str | None,
+    jira_token: str | None,
+    jira_project: str | None,
+    dry_run: bool,
+    verbose: str,
+) -> None:
+    """Push a scan's high-severity findings to Slack and/or Jira.
+
+    Slack sends one summary message; Jira opens one issue per finding. Credentials
+    come from flags or ORTHRUS_SLACK_WEBHOOK / ORTHRUS_JIRA_* env vars. Use
+    --dry-run to preview the exact payloads without sending anything.
+    """
+    configure_logging(verbose)
+    jira = (jira_url, jira_user, jira_token, jira_project)
+    if not slack_webhook and not all(jira):
+        raise click.UsageError(
+            "specify --slack <webhook> and/or all of --jira-url/--jira-user/--jira-token/--jira-project"
+        )
+    asyncio.run(_notify_cmd(scan_id, min_severity, slack_webhook, jira, dry_run))
+
+
+async def _notify_cmd(
+    scan_id: str, min_severity: str, slack_webhook: str | None, jira: tuple, dry_run: bool
+) -> None:
+    from orthrus.integrations.notify import (
+        at_or_above,
+        create_jira_issues,
+        jira_issue,
+        send_slack,
+        slack_message,
+    )
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return
+
+    selected = at_or_above(rows, min_severity)
+    if not selected:
+        console.print(f"[orthrus.muted]No findings at or above '{min_severity}' — nothing to notify.[/]")
+        return
+
+    if slack_webhook:
+        payload = slack_message(scan_id, scan.target, rows, min_severity)
+        if dry_run:
+            section(console, "SLACK (dry-run)")
+            click.echo(json.dumps(payload, indent=2, ensure_ascii=False))
+        else:
+            ok = await send_slack(slack_webhook, payload)
+            console.print(
+                f"[status.completed]Slack: sent summary of {len(selected)} finding(s)[/]"
+                if ok else "[status.failed]Slack: send failed (see log)[/]"
+            )
+
+    if all(jira):
+        jira_url, jira_user, jira_token, jira_project = jira
+        if dry_run:
+            section(console, "JIRA (dry-run)")
+            for r in selected[:3]:
+                click.echo(json.dumps(jira_issue(r, jira_project, scan_id), indent=2, ensure_ascii=False))
+            if len(selected) > 3:
+                console.print(f"[orthrus.muted]…and {len(selected) - 3} more issue(s).[/]")
+        else:
+            keys = await create_jira_issues(
+                jira_url, jira_user, jira_token, jira_project, selected, scan_id
+            )
+            console.print(f"[status.completed]Jira: created {len(keys)} issue(s): {', '.join(keys)}[/]")
+
+
+@cli.command(name="runbook")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--min-severity", default="info",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only include findings at or above this severity.",
+)
+@click.option("--output", "-o", type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Write the runbook to this file instead of stdout.")
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON instead of Markdown.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def runbook(scan_id: str, min_severity: str, output: str | None, as_json: bool, verbose: str) -> None:
+    """Consolidated remediation runbook — the few fixes that retire a scan's risk.
+
+    Collapses findings that share a fix into one prioritised action, ordered so the
+    highest-leverage change (one that breaks a correlated attack path) is first.
+    Emits Markdown to stdout by default; use -o to write a file or --json for data.
+    """
+    configure_logging(verbose)
+    # DB I/O runs in the async loop; rendering + file write stay in this sync layer.
+    report = asyncio.run(_runbook_load(scan_id, min_severity))
+    if report is None:
+        return
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+        return
+    markdown = report.to_markdown()
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            fh.write(markdown)
+        console.print(f"[status.completed]Runbook written to {output}[/] — {report.summary()}")
+    else:
+        click.echo(markdown)
+
+
+async def _runbook_load(scan_id: str, min_severity: str):
+    """Load a scan's findings, filter by severity, and build the runbook (or None)."""
+    from orthrus.reporting.runbook import build_runbook
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return None
+
+    order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+    floor = order[min_severity]
+
+    def _rank(row: object) -> int:
+        sev = getattr(row, "severity", "info")
+        return order.get(getattr(sev, "value", sev) or "info", 0)
+
+    rows = [r for r in rows if _rank(r) >= floor]
+    return build_runbook(rows, target=scan.target, scan_id=scan_id)
 
 
 @cli.command(name="hosts")

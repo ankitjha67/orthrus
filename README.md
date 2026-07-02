@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-894-test / lint-clean quality gates.
+936-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
@@ -300,12 +300,18 @@ targets:
 ## 📖 Usage guide
 
 ORTHRUS's core sub-commands are `recon`, `scan`, `exploit`, and `report`, plus
-utility commands: `doctor` (environment readiness), `modules` (module inventory),
-`findings` (terminal triage view), `diff` (compare two scans), `scans` (list past
-scans), `benchmark` (detection-accuracy harness), `update` (refresh CISA-KEV
-intel), `serve` (REST API + dashboard), `mcp` (MCP server for AI agents), `iac`
-(Infrastructure-as-Code audit), and `completion` (shell completion). Run
-`orthrus --help` for the full list.
+post-scan analysis and delivery: `findings` (terminal triage view), `triage`
+(dedup/cluster + optional LLM false-positive judge), `chains` / `graph`
+(correlate findings into attack paths / maximal kill-chains), `runbook`
+(consolidated remediation plan, ordered so the highest-leverage fix — one that
+breaks an attack path — comes first), `finding` (set a finding's status/owner),
+and `notify` (push high-severity findings to Slack / Jira, with `--dry-run`).
+Utility commands: `doctor` (environment readiness), `modules` (module inventory),
+`diff` (compare two scans), `scans` (list past scans), `benchmark`
+(detection-accuracy harness), `update` (refresh CISA-KEV intel), `serve` (REST
+API + dashboard), `mcp` (MCP server for AI agents), `iac` (Infrastructure-as-Code
+audit), and `completion` (shell completion). Run `orthrus --help` for the full
+list.
 
 ### `orthrus scan` — the full pipeline
 
