@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-936-test / lint-clean quality gates.
+996-test / lint-clean quality gates.
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
@@ -305,7 +305,12 @@ post-scan analysis and delivery: `findings` (terminal triage view), `triage`
 (correlate findings into attack paths / maximal kill-chains), `runbook`
 (consolidated remediation plan, ordered so the highest-leverage fix — one that
 breaks an attack path — comes first), `finding` (set a finding's status/owner),
-and `notify` (push high-severity findings to Slack / Jira, with `--dry-run`).
+`notify` (push high-severity findings to Slack / Jira, with `--dry-run`), and
+`patch` (generate concrete config/code remediation patches per finding).
+Autonomous & posture: `agent` (a bounded LLM planner that sequences the existing
+scope-enforced, non-destructive scanners — no shells, no arbitrary code), `cloud`
+(read-only CSPM/IAM posture + toxic-combination analysis), and `proxy` (a
+scope-aware capturing proxy that feeds the scanner from a manual browse).
 Utility commands: `doctor` (environment readiness), `modules` (module inventory),
 `diff` (compare two scans), `scans` (list past scans), `benchmark`
 (detection-accuracy harness), `update` (refresh CISA-KEV intel), `serve` (REST
