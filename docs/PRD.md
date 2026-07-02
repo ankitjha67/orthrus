@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 14 mods  │   │ 55 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 16 mods  │   │ 58 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -188,7 +188,7 @@ SQLAlchemy 2.0 async ORM (SQLite default, Postgres via `[postgres]`). Per-call `
 
 ---
 
-## 6. Reconnaissance subsystem (14 modules)
+## 6. Reconnaissance subsystem (16 modules)
 
 Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseline`) computed first.
 
@@ -208,6 +208,8 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 | `wayback` | wayback | Historical URLs from Internet Archive CDX | `MAX_RESULTS=500` |
 | `port_scan` | port-scan | Nmap `-sV` open ports (optional binary) | opt-in |
 | `param_mining` | param-miner | Arjun-style hidden query-param discovery via reflection (40 candidates) | `MAX_ENDPOINTS=20`, `MAX_REQUESTS=900` |
+| `ip_intel` | ip-intel | Passive IP infrastructure intel — reverse DNS (PTR) + ASN/org/network/country (Team Cymru DNS) + cloud attribution → `Asset.ip_intel` | passive |
+| `host_gathering` | host-gather | Consolidated host footprint from passive sources (reverse-IP / netblock sweep / CT / Wayback) → related assets | passive |
 
 **Spec parsing** (`spec_parsers.py`, offline): OpenAPI 3.x / Swagger 2.0, GraphQL introspection, HAR, Postman v2.x → typed `Endpoint`s with `$ref` deref + schema-sampled values.
 
@@ -556,7 +558,7 @@ orthrus/
   core/        orchestrator, config, schemas, context, auth, callback,
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
-  recon/       14 modules + spec_parsers + registry
+  recon/       16 modules + spec_parsers + registry
   scanners/    58 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds

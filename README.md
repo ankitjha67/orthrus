@@ -83,13 +83,14 @@ roadmap for advanced scanners & methods.
 
 ## ✨ Features
 
-**Reconnaissance (14 modules)**
+**Reconnaissance (16 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
 - Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
 - Parameter mining (Arjun-style hidden-parameter discovery)
 - JavaScript analysis (endpoint + secret extraction), **source-map recovery** (recover endpoints from leaked `.map` files), content discovery
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
+- Passive IP-address intelligence (reverse-DNS / ASN / geo / cloud attribution) + co-hosted host gathering
 - Nmap port scan (optional; needs the `nmap` binary)
 
 **Vulnerability scanners (58)**
