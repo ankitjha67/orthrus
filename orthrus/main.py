@@ -2605,6 +2605,73 @@ def iac_cmd(path: str, output: str | None, fail_on: str | None, verbose: str) ->
             raise SystemExit(1)
 
 
+@cli.command(name="cloud")
+@click.argument("snapshot", type=click.Path(exists=True), required=False)
+@click.option("--provider", type=click.Choice(["aws"]), default="aws", help="Cloud provider (for --live).")
+@click.option("--live", is_flag=True,
+              help="Collect a read-only inventory from the provider (needs credentials + [cloud] extra).")
+@click.option("--regions", default="us-east-1", help="Comma-separated regions for --live collection.")
+@click.option("--toxic-only", is_flag=True, help="Show only the correlated toxic-combination paths.")
+@click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
+@click.option(
+    "--fail-on", type=click.Choice(["critical", "high", "medium", "low", "info"]), default=None,
+    help="Exit non-zero if a finding at/above this severity is found (for CI).",
+)
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def cloud_cmd(
+    snapshot: str | None, provider: str, live: bool, regions: str, toxic_only: bool,
+    output: str | None, fail_on: str | None, verbose: str,
+) -> None:
+    """Assess cloud security posture (CSPM/IAM) from a snapshot or read-only collection.
+
+    Consumes a normalized inventory JSON (SNAPSHOT) — or, with --live, collects one
+    read-only from the provider using your own credentials — and reports public /
+    unencrypted / over-privileged resources plus the CRITICAL *toxic combinations*
+    an attacker would chain (internet-reachable workload + privileged role, admin
+    user without MFA, PassRole escalation). Read-only: it never modifies anything.
+    """
+    configure_logging(verbose)
+    from orthrus.cloud.models import CloudInventory
+    from orthrus.cloud.toxic import analyze_cloud, toxic_combinations
+
+    if live:
+        from orthrus.cloud.collect import collect_aws
+        try:
+            inv = collect_aws(regions=tuple(r.strip() for r in regions.split(",") if r.strip()))
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc)) from exc
+    elif snapshot:
+        with open(snapshot, encoding="utf-8") as fh:
+            inv = CloudInventory.from_dict(json.load(fh))
+    else:
+        raise click.UsageError("provide a SNAPSHOT inventory file, or use --live to collect one")
+
+    findings = toxic_combinations(inv) if toxic_only else analyze_cloud(inv)
+    section(console, f"CLOUD POSTURE · {inv.provider} {inv.account_id}".rstrip())
+    if findings:
+        console.print(findings_table(findings))
+        combos = sum(1 for f in findings if f.vuln_type == "cloud-toxic-combo")
+        console.print(
+            f"\n[orthrus.muted]{len(inv.resources)} resource(s) · {len(findings)} finding(s) · "
+            f"{combos} toxic combination(s)[/]"
+        )
+    else:
+        console.print("[green]No cloud posture issues found.[/]")
+
+    if output:
+        payload = {"findings": [f.model_dump(mode="json") for f in findings]}
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2, default=str)
+        console.print(f"wrote {len(findings)} finding(s) to {output}")
+
+    if fail_on:
+        order = ["info", "low", "medium", "high", "critical"]
+        threshold = order.index(fail_on)
+        worst = max((order.index(f.severity.value) for f in findings), default=-1)
+        if worst >= threshold:
+            raise SystemExit(1)
+
+
 @cli.command()
 @click.option("--target", "-t", required=True, help="Target URL (a host you own / are authorized to test).")
 @click.option(
