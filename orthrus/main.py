@@ -2653,6 +2653,82 @@ def mcp_cmd() -> None:
     server.run()
 
 
+@cli.command(name="proxy")
+@click.option("--port", default=8080, type=int, help="Local port to listen on.")
+@click.option("--host", default="127.0.0.1", help="Local bind address.")
+@click.option("--scope", "scope_str", default=None,
+              help="Authorized scope: comma-separated domains / CIDRs (required — deny by default).")
+@click.option("--scan-id", default=None, help="Persist captured endpoints into this existing scan.")
+@click.option("--allow-out-of-scope", is_flag=True,
+              help="Pass through (don't block) out-of-scope requests; they are never captured.")
+@click.option("--exclude-paths", default=None, help="Comma-separated regex paths to never forward.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def proxy_cmd(
+    port: int, host: str, scope_str: str | None, scan_id: str | None,
+    allow_out_of_scope: bool, exclude_paths: str | None, verbose: str,
+) -> None:
+    """Run a scope-aware capturing proxy to feed the scanner from a manual browse.
+
+    Point your browser / HTTP client at http://HOST:PORT and browse the authorized
+    target; every in-scope request's endpoint + parameters are captured (into a
+    scan with --scan-id). Deny-by-default: out-of-scope requests are blocked unless
+    --allow-out-of-scope is set (pass-through traffic is never captured). HTTPS is
+    tunneled opaquely (no TLS interception).
+    """
+    configure_logging(verbose)
+    if not scope_str:
+        raise click.UsageError(
+            "--scope is required (deny by default): pass the authorized host(s)/CIDR(s)"
+        )
+    scope = build_scope(scope_str, "", exclude_paths, block_third_party=not allow_out_of_scope)
+    asyncio.run(_proxy_cmd(host, port, scope, scan_id, allow_out_of_scope))
+
+
+async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
+    from orthrus.proxy import ProxyServer
+
+    settings = get_settings()
+    store = None
+    on_capture = None
+    if scan_id:
+        store = Store(settings.db_url, encryption_key=settings.encryption_key)
+        await store.init()
+        if await store.get_scan(scan_id) is None:
+            logger.error("no such scan: %s (create one with `orthrus scan`)", scan_id)
+            await store.close()
+            return
+
+        async def on_capture(endpoint) -> None:
+            try:
+                await store.add_endpoint(scan_id, endpoint)
+            except Exception as exc:  # noqa: BLE001 - a capture failure must not kill the proxy
+                logger.debug("capture persist failed: %s", exc)
+
+    server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope)
+    srv = await server.serve(host, port)
+    section(console, f"PROXY · {host}:{port}")
+    console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] — set your client's HTTP proxy to it.")
+    scope_desc = ", ".join(scope.domains + scope.ip_ranges) or "auto"
+    console.print(
+        f"[orthrus.muted]scope: {scope_desc} · out-of-scope: "
+        f"{'passthrough' if allow_out_of_scope else 'blocked'}"
+        f"{' · capturing into ' + scan_id if scan_id else ' · not persisting (use --scan-id)'}[/]"
+    )
+    console.print("[orthrus.muted]Ctrl-C to stop.[/]")
+    try:
+        async with srv:
+            await srv.serve_forever()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        pass
+    finally:
+        console.print(
+            f"\n[status.completed]Captured {server.captured} in-scope request(s); "
+            f"blocked {server.blocked} out-of-scope.[/]"
+        )
+        if store is not None:
+            await store.close()
+
+
 @cli.command(name="iac")
 @click.argument("path", type=click.Path(exists=True))
 @click.option("--output", "-o", default=None, help="Write findings as JSON to this path.")
