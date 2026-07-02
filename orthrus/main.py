@@ -22,7 +22,7 @@ import click
 
 from orthrus import __version__
 from orthrus.core.config import ScanConfig, ScopeConfig, get_settings
-from orthrus.core.schemas import Aggressiveness
+from orthrus.core.schemas import FINDING_STATUSES, Aggressiveness
 from orthrus.db.store import Store
 from orthrus.reporting.generator import generate_report
 from orthrus.utils.logger import configure_logging, console, get_logger
@@ -1130,6 +1130,7 @@ def _finding_summary(row: object) -> dict:
     the encrypted store and the full report, never on stdout.
     """
     return {
+        "id": getattr(row, "id", None),
         "vuln_type": row.vuln_type,
         "title": row.title,
         "severity": row.severity,
@@ -1139,6 +1140,8 @@ def _finding_summary(row: object) -> dict:
         "cwe": row.cwe,
         "cvss_score": row.cvss_score,
         "scanner": row.scanner,
+        "status": getattr(row, "status", None) or "open",
+        "owner": getattr(row, "owner", None),
     }
 
 
@@ -1198,6 +1201,63 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
 
     section(console, f"FINDINGS · {scan_id}")
     console.print(findings_table(rows))
+    console.print(
+        "[orthrus.muted]Triage: set status/owner with "
+        "`orthrus finding status <id> <state>` / `orthrus finding assign <id> <owner>` "
+        "(ids in `--json`).[/]"
+    )
+
+
+_UNSET = object()  # sentinel: "owner argument not provided" vs "clear owner to None"
+
+
+@cli.group(name="finding")
+def finding() -> None:
+    """Manage a stored finding's triage lifecycle (status / ownership)."""
+
+
+@finding.command(name="status")
+@click.argument("finding_id", type=int)
+@click.argument("state", type=click.Choice(FINDING_STATUSES))
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def finding_status(finding_id: int, state: str, verbose: str) -> None:
+    """Set a finding's triage STATE (open/triaged/in-progress/resolved/…).
+
+    FINDING_ID is the integer id shown by `orthrus findings --json`.
+    """
+    configure_logging(verbose)
+    asyncio.run(_set_finding_field(finding_id, status=state))
+
+
+@finding.command(name="assign")
+@click.argument("finding_id", type=int)
+@click.argument("owner")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def finding_assign(finding_id: int, owner: str, verbose: str) -> None:
+    """Assign a finding to an OWNER (use '-' to clear the assignment)."""
+    configure_logging(verbose)
+    asyncio.run(_set_finding_field(finding_id, owner=None if owner == "-" else owner))
+
+
+async def _set_finding_field(
+    finding_id: int, *, status: str | None = None, owner: str | None | object = _UNSET
+) -> None:
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        if status is not None:
+            ok = await store.set_finding_status(finding_id, status)
+            msg = f"status → {status}"
+        else:
+            ok = await store.set_finding_owner(finding_id, owner)  # type: ignore[arg-type]
+            msg = f"owner → {owner or '(unassigned)'}"
+    finally:
+        await store.close()
+    if ok:
+        console.print(f"[status.completed]finding {finding_id}: {msg}[/]")
+    else:
+        logger.error("no such finding id: %s (see `orthrus findings --scan-id <id> --json`)", finding_id)
 
 
 @cli.command(name="triage")

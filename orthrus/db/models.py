@@ -124,6 +124,9 @@ class Finding(Base):
     scanner: Mapped[str] = mapped_column(String(64), default="unknown")
     evidence_json: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    # Triage lifecycle (post-scan): status + ownership assignment.
+    status: Mapped[str] = mapped_column(String(24), default="open", index=True)
+    owner: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
     scan: Mapped[Scan] = relationship(back_populates="findings")
     endpoint: Mapped[Endpoint | None] = relationship(back_populates="findings")

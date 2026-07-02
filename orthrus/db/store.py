@@ -73,6 +73,8 @@ def _finding_to_schema(row: FindingRow) -> schemas.Finding:
         cvss_vector=row.cvss_vector,
         scanner=row.scanner,
         evidence=schemas.Evidence.model_validate(row.evidence_json or {}),
+        status=getattr(row, "status", None) or "open",
+        owner=getattr(row, "owner", None),
     )
 
 
@@ -104,6 +106,12 @@ class Store:
         asset_columns = {c["name"] for c in inspect(conn).get_columns("assets")}
         if "ip_intel_json" not in asset_columns:
             conn.execute(text("ALTER TABLE assets ADD COLUMN ip_intel_json JSON"))
+        # Triage lifecycle (status + ownership) was added to findings after launch.
+        finding_columns = {c["name"] for c in inspect(conn).get_columns("findings")}
+        if "status" not in finding_columns:
+            conn.execute(text("ALTER TABLE findings ADD COLUMN status VARCHAR(24) DEFAULT 'open'"))
+        if "owner" not in finding_columns:
+            conn.execute(text("ALTER TABLE findings ADD COLUMN owner VARCHAR(128)"))
 
     def session(self) -> AsyncSession:
         return self._session_factory()
@@ -281,6 +289,26 @@ class Store:
             session.add(row)
             await session.commit()
             return row.id
+
+    async def set_finding_status(self, finding_id: int, status: str) -> bool:
+        """Update a finding's triage status. Returns False if the id is unknown."""
+        async with self.session() as session:
+            row = await session.get(FindingRow, finding_id)
+            if row is None:
+                return False
+            row.status = status
+            await session.commit()
+            return True
+
+    async def set_finding_owner(self, finding_id: int, owner: str | None) -> bool:
+        """Assign (or clear, with None) a finding's owner. False if id unknown."""
+        async with self.session() as session:
+            row = await session.get(FindingRow, finding_id)
+            if row is None:
+                return False
+            row.owner = owner
+            await session.commit()
+            return True
 
     async def get_findings(self, scan_id: str) -> list[FindingRow]:
         async with self.session() as session:
