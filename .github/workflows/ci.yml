@@ -7,12 +7,17 @@ on:
 
 jobs:
   test:
-    name: lint + test (py${{ matrix.python-version }})
-    runs-on: ubuntu-latest
+    name: lint + test (${{ matrix.os }} py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         python-version: ["3.11", "3.12", "3.13"]
+        include:
+          # Prove it also installs + passes on macOS (non-Windows coverage).
+          - os: macos-latest
+            python-version: "3.12"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -22,7 +27,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,scanners,api,mcp,grpc]"
+          pip install -e ".[dev,scanners,api,mcp,grpc,cloud]"
       - name: Ruff (lint)
         run: ruff check orthrus tests
       - name: Pytest

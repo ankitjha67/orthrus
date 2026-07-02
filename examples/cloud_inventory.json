@@ -1,0 +1,13 @@
+{
+  "provider": "aws",
+  "account_id": "123456789012",
+  "_comment": "Sample normalized cloud inventory for `orthrus cloud examples/cloud_inventory.json`. Hand-exported / snapshot format; a read-only boto3 collection (`orthrus cloud --live`) produces the same shape.",
+  "resources": [
+    {"id": "i-0abc123", "type": "ec2-instance", "name": "web-1", "public": true, "open_ports": [22, 443], "attached_roles": ["arn:aws:iam::123456789012:role/app-admin"]},
+    {"id": "arn:aws:iam::123456789012:role/app-admin", "type": "iam-role", "name": "app-admin", "permissions": ["*"]},
+    {"id": "arn:aws:s3:::customer-exports", "type": "s3-bucket", "name": "customer-exports", "public": true, "encrypted": false, "tags": {"data-classification": "PII"}},
+    {"id": "arn:aws:iam::123456789012:user/ci-deploy", "type": "iam-user", "name": "ci-deploy", "permissions": ["iam:PassRole", "ec2:RunInstances"], "mfa_enabled": false},
+    {"id": "arn:aws:rds:us-east-1:123456789012:db:analytics", "type": "rds-instance", "name": "analytics", "public": true, "encrypted": false},
+    {"id": "arn:aws:s3:::static-assets", "type": "s3-bucket", "name": "static-assets", "public": false, "encrypted": true}
+  ]
+}

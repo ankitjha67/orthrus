@@ -23,10 +23,22 @@ reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
 996-test / lint-clean quality gates.
 
+🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
+attack-graph → runbook → patches → cloud posture → agent) with real output,
+reproducible in one command via [`demo.sh`](demo.sh).
+
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
 implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
+
+> **Status & positioning.** ORTHRUS is an early (v0.1.0), actively-developed
+> project built as a deep, hands-on exploration of how a modern DAST pipeline
+> fits together end to end. It's an *integrated framework* — recon → scan →
+> exploitation-confirmation → correlation → reporting in one tool — meant to
+> **complement**, not replace, mature and battle-tested tools like Burp Suite,
+> OWASP ZAP, or nuclei. Verify its findings, and expect rough edges. Bug reports,
+> false-positive reports, and feedback are very welcome.
 
 ---
 
@@ -569,9 +581,13 @@ research only.**
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome. Please keep changes scope-safe (all network
-access must go through `HttpClient`), add tests for new scanners/exploits, and run
-`ruff` + `pytest` before submitting.
+Issues and pull requests are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**
+for dev setup, the quality gates (`ruff check orthrus tests` + `pytest -q`), and
+how to add a scanner. Keep changes scope-safe (all network access goes through the
+scope-enforced `HttpClient`) and add tests for new detectors.
+
+Found a security issue **in ORTHRUS itself**? Please follow the responsible-disclosure
+process in **[SECURITY.md](SECURITY.md)** rather than opening a public issue.
 
 ## 📄 License
 

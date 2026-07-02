@@ -23,7 +23,7 @@
 
 ## 1. Product overview & vision
 
-ORTHRUS is a **Kali-grade, fully-automated dynamic application security testing (DAST) framework** for **authorized** engagements. It crawls a target, fingerprints its stack, runs a broad fleet of vulnerability scanners, and — uniquely — runs a fourth **exploitation-confirmation** phase that actively re-proves the interesting findings so a report can distinguish *"this looks vulnerable"* (`tentative`/`firm`) from *"this was demonstrably exploited"* (`confirmed`).
+ORTHRUS is a **fully-automated dynamic application security testing (DAST) framework** for **authorized** engagements. It crawls a target, fingerprints its stack, runs a broad fleet of vulnerability scanners, and — uniquely — runs a fourth **exploitation-confirmation** phase that actively re-proves the interesting findings so a report can distinguish *"this looks vulnerable"* (`tentative`/`firm`) from *"this was demonstrably exploited"* (`confirmed`).
 
 **Positioning.** Where most open scanners stop at *detection* (and drown the user in unverified "potential" findings), ORTHRUS treats a finding as a hypothesis and tries to falsify or prove it. The result is a low-false-positive report with machine-readable evidence, CVSS v3.1/v4.0 scoring, and OWASP/CWE/PCI-DSS/NIST-CSF/MITRE-ATT&CK mappings, exportable as JSON/CSV/HTML/PDF/SARIF/Markdown.
 
