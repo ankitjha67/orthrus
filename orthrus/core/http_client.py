@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import ipaddress
 import random
+import socket
 from types import TracebackType
 from urllib.parse import urlsplit
 
@@ -23,7 +25,7 @@ from orthrus.core.event_bus import EventBus, EventType
 from orthrus.core.session import Session
 from orthrus.utils.logger import get_logger
 from orthrus.utils.rate_limiter import RateLimiter
-from orthrus.utils.scope import ScopeValidator, ScopeViolation
+from orthrus.utils.scope import ScopeValidator, ScopeViolation, _ip_in_ranges
 
 logger = get_logger("http_client")
 
@@ -87,6 +89,8 @@ class HttpClient:
 
         self.requests_sent = 0
         self.scope_violations = 0
+        # DNS-rebinding guard: per-host verdict cache (hostname -> resolved-IP allowed).
+        self._ip_scope_cache: dict[str, bool] = {}
         # Guard so a reauth hook (which itself issues requests) can't recurse.
         self._reauthing = False
         # Body markers that signal a dropped session; the orchestrator overrides
@@ -203,9 +207,84 @@ class HttpClient:
         merged["User-Agent"] = ua  # force the rotated identity even over caller headers
         return merged
 
+    async def _resolve_host(self, host: str, port: int | None) -> list[str]:
+        """Resolve a hostname to its IP address(es), async and best-effort."""
+        try:
+            loop = asyncio.get_running_loop()
+            infos = await asyncio.wait_for(
+                loop.getaddrinfo(host, port, type=socket.SOCK_STREAM), timeout=5.0
+            )
+        except (TimeoutError, OSError):
+            return []  # unresolvable / slow → fail open; httpx will attempt & fail
+        out: list[str] = []
+        for info in infos:
+            addr = str(info[4][0])
+            if addr not in out:
+                out.append(addr)
+        return out
+
+    @staticmethod
+    def _ip_is_internal(ip: str) -> bool:
+        try:
+            obj = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+        return bool(
+            obj.is_private or obj.is_loopback or obj.is_link_local
+            or obj.is_reserved or obj.is_multicast or obj.is_unspecified
+        )
+
+    async def _enforce_resolved_ip(self, url: str, *, is_redirect: bool) -> None:
+        """DNS-rebinding guard: an in-scope *hostname* must not resolve to an
+        internal/reserved address (loopback, RFC-1918, link-local 169.254.x,
+        multicast, …) unless that address is explicitly authorized in the
+        engagement's ``ip_ranges``. The string scope check validates the *name*;
+        this validates where it actually *points* — closing the SSRF-via-scope /
+        rebinding gap where an authorized domain resolves to internal infra.
+        """
+        parts = urlsplit(url)
+        host = parts.hostname or ""
+        if not host:
+            return
+        try:
+            ipaddress.ip_address(host)
+            return  # already an IP literal — the string scope check validated it
+        except ValueError:
+            pass
+        cached = self._ip_scope_cache.get(host)
+        if cached is not None:
+            if not cached:
+                raise ScopeViolation(
+                    url, "host resolves to a non-authorized internal address (DNS-rebinding guard)"
+                )
+            return
+        ips = await self._resolve_host(host, parts.port)
+        if not ips:
+            return
+        ranges = self.scope.scope.ip_ranges
+        bad = next(
+            (ip for ip in ips if self._ip_is_internal(ip) and not _ip_in_ranges(ip, ranges)), None
+        )
+        self._ip_scope_cache[host] = bad is None
+        if bad is not None:
+            self.scope_violations += 1
+            if self.event_bus is not None:
+                await self.event_bus.emit(
+                    EventType.SCOPE_VIOLATION, url=url,
+                    reason=f"{host} resolves to non-authorized address {bad}",
+                )
+            logger.warning(
+                "blocked out-of-scope %s to %s — host resolves to internal address %s "
+                "(DNS-rebinding guard)", "redirect" if is_redirect else "request", url, bad,
+            )
+            raise ScopeViolation(
+                url, f"host resolves to non-authorized address {bad} (DNS-rebinding guard)"
+            )
+
     async def _enforce_scope(self, url: str, *, is_redirect: bool = False) -> None:
         decision = self.scope.check(url)
         if decision.allowed:
+            await self._enforce_resolved_ip(url, is_redirect=is_redirect)
             return
         self.scope_violations += 1
         if self.event_bus is not None:

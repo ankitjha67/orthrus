@@ -44,12 +44,14 @@ from orthrus.recon.js_analyzer import JsAnalyzer
 from orthrus.recon.param_mining import ParameterMiner
 from orthrus.recon.port_scan import PortScan
 from orthrus.recon.registry import get_recon_plugins
+from orthrus.recon.robots_sitemap import RobotsSitemap
 from orthrus.recon.sourcemap_recovery import SourceMapRecovery
 from orthrus.recon.spa_crawl import SpaCrawl
 from orthrus.recon.subdomain_enum import SubdomainEnum
 from orthrus.recon.tech_fingerprint import TechFingerprint
 from orthrus.recon.waf_detect import WafDetect
 from orthrus.recon.wayback import Wayback
+from orthrus.recon.well_known import WellKnown
 from orthrus.reporting.generator import generate_report
 from orthrus.scanners.registry import get_scanners
 from orthrus.utils.logger import console, get_logger
@@ -383,6 +385,12 @@ class Orchestrator:
             modules.append(WafDetect())
         if which is None or "api" in which:
             modules.append(ApiDiscovery())
+        # robots.txt / sitemap.xml + /.well-known/ — cheap, high-signal endpoint
+        # discovery from the target's own advertised surface.
+        if which is None or "robots" in which:
+            modules.append(RobotsSitemap())
+        if which is None or "well-known" in which:
+            modules.append(WellKnown())
         # Dynamic (browser) crawl: navigates the SPA so its real XHR/fetch API
         # calls are captured as endpoints. applicable() gates on browser presence.
         if which is None or "browser" in which:
