@@ -1564,6 +1564,68 @@ async def _notify_cmd(
             console.print(f"[status.completed]Jira: created {len(keys)} issue(s): {', '.join(keys)}[/]")
 
 
+@cli.command(name="runbook")
+@click.option("--scan-id", required=True, help="Scan identifier from a previous run.")
+@click.option(
+    "--min-severity", default="info",
+    type=click.Choice(["critical", "high", "medium", "low", "info"]),
+    help="Only include findings at or above this severity.",
+)
+@click.option("--output", "-o", type=click.Path(dir_okay=False, writable=True), default=None,
+              help="Write the runbook to this file instead of stdout.")
+@click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON instead of Markdown.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def runbook(scan_id: str, min_severity: str, output: str | None, as_json: bool, verbose: str) -> None:
+    """Consolidated remediation runbook — the few fixes that retire a scan's risk.
+
+    Collapses findings that share a fix into one prioritised action, ordered so the
+    highest-leverage change (one that breaks a correlated attack path) is first.
+    Emits Markdown to stdout by default; use -o to write a file or --json for data.
+    """
+    configure_logging(verbose)
+    # DB I/O runs in the async loop; rendering + file write stay in this sync layer.
+    report = asyncio.run(_runbook_load(scan_id, min_severity))
+    if report is None:
+        return
+    if as_json:
+        click.echo(json.dumps(report.to_dict(), indent=2, ensure_ascii=False))
+        return
+    markdown = report.to_markdown()
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            fh.write(markdown)
+        console.print(f"[status.completed]Runbook written to {output}[/] — {report.summary()}")
+    else:
+        click.echo(markdown)
+
+
+async def _runbook_load(scan_id: str, min_severity: str):
+    """Load a scan's findings, filter by severity, and build the runbook (or None)."""
+    from orthrus.reporting.runbook import build_runbook
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        rows = await store.get_findings(scan_id) if scan is not None else []
+    finally:
+        await store.close()
+    if scan is None:
+        logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+        return None
+
+    order = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
+    floor = order[min_severity]
+
+    def _rank(row: object) -> int:
+        sev = getattr(row, "severity", "info")
+        return order.get(getattr(sev, "value", sev) or "info", 0)
+
+    rows = [r for r in rows if _rank(r) >= floor]
+    return build_runbook(rows, target=scan.target, scan_id=scan_id)
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
