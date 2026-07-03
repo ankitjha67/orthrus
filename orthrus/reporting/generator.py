@@ -25,6 +25,7 @@ from orthrus.db.models import Exploitation as ExploitationRow
 from orthrus.db.models import Finding as FindingRow
 from orthrus.db.store import Store
 from orthrus.intel.cve_intel import epss_for_text
+from orthrus.reporting.attack_map import attack_for, build_navigator_layer, d3fend_for
 from orthrus.reporting.cvss import DEFAULT_VECTORS, base_score, v4_for
 from orthrus.utils import crypto
 from orthrus.utils.logger import get_logger
@@ -196,6 +197,8 @@ def _finding_dict(
         "pci_dss": PCI_DSS.get(row.vuln_type, "—"),
         "nist_csf": NIST_CSF.get(row.vuln_type, _NIST_DEFAULT),
         "mitre_attack": MITRE_ATTACK.get(row.vuln_type, _MITRE_DEFAULT),
+        "attack": attack_for(row.vuln_type),  # structured ATT&CK techniques [{id,name,url}]
+        "d3fend": d3fend_for(row.vuln_type),  # D3FEND countermeasures [{id,name}]
         "cvss_score": score,
         "cvss_vector": vector,
         "epss": epss_for_text(f"{row.title} {row.description}"),
@@ -719,6 +722,10 @@ async def generate_report(
 
     if fmt == "sarif":
         return await _emit(_write_sarif(context), output, "sarif")
+
+    if fmt == "navigator":
+        layer = build_navigator_layer(context["findings"], name=f"ORTHRUS {scan_id}")
+        return await _emit(json.dumps(layer, indent=2, ensure_ascii=False), output, "json")
 
     if fmt in ("md", "markdown"):
         return await _emit(_write_markdown(context), output, "md")
