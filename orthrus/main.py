@@ -455,8 +455,8 @@ def cli(no_banner: bool) -> None:
     "--format",
     "report_format",
     default="json",
-    type=click.Choice(["json", "html", "pdf", "csv", "sarif", "md"]),
-    help="Report format.",
+    type=click.Choice(["json", "html", "pdf", "csv", "sarif", "md", "navigator"]),
+    help="Report format ('navigator' = MITRE ATT&CK Navigator layer JSON).",
 )
 @click.option("--template", default="technical", help="Report template: executive/technical/compliance.")
 @click.option("--min-severity", "min_severity", default=None, help="Only report findings >= this severity.")
@@ -1031,8 +1031,8 @@ async def _run_exploit(scan_id: str) -> None:
     "--format",
     "fmt",
     default="json",
-    type=click.Choice(["json", "html", "pdf", "csv", "sarif", "md"]),
-    help="Report format.",
+    type=click.Choice(["json", "html", "pdf", "csv", "sarif", "md", "navigator"]),
+    help="Report format ('navigator' = MITRE ATT&CK Navigator layer JSON).",
 )
 @click.option("--template", default="technical", help="Template: executive/technical/compliance.")
 @click.option("--logo", default=None, help="Logo image embedded in HTML/PDF reports.")

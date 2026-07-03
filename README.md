@@ -154,7 +154,7 @@ generic automated exploit exists — most notably **insecure deserialization**
 chain) — so ORTHRUS reports them rather than inventing a misleading confirmation.
 
 **Reporting**
-- Formats: **JSON, CSV, HTML, PDF, SARIF, Markdown**
+- Formats: **JSON, CSV, HTML, PDF, SARIF, Markdown, MITRE ATT&CK Navigator layer**
 - Templates: **executive**, **technical**, **compliance**
 - **CVSS v3.1 + v4.0** scoring; **OWASP Top 10 / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK** mappings
 - Severity filtering, logo branding, embedded screenshots & raw request/response evidence
@@ -470,9 +470,16 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
 - **SARIF** — Static Analysis Results Interchange Format for CI / code-scanning
   dashboards (e.g. GitHub code scanning); pair with `--fail-on` to gate a pipeline.
 - **Markdown** — portable plain-text report for tickets, pull requests, and wikis.
+- **ATT&CK Navigator** (`--format navigator`) — a MITRE ATT&CK Navigator layer JSON,
+  heat-mapped by finding count; drop it into
+  [mitre-attack.github.io/attack-navigator](https://mitre-attack.github.io/attack-navigator/)
+  to see the scan on the ATT&CK matrix.
 
 Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
-10, CWE, PCI-DSS, NIST-CSF, and MITRE ATT&CK.
+10, CWE, PCI-DSS, NIST-CSF, **MITRE ATT&CK** (structured technique IDs), and
+**MITRE D3FEND** countermeasures. The per-vuln ATT&CK technique selection was
+informed by the [Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills)
+catalogue (Apache-2.0); the IDs are public MITRE facts.
 
 **Share the terminal view.** `examples/render_report_ui.py` renders any JSON
 report into the themed terminal UI (banner, scope panel, summary, OWASP coverage,
