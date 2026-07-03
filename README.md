@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1011-test / lint-clean quality gates.
+1019-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
