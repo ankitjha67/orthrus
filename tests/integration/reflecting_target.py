@@ -342,6 +342,40 @@ class Handler(BaseHTTPRequestHandler):
             self._html(LOGIN_FORM)
         elif parts.path == "/dashboard":
             self._html("<html><body>Welcome, admin</body></html>")
+        elif parts.path == "/robots.txt":
+            base = f"http://{self.headers.get('Host', '127.0.0.1')}"
+            self._raw(
+                (
+                    "User-agent: *\n"
+                    "Disallow: /dashboard\n"
+                    "Disallow: /internal-export\n"
+                    "Disallow: /login\n"
+                    f"Sitemap: {base}/sitemap.xml\n"
+                ).encode(),
+                "text/plain",
+            )
+        elif parts.path == "/sitemap.xml":
+            base = f"http://{self.headers.get('Host', '127.0.0.1')}"
+            locs = "".join(
+                f"<url><loc>{base}{p}</loc></url>"
+                for p in ("/profile?id=1", "/search?q=x", "/backup-old")
+            )
+            self._raw(f'<?xml version="1.0"?><urlset>{locs}</urlset>'.encode(), "application/xml")
+        elif parts.path == "/.well-known/security.txt":
+            base = f"http://{self.headers.get('Host', '127.0.0.1')}"
+            self._raw(
+                f"Contact: mailto:security@example.test\nPolicy: {base}/security-policy\n".encode(),
+                "text/plain",
+            )
+        elif parts.path == "/.well-known/openid-configuration":
+            base = f"http://{self.headers.get('Host', '127.0.0.1')}"
+            self._raw(
+                (
+                    f'{{"issuer": "{base}", "authorization_endpoint": "{base}/oauth/authorize", '
+                    f'"token_endpoint": "{base}/oauth/token", "jwks_uri": "{base}/.well-known/jwks.json"}}'
+                ).encode(),
+                "application/json",
+            )
         elif parts.path == "/app.js":
             self._raw(APP_JS.encode(), "application/javascript")
         elif parts.path == "/.env":

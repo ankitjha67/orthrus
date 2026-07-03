@@ -21,14 +21,14 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-996-test / lint-clean quality gates.
+1011-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
 reproducible in one command via [`demo.sh`](demo.sh).
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
-implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 16 recon
+implemented-system PRD: every subsystem (58 scanners, 17 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -95,11 +95,12 @@ roadmap for advanced scanners & methods.
 
 ## ✨ Features
 
-**Reconnaissance (16 modules)**
+**Reconnaissance (18 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
 - Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
 - Parameter mining (Arjun-style hidden-parameter discovery)
 - JavaScript analysis (endpoint + secret extraction), **source-map recovery** (recover endpoints from leaked `.map` files), content discovery
+- **robots.txt / sitemap.xml** endpoint discovery (sitemap index + `.gz`) and **`/.well-known/`** probing (security.txt, OpenID/OAuth config → auth endpoints)
 - Subdomain enumeration, DNS enumeration (+ AXFR attempt), WAF detection
 - REST/GraphQL API discovery, Wayback Machine historical URLs
 - Passive IP-address intelligence (reverse-DNS / ASN / geo / cloud attribution) + co-hosted host gathering

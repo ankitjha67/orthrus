@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 58 scanners · 17 confirmation modules · 16 recon modules · 996 passing tests · `ruff` clean |
+| Verified snapshot | 58 scanners · 17 confirmation modules · 18 recon modules · 1011 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 16 mods  │   │ 58 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 58 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -188,7 +188,7 @@ SQLAlchemy 2.0 async ORM (SQLite default, Postgres via `[postgres]`). Per-call `
 
 ---
 
-## 6. Reconnaissance subsystem (16 modules)
+## 6. Reconnaissance subsystem (18 modules)
 
 Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseline`) computed first.
 
@@ -210,6 +210,8 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 | `param_mining` | param-miner | Arjun-style hidden query-param discovery via reflection (40 candidates) | `MAX_ENDPOINTS=20`, `MAX_REQUESTS=900` |
 | `ip_intel` | ip-intel | Passive IP infrastructure intel — reverse DNS (PTR) + ASN/org/network/country (Team Cymru DNS) + cloud attribution → `Asset.ip_intel` | passive |
 | `host_gathering` | host-gather | Consolidated host footprint from passive sources (reverse-IP / netblock sweep / CT / Wayback) → related assets | passive |
+| `robots_sitemap` | robots-sitemap | robots.txt `Disallow`/`Allow` paths + sitemap.xml URLs (sitemap-index recursion, `.gz`); `<loc>` parsed by regex, never an XML parser on hostile input | passive |
+| `well_known` | well-known | Probes `/.well-known/` (security.txt, openid-configuration / oauth-authorization-server → advertised OIDC endpoints, change-password, assetlinks, mta-sts, host-meta) | passive |
 
 **Spec parsing** (`spec_parsers.py`, offline): OpenAPI 3.x / Swagger 2.0, GraphQL introspection, HAR, Postman v2.x → typed `Endpoint`s with `$ref` deref + schema-sampled values.
 
@@ -396,7 +398,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **996 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1011 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -424,7 +426,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 13 |
-| Automated tests | **996** (ruff clean) |
+| Automated tests | **1011** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -558,7 +560,7 @@ orthrus/
   core/        orchestrator, config, schemas, context, auth, callback,
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
-  recon/       16 modules + spec_parsers + registry
+  recon/       18 modules + spec_parsers + registry
   scanners/    58 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
@@ -571,7 +573,7 @@ orthrus/
   mcp_server.py  FastMCP tools
   main.py      Click CLI (27 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (996 tests)
+tests/         unit + integration (1011 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```

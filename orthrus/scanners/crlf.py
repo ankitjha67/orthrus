@@ -32,11 +32,15 @@ def _payload(nonce: str) -> str:
 
 
 def crlf_injected(header_items: Iterable[tuple[str, str]], nonce: str) -> bool:
-    """True if the sentinel survived into the parsed response headers."""
-    for key, value in header_items:
-        if key.lower() == "x-orthrus-crlf" or nonce in value:
-            return True
-    return False
+    """True if the *freshly-injected* nonce survived into a parsed response header.
+
+    Gated on the per-probe ``nonce`` value (not just the sentinel header name), so a
+    stale/cached ``X-Orthrus-Crlf`` header from an earlier probe can't be mistaken
+    for a live injection. Both injected vectors (``X-Orthrus-Crlf: <nonce>`` and
+    ``Set-Cookie: ocrlf=<nonce>``) carry the nonce in their value, so this covers
+    every genuine hit.
+    """
+    return any(nonce in value for _key, value in header_items)
 
 
 @register
