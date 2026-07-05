@@ -53,6 +53,14 @@ def _trunc(text: str | None, cap: int) -> str:
     return text if len(text) <= cap else text[:cap] + f"\n… [truncated, {len(text) - cap} more chars]"
 
 
+def _cell(text: str | None, cap: int = 200) -> str:
+    """Clean single-line value for a Markdown table cell (word-boundary elision)."""
+    text = " ".join((text or "").split()).replace("|", "/")
+    if not text:
+        return "—"
+    return text if len(text) <= cap else text[:cap].rsplit(" ", 1)[0] + " …"
+
+
 def _sev_label(s: str) -> str:
     return (s or "info").upper()
 
@@ -82,9 +90,16 @@ def _cover(ctx: dict) -> str:
         "**Prepared by:** ORTHRUS Automated Security Assessment Platform  \n"
         "**Report version:** 1.0\n\n"
         "| Metric | Value |\n|---|---|\n"
+        f"| **Overall risk rating** | **{_overall_rating(ctx)}** |\n"
         f"| Total findings | {summ['total']} |\n"
         f"| Confirmed by active exploitation | {summ['confirmed']} |\n"
         f"| Severity distribution | {dist} |\n\n"
+        "### Document Control\n\n"
+        "| Version | Date | Status | Author |\n|---|---|---|---|\n"
+        f"| 1.0 | {ctx.get('generated_at')} | Draft for review | ORTHRUS Assessment Platform |\n\n"
+        "**Distribution:** the intended recipient(s) only. **Handling:** CONFIDENTIAL — this "
+        "document contains sensitive security information; store, transmit, and dispose of it "
+        "accordingly, and do not redistribute without the issuer's consent.\n\n"
         "> **Basis of report.** Findings are produced by automated scanning and, where marked "
         "*confirmed*, re-proven by non-destructive exploitation. The narrative in this document "
         "is AI-generated and grounded strictly in the recorded evidence — it explains and "
@@ -218,7 +233,7 @@ def _compliance(ctx: dict) -> str:
 
 def _appendices(ctx: dict) -> str:
     return (
-        "## 8. Appendices\n\n"
+        "## 9. Appendices\n\n"
         "### Appendix A — Assessment Platform\n"
         "Findings were produced by the ORTHRUS automated assessment platform: a scope-enforced, "
         "async DAST engine with 58 vulnerability scanners, 16 reconnaissance modules, and 17 "
@@ -231,6 +246,138 @@ def _appendices(ctx: dict) -> str:
         "### Appendix C — Glossary\n"
         "CVSS — Common Vulnerability Scoring System · CWE — Common Weakness Enumeration · "
         "EPSS — Exploit Prediction Scoring System · OOB — out-of-band.\n"
+    )
+
+
+# --------------------------------------------------------------------------
+# Remediation planning (deterministic heuristics — drive the plan table)
+# --------------------------------------------------------------------------
+
+_OWNER_APP = "Application Development"
+_OWNER_PLATFORM = "Platform / DevOps"
+_OWNER_IAM = "Identity & Access Management"
+_OWNER_VULN = "Vulnerability / Patch Management"
+
+_REMEDIATION_EFFORT = {
+    "security-headers": "Low", "csp": "Low", "cors": "Low", "mixed-content": "Low",
+    "cookie": "Low", "clickjacking": "Low", "directory-listing": "Low", "exposed-file": "Low",
+    "host-header-injection": "Low", "open-redirect": "Low", "csv-injection": "Low",
+    "sqli": "Medium", "nosql-injection": "Medium", "ldap-injection": "Medium",
+    "xpath-injection": "Medium", "cmd-injection": "Medium", "ssti": "Medium", "lfi": "Medium",
+    "xxe": "Medium", "ssrf": "Medium", "crlf-injection": "Medium", "xss": "Medium",
+    "reflected-xss": "Medium", "dom-xss": "Medium", "stored-xss": "Medium", "tls": "Medium",
+    "prototype-pollution": "Medium", "sspp": "Medium", "cache-poisoning": "Medium",
+    "web-cache-deception": "Medium", "cve": "Medium", "product-cve": "Medium",
+    "dependency-confusion": "Medium", "sca-js-libraries": "Medium", "graphql": "Medium",
+    "websocket": "Medium", "file-upload": "Medium", "mass-assignment": "Medium",
+    "default-credentials": "Medium", "subdomain-takeover": "Medium",
+    "request-smuggling": "High", "deserialization": "High", "jwt": "High", "oauth-flow": "High",
+    "saml": "High", "auth-session": "High", "idor": "High", "broken-authorization": "High",
+    "privilege-escalation": "High", "business-logic": "High",
+}
+_REMEDIATION_OWNER = {
+    "security-headers": _OWNER_PLATFORM, "csp": _OWNER_PLATFORM, "cors": _OWNER_PLATFORM,
+    "mixed-content": _OWNER_PLATFORM, "tls": _OWNER_PLATFORM, "directory-listing": _OWNER_PLATFORM,
+    "host-header-injection": _OWNER_PLATFORM, "cache-poisoning": _OWNER_PLATFORM,
+    "web-cache-deception": _OWNER_PLATFORM, "cookie": _OWNER_PLATFORM,
+    "jwt": _OWNER_IAM, "oauth-flow": _OWNER_IAM, "saml": _OWNER_IAM, "auth-session": _OWNER_IAM,
+    "default-credentials": _OWNER_IAM, "idor": _OWNER_IAM, "broken-authorization": _OWNER_IAM,
+    "privilege-escalation": _OWNER_IAM,
+    "cve": _OWNER_VULN, "product-cve": _OWNER_VULN, "sca-js-libraries": _OWNER_VULN,
+    "dependency-confusion": _OWNER_VULN,
+}
+_REMEDIATION_TIMELINE = {
+    "critical": "Immediate (0–7 days)", "high": "Short-term (≤ 30 days)",
+    "medium": "Planned (≤ 90 days)", "low": "Next release / backlog", "info": "Backlog",
+}
+
+
+def _sorted_findings(findings: list) -> list:
+    return sorted(findings, key=lambda f: (-_SEV_ORDER.get(f["severity"], 0), f["vuln_type"]))
+
+
+def _overall_rating(ctx: dict) -> str:
+    for band in ("critical", "high", "medium", "low"):
+        if ctx["summary"]["counts"].get(band):
+            return band.upper()
+    return "INFORMATIONAL"
+
+
+def _toc() -> str:
+    items = [
+        "1. Executive Summary", "2. Assessment Scope, Approach & Methodology",
+        "3. Findings Overview", "4. Detailed Findings", "5. Correlated Attack Chains",
+        "6. Remediation Plan & Roadmap", "7. Compliance & Framework Mapping",
+        "8. Conclusion", "9. Appendices",
+    ]
+    return "## Contents\n\n" + "\n".join(f"- {t}" for t in items) + "\n"
+
+
+def _key_findings_table(findings: list) -> str:
+    rows = []
+    for i, f in enumerate(_sorted_findings(findings), 1):
+        cvss = f.get("cvss_score") if f.get("cvss_score") is not None else "—"
+        rows.append(
+            f"| 4.{i} | {_sev_label(f['severity'])} | {f['title']} | {cvss} | "
+            f"{f.get('confidence')} | {f.get('url') or '—'} |"
+        )
+    body = "\n".join(rows) or "| — | — | — | — | — | — |"
+    return (
+        "### 3.4 Key Findings Summary\n\n"
+        "Every finding at a glance, cross-referenced to its detail in Section 4.\n\n"
+        "| Ref | Severity | Finding | CVSS | Confidence | Affected URL |\n"
+        "|---|---|---|---|---|---|\n" + body + "\n"
+    )
+
+
+def _remediation_plan_table(findings: list) -> str:
+    rows = []
+    for i, f in enumerate(_sorted_findings(findings), 1):
+        vt = f["vuln_type"]
+        action = _cell(f.get("remediation") or "See finding detail in Section 4.", 200)
+        rows.append(
+            f"| P{i} | 4.{i} {_cell(f['title'], 80)} | {action} | "
+            f"{_REMEDIATION_EFFORT.get(vt, 'Medium')} | {_REMEDIATION_OWNER.get(vt, _OWNER_APP)} | "
+            f"{_REMEDIATION_TIMELINE.get(f['severity'], 'Planned')} |"
+        )
+    body = "\n".join(rows) or "| — | — | — | — | — | — |"
+    return (
+        "### 6.1 Prioritised Remediation Plan\n\n"
+        "Each finding is prioritised highest-severity-first, with an indicative remediation "
+        "effort, a suggested owning function, and a target remediation window.\n\n"
+        "| Priority | Finding | Recommended Action | Effort | Suggested Owner | Target Window |\n"
+        "|---|---|---|---|---|---|\n" + body + "\n"
+    )
+
+
+def _references(f: dict) -> str:
+    refs = []
+    cwe = (f.get("cwe") or "").strip()
+    if cwe.upper().startswith("CWE-") and cwe[4:].isdigit():
+        refs.append(f"- [{cwe}](https://cwe.mitre.org/data/definitions/{cwe[4:]}.html)")
+    for t in (f.get("attack") or []):
+        refs.append(f"- MITRE ATT&CK [{t['id']} — {t['name']}]({t.get('url')})")
+    refs.append("- OWASP Top 10 (2021) — https://owasp.org/Top10/")
+    refs.append("- OWASP Cheat Sheet Series — https://cheatsheetseries.owasp.org/")
+    return "#### References\n\n" + "\n".join(refs) + "\n"
+
+
+def _conclusion(ctx: dict) -> str:
+    rating = _overall_rating(ctx)
+    s = ctx["summary"]
+    return (
+        "## 8. Conclusion\n\n"
+        f"The assessment of {ctx['scan'].get('target') or 'the target application'} identified "
+        f"**{s['total']} finding(s)** ({s['confirmed']} confirmed by active, non-destructive "
+        f"exploitation), yielding an **overall risk rating of {rating}**. The most material "
+        "exposures are documented in Section 4 and, where they combine, in the correlated attack "
+        "chains of Section 5.\n\n"
+        "The organisation is advised to action the prioritised remediation plan in Section 6, "
+        "beginning with the critical and high-severity findings and the fixes that break correlated "
+        "attack chains, as these retire the greatest risk for the least effort. Lower-severity "
+        "findings should be scheduled into the normal release cycle. A **re-test is recommended "
+        "once remediation is complete** to validate closure and confirm that no regressions have "
+        "been introduced; the same tooling supports a differential re-scan for that purpose.\n"
     )
 
 
@@ -255,9 +402,11 @@ def _finding_prompt(f: dict) -> str:
         "Write the narrative for the following finding. Produce EXACTLY these Markdown "
         "subsections, each with a #### heading and one to three detailed paragraphs:\n"
         "#### Technical Description\n#### Business Impact\n#### Likelihood of Exploitation\n"
-        "#### Exploitation Walkthrough\n#### Remediation\n\n"
+        "#### Exploitation Walkthrough\n#### Remediation Options\n\n"
         "Ground the Exploitation Walkthrough in the recorded evidence below; step through how an "
-        "attacker would abuse this. Make Remediation specific and actionable.\n\n"
+        "attacker would abuse this. Under **Remediation Options**, give BOTH a *Tactical "
+        "(immediate mitigation / compensating control)* option and a *Strategic (root-cause fix)* "
+        "option, each specific and actionable, and note the recommended long-term choice.\n\n"
         "FINDING:\n"
         f"- Title: {f.get('title')}\n- Type: {f.get('vuln_type')}\n- Severity: {f.get('severity')} "
         f"(CVSS {f.get('cvss_score')})\n- CWE: {f.get('cwe')}\n- OWASP: {f.get('owasp')}\n"
@@ -341,7 +490,7 @@ async def write_consultant_report(
     findings = sorted(
         ctx["findings"], key=lambda f: (-_SEV_ORDER.get(f["severity"], 0), f["vuln_type"])
     )
-    parts: list[str] = [_cover(ctx)]
+    parts: list[str] = [_cover(ctx), _toc()]
 
     _log("executive summary")
     exec_fb = (
@@ -351,11 +500,14 @@ async def write_consultant_report(
         f"The assessment identified {ctx['summary']['total']} findings "
         f"({ctx['summary']['confirmed']} confirmed by exploitation). See Section 4 for detail."
     )
-    parts.append("## 1. Executive Summary\n\n" + await _narrate(
-        client, _exec_prompt(ctx), fallback=exec_fb, dry_run=dry_run, max_tokens=2000))
+    parts.append(
+        f"## 1. Executive Summary\n\n**Overall risk rating: {_overall_rating(ctx)}.** "
+        f"The assessment recorded {ctx['summary']['total']} finding(s), of which "
+        f"{ctx['summary']['confirmed']} were confirmed by active exploitation.\n\n"
+        + await _narrate(client, _exec_prompt(ctx), fallback=exec_fb, dry_run=dry_run, max_tokens=2000))
 
     parts.append(_methodology(ctx))
-    parts.append(_overview(ctx))
+    parts.append(_overview(ctx) + "\n" + _key_findings_table(findings))
 
     parts.append("## 4. Detailed Findings\n")
     for i, f in enumerate(findings, 1):
@@ -374,6 +526,7 @@ async def write_consultant_report(
             block.append(_trunc(f.get("description"), 800) + "\n\n**Remediation.** "
                          + _trunc(f.get("remediation"), 600))
         block.append(_evidence_block(f))
+        block.append(_references(f))
         parts.append("\n".join(block))
 
     chains = ctx.get("chains") or []
@@ -397,10 +550,14 @@ async def write_consultant_report(
     roadmap_fb = ("_Remediation roadmap is AI-generated; run without `--dry-run` to populate._"
                   if dry_run else "Prioritise remediation of critical and high findings, then "
                   "medium, then low; see per-finding remediation in Section 4.")
-    parts.append("## 6. Strategic Remediation Roadmap\n\n" + await _narrate(
-        client, _roadmap_prompt(ctx), fallback=roadmap_fb, dry_run=dry_run, max_tokens=1800))
+    parts.append(
+        "## 6. Remediation Plan & Roadmap\n\n" + _remediation_plan_table(findings)
+        + "\n\n### 6.2 Strategic Roadmap\n\n"
+        + await _narrate(client, _roadmap_prompt(ctx), fallback=roadmap_fb, dry_run=dry_run,
+                         max_tokens=1800))
 
     parts.append(_compliance(ctx))
+    parts.append(_conclusion(ctx))
     parts.append(_appendices(ctx))
     _log("done")
     return "\n\n".join(parts) + "\n"

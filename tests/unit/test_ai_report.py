@@ -74,11 +74,15 @@ def test_report_has_all_sections_and_embeds_evidence():
     client = _FakeClient()
     md = _run(write_consultant_report(_ctx(), client))
     for section in [
-        "# Penetration Test Report", "## 1. Executive Summary", "## 2. Assessment Scope",
-        "## 3. Findings Overview", "## 4. Detailed Findings", "## 6. Strategic Remediation Roadmap",
-        "## 7. Compliance", "## 8. Appendices",
+        "# Penetration Test Report", "### Document Control", "## Contents",
+        "## 1. Executive Summary", "Overall risk rating", "## 2. Assessment Scope",
+        "## 3. Findings Overview", "### 3.4 Key Findings Summary", "## 4. Detailed Findings",
+        "#### References", "## 6. Remediation Plan & Roadmap", "### 6.1 Prioritised Remediation Plan",
+        "## 7. Compliance", "## 8. Conclusion", "## 9. Appendices",
     ]:
         assert section in md, section
+    # remediation plan table has the operational columns
+    assert "Suggested Owner" in md and "Target Window" in md
     # deterministic metadata + verbatim evidence
     assert "SQL injection in 'id'" in md and "CVSS v3.1" in md and "T1190" in md
     assert "GET /item?id=1'-- HTTP/1.1" in md  # request recorded verbatim
