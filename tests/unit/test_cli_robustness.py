@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
+import sys
 
-from orthrus.main import _install_uvloop, build_scope
+from orthrus.main import _ensure_utf8_output, _install_uvloop, build_scope
 from orthrus.reporting.generator import _safe_output_path
 from orthrus.utils.scope import ScopeValidator
 
@@ -12,6 +13,33 @@ from orthrus.utils.scope import ScopeValidator
 def test_install_uvloop_is_safe() -> None:
     # No-op on Windows / when uvloop is absent; must never raise either way.
     _install_uvloop()
+
+
+# ----------------------------------------------------------------- utf-8 output
+class _RecordingStream:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    def reconfigure(self, **kw) -> None:
+        self.calls.append(kw)
+
+
+def test_ensure_utf8_output_forces_utf8_with_replace(monkeypatch) -> None:
+    # Windows consoles default to cp1252; the runbook/summary emit emoji (🔓) and →,
+    # which raise UnicodeEncodeError on a piped cp1252 stdout. The CLI must force UTF-8.
+    out, err = _RecordingStream(), _RecordingStream()
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+    _ensure_utf8_output()
+    assert out.calls == [{"encoding": "utf-8", "errors": "replace"}]
+    assert err.calls == [{"encoding": "utf-8", "errors": "replace"}]
+
+
+def test_ensure_utf8_output_tolerates_streams_without_reconfigure(monkeypatch) -> None:
+    # A stream that can't be reconfigured (or is already detached) must never crash.
+    monkeypatch.setattr(sys, "stdout", object())
+    monkeypatch.setattr(sys, "stderr", object())
+    _ensure_utf8_output()  # no AttributeError
 
 
 # ----------------------------------------------------------------- scope

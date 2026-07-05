@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 58 scanners · 17 confirmation modules · 18 recon modules · 1043 passing tests · `ruff` clean |
+| Verified snapshot | 58 scanners · 17 confirmation modules · 18 recon modules · 1045 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -25,7 +25,7 @@
 
 ORTHRUS is a **fully-automated dynamic application security testing (DAST) framework** for **authorized** engagements. It crawls a target, fingerprints its stack, runs a broad fleet of vulnerability scanners, and — uniquely — runs a fourth **exploitation-confirmation** phase that actively re-proves the interesting findings so a report can distinguish *"this looks vulnerable"* (`tentative`/`firm`) from *"this was demonstrably exploited"* (`confirmed`).
 
-**Positioning.** Where most open scanners stop at *detection* (and drown the user in unverified "potential" findings), ORTHRUS treats a finding as a hypothesis and tries to falsify or prove it. The result is a low-false-positive report with machine-readable evidence, CVSS v3.1/v4.0 scoring, and OWASP/CWE/PCI-DSS/NIST-CSF/MITRE-ATT&CK mappings, exportable as JSON/CSV/HTML/PDF/SARIF/Markdown.
+**Positioning.** Where most open scanners stop at *detection* (and drown the user in unverified "potential" findings), ORTHRUS treats a finding as a hypothesis and tries to falsify or prove it. The result is a low-false-positive report with machine-readable evidence, CVSS v3.1/v4.0 scoring, and OWASP/CWE/PCI-DSS/NIST-CSF/MITRE-ATT&CK mappings, exportable as JSON/CSV/HTML/PDF/SARIF/Markdown. An optional **AI consultant report** (`orthrus ai-report`) turns a completed scan into a Big-Four-grade Markdown/HTML/PDF deliverable — a grounded language-model narrative written strictly around the fixed findings and their verbatim evidence (local or any market model), so it cannot invent a vulnerability.
 
 **One-line vision.** *"A single command that safely takes an authorized target from URL → confirmed, prioritized, compliance-mapped findings — reproducibly, with evidence, and without scanning anything it wasn't told to."*
 
@@ -373,6 +373,9 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 - **CVSS**: full v3.1 base-score formula + v4.0 approximation (vector remap); ~40 default vectors keyed by `vuln_type` (scanner-supplied vectors win).
 - **Compliance maps**: OWASP Top-10 2021 (40+ types), PCI-DSS v4.0 (32), NIST CSF (7 + default), MITRE ATT&CK (10 + default). All use `.get(key, default)` so a new `vuln_type` never crashes a report.
 - **Evidence**: screenshots base64-embedded; `_safe_output_path()` sanitizes pasted scheme + NTFS-illegal chars; `min_severity` floor; branding logo.
+- **AI consultant report** (`orthrus ai-report`, `orthrus/ai/`): an optional Big-Four-grade deliverable that is a *hybrid* — the deterministic scaffold (document control, scope/methodology, per-finding metadata + **verbatim recorded evidence**, compliance, appendices) is fixed and the evidence quoted, while a language model writes the consultant narrative *around* those facts (executive summary, per-finding description/impact/likelihood/exploitation-walkthrough/remediation, attack-chain stories, remediation roadmap). Because findings are fixed and evidence is verbatim, **the model cannot invent a vulnerability**; each section falls back to deterministic content if the model is unavailable, and `--dry-run` renders the full scaffold + evidence with no model call.
+  - **Model-agnostic** (`orthrus/ai/providers.py`, httpx-only, no new deps): Claude (anthropic), OpenAI, any OpenAI-compatible endpoint (Azure/Groq/OpenRouter/vLLM/LM Studio via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama** model. `--llm provider:model`; keys from env. Local = nothing leaves the host; remote = credentials/cookies in captured evidence are **redacted before send**.
+  - **Deliverable formats** `--format md|html|pdf` (`orthrus/ai/render.py` renders a styled, paginated Big-Four HTML; PDF reuses the Chromium pipeline). Findings that share a root cause are **grouped** into one entry with an affected-instances table (`--no-group` to disable), and inherited default CVSS scores are reconciled against each finding's own severity.
 
 ---
 
@@ -384,7 +387,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 15. CLI surface (`orthrus …`)
-`scan` (full pipeline, 60+ flags), `recon` (selective), `report` (regenerate from stored scan), `scans` (list), `findings` (triage), `diff` (NEW/FIXED/PERSISTING + `--fail-on-new`), `modules` (inventory + per-module detail), `completion` (bash/zsh/fish), `doctor` (env readiness), `update` (refresh KEV), `serve` (API), `mcp` (MCP), `iac` (IaC scan). Exit codes: `0` success, `2` usage, `3` `--fail-on` breached. `--config file.toml`, `--resume --scan-id`, `--dry-run`, `--target-file` (batch), `--distributed` (Celery/Redis).
+**28 commands.** `scan` (full pipeline, 60+ flags), `recon` (selective), `exploit` (confirmation-only re-run), `report` (regenerate from stored scan), **`ai-report`** (AI consultant deliverable — md/html/pdf), `scans` (list), `findings` / `finding` (triage + lifecycle status/assign), `triage` (ranked view), `chains` (attack-chain correlation), `graph` (reachability attack-graph), `runbook` (consolidated remediation), `patch` (defensive patch-gen), `notify` (Slack/Jira), `hosts` (host inventory), `diff` (NEW/FIXED/PERSISTING + `--fail-on-new`), `modules` (inventory + per-module detail), `monitor` (continuous re-scan), `cloud` (read-only CSPM/IAM posture), `iac` (IaC scan), `proxy` (scope-aware capturing proxy), `agent` (bounded LLM planner), `benchmark` (detection accuracy), `completion` (bash/zsh/fish), `doctor` (env readiness), `update` (refresh KEV), `serve` (API + dashboard), `mcp` (MCP server). Exit codes: `0` success, `2` usage, `3` `--fail-on` breached. `--config file.toml`, `--resume --scan-id`, `--dry-run`, `--target-file` (batch), `--distributed` (Celery/Redis).
 
 ---
 
@@ -398,7 +401,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **1043 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1045 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -418,15 +421,16 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 | Metric | Value |
 |---|---|
-| Vulnerability scanners | **55** |
+| Vulnerability scanners | **58** |
 | Exploitation-confirmation modules | **17** |
-| Reconnaissance modules | **14** |
+| Reconnaissance modules | **18** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
 | Report formats | 6 (JSON/CSV/HTML/PDF/SARIF/MD) |
+| AI consultant report | `ai-report` — grounded LLM narrative, md/html/pdf, local or any market model |
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
-| CLI commands | 13 |
-| Automated tests | **1043** (ruff clean) |
+| CLI commands | 28 |
+| Automated tests | **1045** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -567,13 +571,14 @@ orthrus/
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
   iac/         Dockerfile/compose/Terraform analyzer
   reporting/   generator (6 formats) + cvss (v3.1/v4.0) + compliance maps + templates
+  ai/          model-agnostic LLM client (providers) + Big-4 consultant report writer + md→html/pdf render
   integrations/ ExternalToolAdapter + nuclei
   api/         FastAPI REST + dashboard
   db/          SQLAlchemy async store + models (encrypted evidence)
   mcp_server.py  FastMCP tools
   main.py      Click CLI (28 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (1043 tests)
+tests/         unit + integration (1045 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```
