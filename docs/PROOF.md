@@ -5,21 +5,22 @@ against an explicitly authorized test range, plus the automated quality gates th
 project holds itself to. It exists to demonstrate that the tool's findings are
 genuine — not synthetic fixtures — across multiple vulnerability classes.
 
-> ⚠️ **Authorized testing only.** Every live result below was produced against
-> **pentest-ground.com**, the public, intentionally-vulnerable playground operated
-> by Pentest-Tools.com expressly for security testing. ORTHRUS enforces a
-> deny-by-default scope on every request; nothing outside the sanctioned range was
-> ever contacted. Do **not** point ORTHRUS at systems you do not own or are not
-> authorized to test.
+> ⚠️ **Authorized testing only.** The live results below were produced against
+> public, intentionally-vulnerable playgrounds published expressly for security
+> testing — **pentest-ground.com** (operated by Pentest-Tools.com) and
+> **ginandjuice.shop** (PortSwigger's deliberately-vulnerable demo shop). ORTHRUS
+> enforces a deny-by-default scope on every request; nothing outside the sanctioned
+> ranges was ever contacted. Do **not** point ORTHRUS at systems you do not own or
+> are not authorized to test.
 
 | | |
 |---|---|
 | Tool | ORTHRUS v0.1.0 |
-| Date of run | 2026-05-30 |
+| Date of run | 2026-05-30 · 2026-07-05 (full-pipeline smoke) |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
 | Automated gates | **1045 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **58 vulnerability scanners · 17 confirmation modules · 18 recon modules** |
-| Authorized range | `pentest-ground.com` (Pentest-Tools.com playground) + purpose-built localhost targets |
+| Authorized ranges | `pentest-ground.com` (Pentest-Tools.com) · `ginandjuice.shop` (PortSwigger) + purpose-built localhost targets |
 
 ---
 
@@ -134,7 +135,64 @@ baseline, so the service-exposure scanner talks the Redis wire protocol directly
 
 ---
 
-## 4. Reproduce it yourself
+## 4. Full-pipeline smoke — 58 scanners against two authorized apps (2026-07-05)
+
+Beyond the focused module runs above, the **entire pipeline** (recon → all 58
+scanners → exploitation-confirmation → report → AI consultant report) was run
+against two different deliberately-vulnerable applications, deny-by-default scope
+enforced throughout. Both completed cleanly and produced genuine, class-appropriate
+findings, and both fed into `orthrus ai-report` to render the grounded Big-Four
+consultant deliverable (Markdown / HTML / PDF) from the real findings.
+
+### 4.1 Damn Vulnerable GraphQL App — `https://pentest-ground.com:5013`
+
+**16 findings** (1 high · 9 medium · 4 low · 2 info) · **2 exploitation-confirmed** · 58 scanners · 585 requests.
+
+| Sev | Conf. | Type | Finding | CWE |
+|---|---|---|---|---|
+| MEDIUM | **confirmed** | graphql-dos | Query batching enabled (fresh batched query re-issued) | CWE-770 |
+| MEDIUM | **confirmed** | graphql-dos | Alias overloading — no query-cost limit | CWE-770 |
+| HIGH | firm | cmd-injection | OS command injection (time-based) in `query` | CWE-78 |
+| MEDIUM | firm | graphql | Introspection enabled | CWE-200 |
+| MEDIUM | firm | csrf | GraphQL query executable over HTTP GET | CWE-352 |
+| MEDIUM | firm | vulnerable-component | Outdated jQuery 1.9.1 | CWE-1104 |
+| MEDIUM–LOW | firm | security-headers | Missing CSP / X-Frame-Options / HSTS (×6) | CWE-693 |
+| MEDIUM–LOW | firm | auth-session | Cookie without Secure / HttpOnly / SameSite (×3) | CWE-614 |
+
+The two `graphql-dos` findings were **actively confirmed** (fresh batched/aliased
+queries re-issued and observed to resolve). The `cmd-injection` result is reported
+`firm`, **not** confirmed — a time-based delay is suggestive but not proof, and the
+writer says so rather than over-claiming.
+
+### 4.2 PortSwigger "Gin & Juice Shop" — `https://ginandjuice.shop`
+
+**16 findings** (9 medium · 7 low) · **2 exploitation-confirmed (IDOR)** · 58 scanners.
+
+| Sev | Conf. | Type | Finding | CWE |
+|---|---|---|---|---|
+| MEDIUM | **confirmed** | idor | Insecure direct object reference (2 of 3 confirmed) | CWE-639 |
+| MEDIUM | firm | csrf | Form without anti-CSRF token (×2) | CWE-352 |
+| MEDIUM | firm | vulnerable-component | Outdated JS library | CWE-1104 |
+| MEDIUM–LOW | firm | auth-session | Cookie-flag / session issues (×5) | CWE-614 |
+| MEDIUM–LOW | firm | security-headers | Missing security headers (×4) | CWE-693 |
+| LOW | firm | parameter-pollution | HTTP parameter pollution | CWE-235 |
+
+Run with a bounded, polite crawl (`--crawl-depth 2 --max-pages 12 --no-browser`,
+`--rate-limit 40`) against the shared range; a deeper, browser-enabled crawl reaches
+the app's XSS / SQLi / SSTI routes as well.
+
+**Reproduce:**
+```bash
+orthrus --no-banner scan -t "https://pentest-ground.com:5013/" --scope pentest-ground.com \
+  --aggressive --no-browser --crawl-depth 2 --max-pages 12 --rate-limit 40 --scan-id dvga
+orthrus --no-banner scan -t "https://ginandjuice.shop/" --scope "ginandjuice.shop,*.ginandjuice.shop" \
+  --aggressive --no-browser --crawl-depth 2 --max-pages 12 --rate-limit 40 --scan-id gj
+orthrus --no-banner ai-report --scan-id dvga --format pdf   # grounded consultant deliverable
+```
+
+---
+
+## 5. Reproduce it yourself
 
 ```bash
 # Deep GraphQL testing against DVGA
@@ -157,7 +215,7 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 
 ---
 
-## 5. Expanded fleet — new-capability verifications (controlled & reproducible)
+## 6. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **58 scanners**, 13 → **18 recon**,
 and 667 → **1045 tests**. (Recon's latest addition is passive IP-address

@@ -443,7 +443,7 @@ Prioritized into waves. Each item is a self-contained increment (detector + test
 >
 > **✅ Build-out Wave 2 shipped** — item #1, the highest-leverage gap: the **N-identity authorization matrix** (`orthrus/core/identity.py` + `scanners/authz_matrix.py`, `--identities` JSON manifest). Autorize-style multi-principal replay over isolated per-identity clients flags **BOLA** (CWE-639) and **BFLA** (CWE-285); live-verified over real sockets. 48→49 scanners, +9 tests. See §7.3.
 >
-> **✅ Build-out Waves 3+ shipped** (49→56 scanners, 13→16 recon, all live-verified against real targets — see PROOF.md §5):
+> **✅ Build-out Waves 3+ shipped** (49→56 scanners, 13→16 recon, all live-verified against real targets — see PROOF.md §6):
 > - **Privilege-escalation forced-browse** (BFLA on *unlinked* admin routes via the identity lattice) — `privilege_escalation`, CWE-285.
 > - **Blind OS command injection via OOB** — `cmd_injection` now mints a callback per point and polls (Interactsh/local collaborator), proving blind RCE (CWE-78).
 > - **JWT RS→HS algorithm confusion** — fetches JWKS, derives the RSA public PEM, forges a valid HS256 token from it (raw HMAC) — `jwt_analyzer`, CWE-347.
