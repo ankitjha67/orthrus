@@ -16,6 +16,7 @@ from orthrus.ai.providers import (
     redact_for_llm,
     resolve_config,
 )
+from orthrus.ai.render import markdown_to_html
 from orthrus.ai.report_writer import write_consultant_report
 
 __all__ = [
@@ -25,5 +26,6 @@ __all__ = [
     "parse_spec",
     "resolve_config",
     "redact_for_llm",
+    "markdown_to_html",
     "write_consultant_report",
 ]

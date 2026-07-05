@@ -21,6 +21,7 @@ provider-agnostic and unit-tested against a fake client with no network.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 
 from orthrus.ai.providers import LLMClient, LLMError
@@ -80,9 +81,9 @@ def _cover(ctx: dict) -> str:
     ) or "as authorised for the engagement"
     return (
         f"# Penetration Test Report — {scan.get('target') or 'Target Application'}\n\n"
-        "**Classification:** CONFIDENTIAL — for the intended recipient only\n"
+        "**Classification:** CONFIDENTIAL — for the intended recipient only  \n"
         "**Assessment type:** Automated Dynamic Application Security Testing (DAST) with "
-        "exploitation confirmation\n"
+        "exploitation confirmation  \n"
         f"**Target:** {scan.get('target') or '—'}  \n"
         f"**Authorised scope:** {scope_str}  \n"
         f"**Scan reference:** {scan.get('id')}  \n"
@@ -296,6 +297,56 @@ def _sorted_findings(findings: list) -> list:
     return sorted(findings, key=lambda f: (-_SEV_ORDER.get(f["severity"], 0), f["vuln_type"]))
 
 
+_TITLE_SPLIT = re.compile(r"\s+(?:via|in|on|through|at)\s+", re.IGNORECASE)
+
+
+def _norm_title(title: str) -> str:
+    """Strip the instance-specific tail so like findings share a grouping key."""
+    base = _TITLE_SPLIT.split(title or "", maxsplit=1)[0]
+    base = re.sub(r"\s*\([^)]*\)\s*$", "", base)  # drop a trailing "(...)" qualifier
+    return base.strip() or (title or "").strip()
+
+
+def _group_findings(findings: list) -> list:
+    """Collapse same-root-cause findings (same vuln type + normalised title) into one
+    grouped finding carrying every affected instance — the way a consultant writes up
+    'Reflected XSS across 7 parameters' rather than seven separate entries.
+    """
+    groups: dict = {}
+    order: list = []
+    for f in findings:
+        key = (f["vuln_type"], _norm_title(f.get("title", "")))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(f)
+    out = []
+    for key in order:
+        items = groups[key]
+        if len(items) == 1:
+            out.append(items[0])
+            continue
+        worst = max(items, key=lambda x: (_SEV_ORDER.get(x["severity"], 0), x.get("cvss_score") or 0))
+        merged = dict(worst)  # inherit worst instance's severity/CVSS/mappings
+        merged["title"] = f"{_norm_title(worst.get('title', ''))} ({len(items)} instances)"
+        merged["_instances"] = items
+        merged["_group_count"] = len(items)
+        out.append(merged)
+    return out
+
+
+def _affected_table(instances: list) -> str:
+    rows = "\n".join(
+        f"| {_sev_label(f['severity'])} | {f.get('parameter') or '—'} | "
+        f"{f.get('confidence')} | {_cell(f.get('url'), 90)} |"
+        for f in instances
+    )
+    return (
+        f"**Affected instances ({len(instances)}):**\n\n"
+        "| Severity | Parameter | Confidence | URL |\n|---|---|---|---|\n" + rows + "\n"
+    )
+
+
 def _overall_rating(ctx: dict) -> str:
     for band in ("critical", "high", "medium", "low"):
         if ctx["summary"]["counts"].get(band):
@@ -317,9 +368,10 @@ def _key_findings_table(findings: list) -> str:
     rows = []
     for i, f in enumerate(_sorted_findings(findings), 1):
         cvss = f.get("cvss_score") if f.get("cvss_score") is not None else "—"
+        loc = f"{f['_group_count']} endpoints" if f.get("_group_count") else (f.get("url") or "—")
         rows.append(
-            f"| 4.{i} | {_sev_label(f['severity'])} | {f['title']} | {cvss} | "
-            f"{f.get('confidence')} | {f.get('url') or '—'} |"
+            f"| 4.{i} | {_sev_label(f['severity'])} | {_cell(f['title'], 70)} | {cvss} | "
+            f"{f.get('confidence')} | {_cell(loc, 90)} |"
         )
     body = "\n".join(rows) or "| — | — | — | — | — | — |"
     return (
@@ -408,7 +460,9 @@ def _finding_prompt(f: dict) -> str:
         "(immediate mitigation / compensating control)* option and a *Strategic (root-cause fix)* "
         "option, each specific and actionable, and note the recommended long-term choice.\n\n"
         "FINDING:\n"
-        f"- Title: {f.get('title')}\n- Type: {f.get('vuln_type')}\n- Severity: {f.get('severity')} "
+        + (f"- Affected instances: {f['_group_count']} (a grouped finding; discuss it as a "
+           "systemic issue affecting multiple endpoints/parameters)\n" if f.get("_group_count") else "")
+        + f"- Title: {f.get('title')}\n- Type: {f.get('vuln_type')}\n- Severity: {f.get('severity')} "
         f"(CVSS {f.get('cvss_score')})\n- CWE: {f.get('cwe')}\n- OWASP: {f.get('owasp')}\n"
         f"- URL: {f.get('url')}\n- Parameter: {f.get('parameter')}\n"
         f"- Scanner description: {_trunc(f.get('description'), 1200)}\n"
@@ -479,16 +533,17 @@ async def _narrate(client: LLMClient | None, prompt: str, *, fallback: str, dry_
 # --------------------------------------------------------------------------
 
 async def write_consultant_report(
-    ctx: dict, client: LLMClient | None, *, max_detailed: int = 60, dry_run: bool = False,
-    log: Callable[[str], None] | None = None,
+    ctx: dict, client: LLMClient | None, *, group: bool = True, max_detailed: int = 60,
+    dry_run: bool = False, log: Callable[[str], None] | None = None,
 ) -> str:
     """Assemble the full Markdown consultant report (deterministic facts + LLM narrative)."""
     def _log(msg: str) -> None:
         if log:
             log(msg)
 
+    base = _group_findings(ctx["findings"]) if group else list(ctx["findings"])
     findings = sorted(
-        ctx["findings"], key=lambda f: (-_SEV_ORDER.get(f["severity"], 0), f["vuln_type"])
+        base, key=lambda f: (-_SEV_ORDER.get(f["severity"], 0), f["vuln_type"])
     )
     parts: list[str] = [_cover(ctx), _toc()]
 
@@ -513,6 +568,8 @@ async def write_consultant_report(
     for i, f in enumerate(findings, 1):
         _log(f"finding {i}/{len(findings)}: {f['title']}")
         block = [_finding_metadata(f, i)]
+        if f.get("_group_count"):
+            block.append(_affected_table(f["_instances"]))
         if i <= max_detailed:
             narrative_fb = (
                 "_Per-finding narrative (description, business impact, likelihood, exploitation "
@@ -525,6 +582,9 @@ async def write_consultant_report(
         else:
             block.append(_trunc(f.get("description"), 800) + "\n\n**Remediation.** "
                          + _trunc(f.get("remediation"), 600))
+        if f.get("_group_count"):
+            block.append(f"_Representative evidence below (1 of {f['_group_count']} instances; "
+                         "the remainder share the same signature)._\n")
         block.append(_evidence_block(f))
         block.append(_references(f))
         parts.append("\n".join(block))

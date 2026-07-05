@@ -106,6 +106,26 @@ def test_best_effort_falls_back_when_model_fails():
     assert "# Penetration Test Report" in md and "Use parameterized queries." in md
 
 
+def test_similar_findings_are_grouped_with_affected_table():
+    # seven reflected-XSS findings that differ only by parameter -> ONE grouped finding
+    xss = [
+        _finding(id=i, vuln_type="xss", title=f"Reflected XSS in '{p}'", severity="high",
+                 confidence="confirmed", url=f"http://t/s?{p}=1", parameter=p,
+                 cvss_score=7.4, cwe="CWE-79", owasp="A03:2021 Injection")
+        for i, p in enumerate(["q", "s", "ref", "name", "cb", "next", "lang"], 1)
+    ]
+    md = _run(write_consultant_report(_ctx(findings=xss), _FakeClient()))
+    assert "Reflected XSS (7 instances)" in md
+    assert "**Affected instances (7):**" in md
+    assert "7 endpoints" in md  # key-findings summary shows endpoint count, not one URL
+    # only one detailed entry (### 4.1), not seven
+    assert "### 4.2" not in md
+    # opting out restores per-instance entries
+    ungrouped = _run(write_consultant_report(_ctx(findings=xss), _FakeClient(), group=False))
+    assert "### 4.7" in ungrouped
+    assert "Reflected XSS (7 instances)" not in ungrouped and "Affected instances" not in ungrouped
+
+
 def test_attack_chain_section_rendered():
     chains = [{"name": "SQLi → data theft", "severity": "critical", "impact": "full DB read",
                "steps": [{"label": "SQL injection", "vuln_type": "sqli"}]}]
@@ -143,6 +163,21 @@ def test_cli_ai_report_dry_run(tmp_path, monkeypatch):
     md = (tmp_path / "consultant.md").read_text(encoding="utf-8")
     assert "# Penetration Test Report" in md
     assert "GET /q?id=1'-- HTTP/1.1" in md  # recorded evidence in the deliverable
+
+
+def test_cli_ai_report_html_format(tmp_path, monkeypatch):
+    _seed(_db_url(tmp_path))
+    monkeypatch.setenv("ORTHRUS_DB_URL", _db_url(tmp_path))
+    out = tmp_path / "deliverable"
+    r = CliRunner().invoke(
+        main.cli,
+        ["--no-banner", "ai-report", "--scan-id", "s", "--dry-run", "--format", "html", "-o", str(out)],
+    )
+    assert r.exit_code == 0, r.output
+    html = (tmp_path / "deliverable.html").read_text(encoding="utf-8")
+    assert "<!DOCTYPE html>" in html and "<h1>Penetration Test Report" in html
+    assert "<table>" in html  # rendered, not raw markdown
+    assert not (tmp_path / "deliverable.md").exists()  # html format doesn't also write md
 
 
 def test_cli_ai_report_unknown_scan(tmp_path, monkeypatch):

@@ -1722,7 +1722,13 @@ async def _patch_load(
               help="Model spec 'provider:model' — anthropic / openai / openai-compatible / ollama "
                    "(e.g. 'ollama:llama3.1', 'openai:gpt-4o'). Keys/base-url from env.")
 @click.option("--model", default=None, help="Override the model id.")
-@click.option("--output", "-o", default="orthrus_ai_report", help="Output Markdown file.")
+@click.option("--output", "-o", default="orthrus_ai_report", help="Output file (extension set by --format).")
+@click.option("--format", "output_format", type=click.Choice(["md", "html", "pdf"]), default="md",
+              help="Deliverable format. html/pdf render a styled Big-Four document; "
+                   "pdf reuses the Chromium pipeline (needs the [browser] extra).")
+@click.option("--group/--no-group", default=True,
+              help="Group like findings (same type + title) into one entry with an "
+                   "affected-instances table. On by default.")
 @click.option("--min-severity", default=None, help="Only include findings at/above this severity.")
 @click.option("--max-detailed", default=60, type=int, help="Max findings given a full AI narrative.")
 @click.option("--temperature", default=0.3, type=float, help="Model temperature.")
@@ -1730,8 +1736,9 @@ async def _patch_load(
               help="Assemble the full report scaffold + recorded evidence with NO model calls.")
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def ai_report(
-    scan_id: str, llm_spec: str, model: str | None, output: str, min_severity: str | None,
-    max_detailed: int, temperature: float, dry_run: bool, verbose: str,
+    scan_id: str, llm_spec: str, model: str | None, output: str, output_format: str,
+    group: bool, min_severity: str | None, max_detailed: int, temperature: float,
+    dry_run: bool, verbose: str,
 ) -> None:
     """Generate a Big-Four-grade consultant report — deterministic evidence + AI narrative.
 
@@ -1743,20 +1750,51 @@ def ai_report(
     """
     configure_logging(verbose)
     markdown = asyncio.run(
-        _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature, dry_run)
+        _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature,
+                         dry_run, group)
     )
     if markdown is None:
         return
-    path = output if output.endswith((".md", ".markdown")) else output + ".md"
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(markdown)
-    console.print(
-        f"[status.completed]Consultant report written to {path}[/] — "
-        f"{len(markdown):,} chars, {markdown.count(chr(10)) + 1} lines."
-    )
+    stem = re.sub(r"\.(md|markdown|html?|pdf)$", "", output, flags=re.IGNORECASE)
+
+    if output_format == "md":
+        path = stem + ".md"
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(markdown)
+        console.print(
+            f"[status.completed]Consultant report written to {path}[/] — "
+            f"{len(markdown):,} chars, {markdown.count(chr(10)) + 1} lines."
+        )
+        return
+
+    from orthrus.ai.render import markdown_to_html
+    html = markdown_to_html(markdown, title=f"Penetration Test Report — {scan_id}")
+    html_path = stem + ".html"
+    with open(html_path, "w", encoding="utf-8") as fh:
+        fh.write(html)
+
+    if output_format == "html":
+        console.print(f"[status.completed]Consultant report written to {html_path}[/] "
+                      f"— {len(html):,} chars.")
+        return
+
+    # pdf: render the HTML we just wrote through the headless-Chromium pipeline
+    from orthrus.reporting.pdf import html_to_pdf
+    pdf_path = stem + ".pdf"
+    ok = asyncio.run(html_to_pdf(html_path, pdf_path))
+    if ok:
+        console.print(f"[status.completed]Consultant report written to {pdf_path}[/] "
+                      f"(styled HTML kept at {html_path}).")
+    else:
+        console.print(
+            f"[status.error]PDF rendering unavailable[/] — kept the HTML deliverable at "
+            f"{html_path}. Install the browser extra (`pip install -e .[browser]` then "
+            f"`playwright install chromium`) to emit PDF."
+        )
 
 
-async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature, dry_run):
+async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature,
+                           dry_run, group=True):
     from orthrus.ai.providers import LLMClient, resolve_config
     from orthrus.ai.report_writer import write_consultant_report
     from orthrus.reporting.generator import _build_context
@@ -1789,7 +1827,7 @@ async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed,
             f"{context['summary']['total']} finding(s)…[/]"
         )
     return await write_consultant_report(
-        context, client, max_detailed=max_detailed, dry_run=dry_run,
+        context, client, group=group, max_detailed=max_detailed, dry_run=dry_run,
         log=lambda m: logger.info("ai-report: %s", m),
     )
 

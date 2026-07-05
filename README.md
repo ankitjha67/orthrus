@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1035-test / lint-clean quality gates.
+1043-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
@@ -490,10 +490,25 @@ only what the scanner already proved.
 
 ```bash
 orthrus ai-report --scan-id <id> -o report.md            # Claude (ANTHROPIC_API_KEY)
+orthrus ai-report --scan-id <id> --format pdf            # client-ready PDF (styled HTML → Chromium)
+orthrus ai-report --scan-id <id> --format html          # self-contained, styled HTML deliverable
 orthrus ai-report --scan-id <id> --llm ollama:llama3.1   # fully local — nothing leaves the host
 orthrus ai-report --scan-id <id> --llm openai:gpt-4o     # OpenAI (OPENAI_API_KEY)
 orthrus ai-report --scan-id <id> --dry-run               # full structure + evidence, no model call
 ```
+
+**Native PDF / HTML, not Markdown.** `--format html|pdf` renders a styled,
+paginated Big-Four document (cover, classification banner, document-control table,
+severity-shaded finding tables); PDF reuses the headless-Chromium pipeline. Markdown
+(`--format md`, default) stays available for diffing and pipelines.
+
+**Deduplicated like a consultant would write it.** Findings that share a root
+cause — e.g. reflected XSS across seven parameters, or a cookie missing a flag on
+four responses — collapse into **one** finding with an *affected-instances* table
+listing every endpoint/parameter, instead of seven near-identical entries
+(`--no-group` to keep them separate). Inherited default CVSS scores are reconciled
+against each finding's own severity, so a low-severity sub-finding never shows a
+critical score.
 
 **Model-agnostic:** Claude, OpenAI, any OpenAI-compatible endpoint (Azure, Groq,
 OpenRouter, vLLM, LM Studio — via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama**
