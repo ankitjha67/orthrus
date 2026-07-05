@@ -174,6 +174,23 @@ def _exploitation_dict(row: ExploitationRow, key: str | None) -> dict[str, Any]:
     }
 
 
+_REP_SCORE = {"critical": 9.3, "high": 8.1, "medium": 5.5, "low": 3.1, "info": 0.0}
+
+
+def _score_band(score: float | None) -> str:
+    if score is None:
+        return ""
+    if score >= 9.0:
+        return "critical"
+    if score >= 7.0:
+        return "high"
+    if score >= 4.0:
+        return "medium"
+    if score > 0.0:
+        return "low"
+    return "info"
+
+
 def _finding_dict(
     row: FindingRow, exploitations: list[ExploitationRow], key: str | None
 ) -> dict[str, Any]:
@@ -182,6 +199,17 @@ def _finding_dict(
     if score is None and vector:
         score = base_score(vector)
     v4_vector, v4_score = v4_for(row.vuln_type)
+    # Reconcile an INHERITED default score with the finding's own severity: a
+    # default vector keyed only by vuln_type can over/under-state a specific
+    # sub-finding (e.g. a low-severity "JWT has no exp claim" inheriting the jwt
+    # 9.1 default). When the v3 score was not scanner-provided and its band
+    # disagrees with the declared severity, trust the severity band; the v4 score
+    # (always a per-type default here) is reconciled the same way.
+    if row.cvss_score is None and row.cvss_vector is None and _score_band(score) != row.severity \
+            and row.severity in _REP_SCORE:
+        score, vector = _REP_SCORE[row.severity], None
+    if _score_band(v4_score) != row.severity and row.severity in _REP_SCORE:
+        v4_score, v4_vector = _REP_SCORE[row.severity], None
     evidence = row.evidence_json or {}
     return {
         "id": row.id,
