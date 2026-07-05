@@ -1716,6 +1716,84 @@ async def _patch_load(
     return report
 
 
+@cli.command(name="ai-report")
+@click.option("--scan-id", required=True, help="Scan identifier to report on.")
+@click.option("--llm", "llm_spec", default="anthropic",
+              help="Model spec 'provider:model' — anthropic / openai / openai-compatible / ollama "
+                   "(e.g. 'ollama:llama3.1', 'openai:gpt-4o'). Keys/base-url from env.")
+@click.option("--model", default=None, help="Override the model id.")
+@click.option("--output", "-o", default="orthrus_ai_report", help="Output Markdown file.")
+@click.option("--min-severity", default=None, help="Only include findings at/above this severity.")
+@click.option("--max-detailed", default=60, type=int, help="Max findings given a full AI narrative.")
+@click.option("--temperature", default=0.3, type=float, help="Model temperature.")
+@click.option("--dry-run", is_flag=True,
+              help="Assemble the full report scaffold + recorded evidence with NO model calls.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def ai_report(
+    scan_id: str, llm_spec: str, model: str | None, output: str, min_severity: str | None,
+    max_detailed: int, temperature: float, dry_run: bool, verbose: str,
+) -> None:
+    """Generate a Big-Four-grade consultant report — deterministic evidence + AI narrative.
+
+    Every finding, CVSS score, and recorded request/response is rendered verbatim; a language
+    model writes the consultant prose around those facts (executive summary, per-finding
+    impact/likelihood/exploitation/remediation, attack-chain stories, remediation roadmap).
+    The model can be local (ollama) or any market model. --dry-run shows the full structure and
+    evidence without any model call.
+    """
+    configure_logging(verbose)
+    markdown = asyncio.run(
+        _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature, dry_run)
+    )
+    if markdown is None:
+        return
+    path = output if output.endswith((".md", ".markdown")) else output + ".md"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(markdown)
+    console.print(
+        f"[status.completed]Consultant report written to {path}[/] — "
+        f"{len(markdown):,} chars, {markdown.count(chr(10)) + 1} lines."
+    )
+
+
+async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed, temperature, dry_run):
+    from orthrus.ai.providers import LLMClient, resolve_config
+    from orthrus.ai.report_writer import write_consultant_report
+    from orthrus.reporting.generator import _build_context
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        if await store.get_scan(scan_id) is None:
+            logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+            return None
+        context = await _build_context(store, scan_id, None, min_severity)
+    finally:
+        await store.close()
+
+    client = None
+    if not dry_run:
+        cfg = resolve_config(llm_spec, model=model, temperature=temperature)
+        if cfg.provider in ("anthropic", "openai", "openai-compatible") and not cfg.api_key:
+            logger.error(
+                "model '%s' needs an API key — set ORTHRUS_LLM_API_KEY (or ANTHROPIC_API_KEY / "
+                "OPENAI_API_KEY), use a local model (--llm ollama:<model>), or --dry-run",
+                cfg.provider,
+            )
+            return None
+        client = LLMClient(cfg)
+        console.print(
+            f"[orthrus.muted]drafting with {cfg.provider}:{cfg.model}"
+            f"{' (local, no data leaves host)' if cfg.is_local else ''} · "
+            f"{context['summary']['total']} finding(s)…[/]"
+        )
+    return await write_consultant_report(
+        context, client, max_detailed=max_detailed, dry_run=dry_run,
+        log=lambda m: logger.info("ai-report: %s", m),
+    )
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")

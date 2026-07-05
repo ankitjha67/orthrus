@@ -21,7 +21,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1019-test / lint-clean quality gates.
+1035-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
@@ -319,8 +319,10 @@ post-scan analysis and delivery: `findings` (terminal triage view), `triage`
 (correlate findings into attack paths / maximal kill-chains), `runbook`
 (consolidated remediation plan, ordered so the highest-leverage fix — one that
 breaks an attack path — comes first), `finding` (set a finding's status/owner),
-`notify` (push high-severity findings to Slack / Jira, with `--dry-run`), and
-`patch` (generate concrete config/code remediation patches per finding).
+`notify` (push high-severity findings to Slack / Jira, with `--dry-run`),
+`patch` (generate concrete config/code remediation patches per finding), and
+`ai-report` (a Big-Four-grade consultant report — deterministic evidence + AI
+narrative, via a local or any market LLM).
 Autonomous & posture: `agent` (a bounded LLM planner that sequences the existing
 scope-enforced, non-destructive scanners — no shells, no arbitrary code), `cloud`
 (read-only CSPM/IAM posture + toxic-combination analysis), and `proxy` (a
@@ -474,6 +476,31 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
   heat-mapped by finding count; drop it into
   [mitre-attack.github.io/attack-navigator](https://mitre-attack.github.io/attack-navigator/)
   to see the scan on the ATT&CK matrix.
+
+### 🌟 AI consultant report (`orthrus ai-report`)
+
+Turn a scan into a **Big-Four-grade penetration-test deliverable**: every finding,
+CVSS score, and recorded request/response is rendered *verbatim*, and a language
+model writes the consultant narrative around those facts — executive summary,
+per-finding technical description / business impact / likelihood / exploitation
+walkthrough / remediation, correlated attack-chain stories, and a phased
+remediation roadmap. Because the findings are fixed and the evidence is quoted,
+**the model cannot hallucinate a vulnerability** — it explains and contextualises
+only what the scanner already proved.
+
+```bash
+orthrus ai-report --scan-id <id> -o report.md            # Claude (ANTHROPIC_API_KEY)
+orthrus ai-report --scan-id <id> --llm ollama:llama3.1   # fully local — nothing leaves the host
+orthrus ai-report --scan-id <id> --llm openai:gpt-4o     # OpenAI (OPENAI_API_KEY)
+orthrus ai-report --scan-id <id> --dry-run               # full structure + evidence, no model call
+```
+
+**Model-agnostic:** Claude, OpenAI, any OpenAI-compatible endpoint (Azure, Groq,
+OpenRouter, vLLM, LM Studio — via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama**
+model so sensitive findings never leave your infrastructure. Credentials and
+cookies in captured evidence are redacted before anything is sent to a remote
+model. The narrative is AI-generated and grounded in the recorded evidence —
+review before client delivery.
 
 Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
 10, CWE, PCI-DSS, NIST-CSF, **MITRE ATT&CK** (structured technique IDs), and
