@@ -12,7 +12,9 @@ and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase — so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
 produces JSON / CSV / HTML / PDF / SARIF / Markdown reports with CVSS v3.1 + v4.0
-scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
+scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings — and, optionally,
+an [**AI-written consultant report**](#-ai-consultant-report-orthrus-ai-report) (Markdown / HTML / PDF)
+grounded strictly in those findings and their verbatim evidence.
 
 ![Orthrus terminal output: the banner, the AUTHORIZED SCOPE panel, the scan summary, OWASP Top-10 coverage, and the colour-coded findings table](docs/screenshot.png)
 
@@ -21,7 +23,7 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings.
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1043-test / lint-clean quality gates.
+1045-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,

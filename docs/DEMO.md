@@ -46,10 +46,10 @@ confirmation phase actively re-proves the interesting ones:
 └────────────────┴──────────┴──────────┴──────────┴────────┘
 ```
 
-(A full 58-scanner `--aggressive` run of the same target finds **70 issues — 1
-critical, 27 high, 21 medium — with 18 exploitation-confirmed**, including
-command injection, SQLi, SSTI, weak-secret JWT forgery, NoSQL injection, and
-prompt injection. See [PROOF.md](PROOF.md).)
+(A full 58-scanner `--aggressive` run of the same target finds **76 issues — 1
+critical, 32 high, 22 medium** (plus 19 low / 2 info) — **with 24
+exploitation-confirmed**, including command injection, SQLi, SSTI, weak-secret JWT
+forgery, NoSQL injection, and prompt injection. See [PROOF.md](PROOF.md).)
 
 ### 2 · Collapse findings into reachable attack paths
 

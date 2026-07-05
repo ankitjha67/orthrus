@@ -295,6 +295,23 @@ def _install_uvloop() -> None:
         pass
 
 
+def _ensure_utf8_output() -> None:
+    """Force UTF-8 on stdout/stderr so no command crashes on its own output.
+
+    Windows consoles default to a legacy code page (e.g. cp1252); when CLI output
+    contains non-Latin-1 glyphs — emoji in the runbook (🔓), the → in summaries —
+    and stdout is a pipe or redirect, ``click.echo``/``print`` raise
+    ``UnicodeEncodeError``. Reconfigure to UTF-8 with a replacing fallback.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):  # detached / already-closed stream
+                pass
+
+
 @click.group()
 @click.version_option(__version__, prog_name="orthrus")
 @click.option(
@@ -308,6 +325,7 @@ def cli(no_banner: bool) -> None:
 
     For authorized security testing only.
     """
+    _ensure_utf8_output()
     _install_uvloop()
     if not no_banner:
         render_banner(console, __version__)

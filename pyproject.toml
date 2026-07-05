@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Ankit Jha" }]
 license = { text = "MIT" }
-keywords = ["security", "pentest", "vulnerability-scanner", "appsec"]
+keywords = ["security", "pentest", "vulnerability-scanner", "appsec", "dast", "llm", "ai-report"]
 
 # Lean core: pure-Python / wheel-available deps that install cleanly on Windows + 3.14.
 # Heavier integrations (Playwright, Nmap, Interactsh, Celery/Redis, Postgres, sslyze,
