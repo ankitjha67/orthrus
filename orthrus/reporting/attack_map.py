@@ -57,6 +57,7 @@ _NAMES: dict[str, str] = {
 # vuln_type → ATT&CK technique IDs (scanner-specific variants normalized below).
 _ATTACK: dict[str, list[str]] = {
     "sqli": ["T1190", "T1059", "T1005"],
+    "graphql-injection": ["T1190", "T1059", "T1005"],
     "nosql-injection": ["T1190", "T1059"],
     "ldap-injection": ["T1190"],
     "xpath-injection": ["T1190", "T1083"],

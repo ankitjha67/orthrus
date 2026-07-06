@@ -38,6 +38,7 @@ _SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 
 OWASP_2021 = {
     "sqli": "A03:2021 - Injection",
+    "graphql-injection": "A03:2021 - Injection",
     "cmd-injection": "A03:2021 - Injection",
     "ssti": "A03:2021 - Injection",
     "xss": "A03:2021 - Injection",
@@ -98,6 +99,7 @@ OWASP_2021 = {
 # PCI-DSS v4.0 requirement references (most-relevant control per class).
 PCI_DSS = {
     "sqli": "6.2.4", "xss": "6.2.4", "cmd-injection": "6.2.4", "ssti": "6.2.4",
+    "graphql-injection": "6.2.4",
     "lfi": "6.2.4", "xxe": "6.2.4", "ssrf": "6.2.4", "deserialization": "6.2.4",
     "prototype-pollution": "6.2.4", "idor": "7.2", "csrf": "6.2.4",
     "open-redirect": "6.2.4", "cors": "1.3", "security-headers": "6.4.1",
@@ -136,6 +138,7 @@ _NIST_DEFAULT = "PR.IP-1 / PR.DS-5 (Secure config / data leak protection)"
 # MITRE ATT&CK techniques.
 MITRE_ATTACK = {
     "sqli": "T1190 Exploit Public-Facing App", "cmd-injection": "T1190 / T1059 Command Execution",
+    "graphql-injection": "T1190 Exploit Public-Facing App",
     "ssti": "T1190 Exploit Public-Facing App", "lfi": "T1083 File & Directory Discovery",
     "xxe": "T1190 Exploit Public-Facing App", "ssrf": "T1190 / T1090 Proxy",
     "xss": "T1059.007 JavaScript", "deserialization": "T1190 Exploit Public-Facing App",
