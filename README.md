@@ -645,9 +645,3 @@ process in **[SECURITY.md](SECURITY.md)** rather than opening a public issue.
 
 [MIT](LICENSE) © 2026 Ankit Jha. See the additional **authorized-use notice** in
 the LICENSE file and the [Legal & Ethical Use](#-legal--ethical-use) section above.
-
-## Usage
-
-```bash
-python3 main.py
-```
