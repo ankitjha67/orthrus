@@ -18,8 +18,8 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 · 2026-07-05 (full-pipeline smoke) |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **1045 tests pass**, `ruff check orthrus tests` clean |
-| Coverage | **58 vulnerability scanners · 17 confirmation modules · 18 recon modules** |
+| Automated gates | **1052 tests pass**, `ruff check orthrus tests` clean |
+| Coverage | **59 vulnerability scanners · 17 confirmation modules · 18 recon modules** |
 | Authorized ranges | `pentest-ground.com` (Pentest-Tools.com) · `ginandjuice.shop` (PortSwigger) + purpose-built localhost targets |
 
 ---
@@ -31,7 +31,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-1045 passed, 4 warnings
+1052 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -190,6 +190,36 @@ orthrus --no-banner scan -t "https://ginandjuice.shop/" --scope "ginandjuice.sho
 orthrus --no-banner ai-report --scan-id dvga --format pdf   # grounded consultant deliverable
 ```
 
+### 4.3 Gap closed — GraphQL-argument injection (Wave 5, 59 scanners)
+
+The 58-scanner runs above surfaced GraphQL **DoS + disclosure** but *no* injection,
+because the generic SQLi/command/SSTI scanners fuzz HTTP parameters and never reach
+arguments nested inside GraphQL operations — where a GraphQL app's real injection
+surface lives. The new **`graphql-injection`** scanner (introspect → enumerate
+Query/Mutation string args → inject error-based SQLi / an OS-command canary / an
+SSTI arithmetic probe → detect in band, with a fresh-nonce confirmer) closes it.
+
+**Re-run against DVGA** (`--modules graphql,graphql-injection`) now adds, on top of
+the DoS/introspection findings:
+
+| Sev | Conf. | Type | Finding | CWE |
+|---|---|---|---|---|
+| HIGH | firm | graphql-injection | SQL injection in GraphQL argument `pastes.filter` | CWE-89 |
+
+That is a real DVGA injection challenge that **every prior run missed entirely**.
+It is reported `firm` (in-band DB error), not `confirmed` — on the live target the
+fresh-nonce replay did not cleanly re-trigger, and the writer says so rather than
+over-claiming. Against the bundled, fully-instrumented GraphQL target the same
+scanner **confirms all three classes** end-to-end (OS command injection CVSS 9.8,
+SQLi 8.1, SSTI 8.1 — each re-proven with a fresh canary).
+
+**Deeper crawl also converts "capable-but-unsurfaced" into findings.** Re-running
+Gin & Juice at `--crawl-depth 3 --max-pages 40` surfaced a **confirmed HIGH
+client-side prototype pollution** the shallow run missed (17 findings, 3 confirmed
+vs 16/2) — evidence that most of the earlier "misses" were crawl-depth, not missing
+detectors. Fully surfacing its SQLi/XSS still needs a browser-enabled, authenticated
+crawl.
+
 ---
 
 ## 5. Reproduce it yourself
@@ -217,8 +247,8 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 
 ## 6. Expanded fleet — new-capability verifications (controlled & reproducible)
 
-The roadmap build-out grew ORTHRUS from 42 → **58 scanners**, 13 → **18 recon**,
-and 667 → **1045 tests**. (Recon's latest addition is passive IP-address
+The roadmap build-out grew ORTHRUS from 42 → **59 scanners**, 13 → **18 recon**,
+and 667 → **1052 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) A correlation & delivery
 layer now sits on top of the detectors: an attack-**graph** that merges chain
 rules into maximal kill-chains, finding **lifecycle** (status/owner), a

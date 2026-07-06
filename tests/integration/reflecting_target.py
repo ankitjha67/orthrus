@@ -111,6 +111,82 @@ GRAPHQL_SCHEMA = (
     '{"data":{"__schema":{"queryType":{"name":"Query"},'
     '"types":[{"name":"User"},{"name":"Query"}]}}}'
 )
+
+# A real (tiny) introspectable schema: two Query fields and one Mutation, each
+# taking a String argument that reaches an injection sink below. Shaped to match
+# a standard fields{args{type{kind name ofType{kind name}}}} introspection query.
+_STR = {"kind": "SCALAR", "name": "String", "ofType": None}
+
+
+def _field(name: str, arg: str) -> dict:
+    return {"name": name, "args": [{"name": arg, "type": _STR}], "type": _STR}
+
+
+GRAPHQL_INTROSPECTION = {
+    "data": {"__schema": {
+        "queryType": {"name": "Query"},
+        "mutationType": {"name": "Mutation"},
+        "types": [
+            {"kind": "OBJECT", "name": "Query", "fields": [
+                _field("userByName", "name"),      # -> SQL sink
+                _field("renderTemplate", "tpl"),   # -> SSTI sink
+                {"name": "__typename", "args": [], "type": _STR},
+            ]},
+            {"kind": "OBJECT", "name": "Mutation", "fields": [
+                _field("systemDiagnostics", "cmd"),  # -> OS command sink
+            ]},
+            {"kind": "SCALAR", "name": "String", "fields": None},
+        ],
+    }}
+}
+
+# field(arg: "value") — captures the field name and its (double-quoted) string arg.
+_GQL_ARG_RE = re.compile(r'(\w+)\s*\(\s*\w+\s*:\s*"((?:[^"\\]|\\.)*)"')
+_GQL_ALIAS_RE = re.compile(r"(\w+)\s*:\s*__typename")
+
+
+def graphql_execute(body: str) -> str:
+    """A deliberately-vulnerable mini GraphQL executor (introspection + injection sinks).
+
+    Supports: introspection, query batching (JSON array), alias overloading, and
+    three injectable resolvers — userByName (SQLi), renderTemplate (SSTI),
+    systemDiagnostics (OS command). Injection is proven *in band* so a scanner can
+    detect it from the response alone.
+    """
+    try:
+        parsed = json.loads(body)
+    except (ValueError, TypeError):
+        parsed = None
+    if isinstance(parsed, list):  # batching: answer an array of results
+        return "[" + ",".join(graphql_execute(json.dumps(op)) for op in parsed) + "]"
+    query = parsed.get("query", "") if isinstance(parsed, dict) else (body or "")
+
+    if "__schema" in query:
+        return json.dumps(GRAPHQL_INTROSPECTION)
+
+    aliases = _GQL_ALIAS_RE.findall(query)
+    if aliases:  # alias overloading: resolve every alias
+        return json.dumps({"data": {a: "Query" for a in aliases}})
+
+    for field, raw in _GQL_ARG_RE.findall(query):
+        val = raw.replace('\\"', '"').replace("\\\\", "\\")
+        if field == "userByName":
+            if "'" in val or '"' in val:  # unsanitised quote -> SQL error (in band)
+                return json.dumps({"errors": [{"message": MYSQL_ERROR}]})
+            return json.dumps({"data": {"userByName": f"user:{val}"}})
+        if field == "systemDiagnostics":
+            m = _ECHO.search(val)  # `; echo <canary>` reflected back
+            return json.dumps({"data": {"systemDiagnostics": m.group(1) if m else "ok"}})
+        if field == "renderTemplate":
+            m = _ARITH.search(val)  # `{{a*b}}` evaluated
+            out = str(int(m.group(1)) * int(m.group(2))) if m else val
+            return json.dumps({"data": {"renderTemplate": out}})
+
+    if "__typename" in query:
+        return json.dumps({"data": {"__typename": "Query"}})
+    if not query:
+        return json.dumps({"errors": [{"message": "Must provide query string"}]})
+    return json.dumps({"data": {}})
 MYSQL_ERROR = (
     "You have an error in your SQL syntax; check the manual that corresponds to your "
     "MySQL server version for the right syntax to use near \"'\" at line 1"
@@ -402,6 +478,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._html(f"<html><body>items (debug mode: {dbg})</body></html>")
             else:
                 self._html("<html><body>items list</body></html>")
+        elif parts.path == "/graphql":
+            # GraphQL executable over GET (?query=...) — the CSRF / introspection vector.
+            self._html(graphql_execute(json.dumps({"query": first("query")})))
         elif parts.path == "/nosql":
             user = first("user")
             if any(c in user for c in ("$", "{", "'", '"', "\\")):
@@ -433,7 +512,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._html("<html><body>&lt;ok/&gt;</body></html>")
         elif parts.path == "/graphql":
-            self._html(GRAPHQL_SCHEMA if "__schema" in body or "query" in body else "{}")
+            self._html(graphql_execute(body))
         elif parts.path == "/guestbook":
             comment = parse_qs(body).get("comment", [""])[0]
             if comment:

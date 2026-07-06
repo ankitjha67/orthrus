@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 58 scanners · 17 confirmation modules · 18 recon modules · 1045 passing tests · `ruff` clean |
+| Verified snapshot | 59 scanners · 17 confirmation modules · 18 recon modules · 1052 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 18 mods  │   │ 58 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 59 scan  │   │ 17 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -217,7 +217,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 
 ---
 
-## 7. Vulnerability scanning subsystem (58 scanners)
+## 7. Vulnerability scanning subsystem (59 scanners)
 
 Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncIterator[Finding]`, declares `min_aggressiveness`, and self-registers. The shared injection layer (`_injection.py`) yields `InjectionPoint`s across `QUERY`, `BODY`, `JSON`, and `PATH` locations for `GET/POST/PUT/PATCH/DELETE`.
 
@@ -401,7 +401,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **1045 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1052 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -421,7 +421,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 
 | Metric | Value |
 |---|---|
-| Vulnerability scanners | **58** |
+| Vulnerability scanners | **59** |
 | Exploitation-confirmation modules | **17** |
 | Reconnaissance modules | **18** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
@@ -430,7 +430,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 28 |
-| Automated tests | **1045** (ruff clean) |
+| Automated tests | **1052** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -460,6 +460,10 @@ Prioritized into waves. Each item is a self-contained increment (detector + test
 > - **XPath / XQuery injection** — expression-breaking payloads → XPath evaluation errors (javax.xml.xpath/lxml/.NET/PHP) — `xpath`, CWE-643.
 > - **SSTI engine coverage** — added Latte (`{=expr}`) and Smarty-math (bare `{expr}`) evaluating syntaxes.
 > - **Threat-intel: live EPSS refresh** — `orthrus update` now pulls both CISA KEV *and* the full EPSS dataset (FIRST.org, no key); findings in the report/triage now **rank by EPSS within their severity tier** so actively-exploitable CVEs surface first.
+>
+
+> **✅ Build-out Wave 5 shipped** (58→59 scanners, +7 tests):
+> - **GraphQL-aware injection** (`graphql-injection`, CWE-89/78/1336) — introspects the schema, enumerates Query/Mutation string arguments, and injects error-based SQLi, an OS-command canary, and an SSTI arithmetic probe into each *argument* (not just HTTP params), with a fresh-nonce confirmer. Closes the DVGA-class gap where injection lives inside GraphQL operations that the generic parameter scanners never reach.
 >
 > **What genuinely remains** (and why it isn't shipped): **tenant-isolation** is effectively covered by the authz-matrix (which replays a tenant's object URL under another identity); **step-up-auth bypass** is intentionally deferred as too false-positive-prone to do at low FP without app-specific knowledge; **gRPC field-level fuzzing** (beyond reflection) and **HTTP/2 binary smuggling** are larger transport builds; and the **method** items below (ML-assisted anomaly/param discovery, grammar/mutation fuzzing, a reusable differential engine) are research-grade rather than discrete scanners. The list below is retained as the forward backlog.
 
@@ -565,7 +569,7 @@ orthrus/
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto
   recon/       18 modules + spec_parsers + registry
-  scanners/    58 scanners + base + registry + _injection + _evasion
+  scanners/    59 scanners + base + registry + _injection + _evasion
   exploits/    17 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
@@ -578,7 +582,7 @@ orthrus/
   mcp_server.py  FastMCP tools
   main.py      Click CLI (28 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (1045 tests)
+tests/         unit + integration (1052 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```
