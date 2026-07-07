@@ -1,0 +1,83 @@
+name: release
+
+# Cut a release by pushing a tag, e.g. `git tag v0.1.0 && git push origin v0.1.0`.
+# Builds a standalone `orthrus` binary for Linux/macOS/Windows and a slim Docker
+# image (ghcr.io/<owner>/orthrus), attaching the binaries to the GitHub release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # create the release + upload assets
+  packages: write   # push the image to GHCR
+
+jobs:
+  binaries:
+    name: binary (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            asset: orthrus-linux-x86_64
+          - os: macos-latest
+            asset: orthrus-macos-arm64
+          - os: windows-latest
+            asset: orthrus-windows-x86_64.exe
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[scanners,api,mcp]" pyinstaller
+      - name: Build
+        run: pyinstaller --clean --noconfirm packaging/orthrus.spec
+      - name: Name the artifact
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            mv dist/orthrus.exe "dist/${{ matrix.asset }}"
+          else
+            mv dist/orthrus "dist/${{ matrix.asset }}"
+          fi
+      - name: Smoke test
+        shell: bash
+        run: "dist/${{ matrix.asset }} --no-banner --version"
+      - name: Attach to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/${{ matrix.asset }}
+          generate_release_notes: true
+
+  docker:
+    name: docker image (GHCR)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=raw,value=latest
+      - name: Build & push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.slim
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}

@@ -16,14 +16,31 @@ scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings — and, op
 an [**AI-written consultant report**](#-ai-consultant-report-orthrus-ai-report) (Markdown / HTML / PDF)
 grounded strictly in those findings and their verbatim evidence.
 
+**Run a scan, then explore the results in the built-in dashboard** (`orthrus serve`):
+
+![ORTHRUS dashboard — a completed scan's findings, chipped by severity, with confidence, type, URL and CWE, plus a link to the attack-surface graph](docs/dashboard.png)
+
+![ORTHRUS attack-surface graph — target → host → path → endpoint, force-laid-out from the scan's recon data](docs/surface.png)
+
+<sub>The dashboard shows findings by severity/confidence/CWE, an interactive **attack-surface graph** (`orthrus surface`), and a **Repeater** for hands-on verification. Prefer the terminal? The full run renders there too:</sub>
+
 ![Orthrus terminal output: the banner, the AUTHORIZED SCOPE panel, the scan summary, OWASP Top-10 coverage, and the colour-coded findings table](docs/screenshot.png)
 
 <sub>A real scan of the bundled, 127.0.0.1-only practice target. Regenerate this view from any JSON report with [`examples/render_report_ui.py`](examples/render_report_ui.py).</sub>
 
+### Try it in one command
+
+```bash
+# no clone, no Python setup — pull the image and scan the bundled practice target
+docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope 127.0.0.1
+# or grab a standalone binary (no dependencies) from the Releases page:
+#   https://github.com/ankitjha67/orthrus/releases  →  ./orthrus scan -t … --scope …
+```
+
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1052-test / lint-clean quality gates.
+1064-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
