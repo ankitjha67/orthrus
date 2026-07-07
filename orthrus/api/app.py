@@ -45,12 +45,12 @@ _REPEATER_BODY = (
     "<br><label>Body</label><br><textarea id=b rows=6 style='width:100%'></textarea>"
     "<br><button id=go>Send</button></div>"
     "<div><label>Response</label><pre id=out style='white-space:pre-wrap;word-break:break-all;"
-    "background:#0b0d13;border:1px solid #242a36;border-radius:6px;padding:12px;min-height:320px'></pre></div>"
+    "background:#141414;border:1px solid #2b2b2b;border-radius:6px;padding:12px;min-height:320px'></pre></div>"
     "</div>"
-    "<style>label{color:#9aa6bf;font-size:12px}select,input,textarea{background:#0b0d13;color:#e6e6e6;"
-    "border:1px solid #333c4e;border-radius:5px;padding:6px;font-family:inherit}"
-    "button{background:#e8491d;color:#fff;border:0;border-radius:6px;padding:8px 18px;margin-top:8px;cursor:pointer}"
-    ".muted{color:#9aa6bf;font-size:13px}</style>"
+    "<style>label{color:#a8a8a8;font-size:12px}select,input,textarea{background:#181818;color:#f0f0f0;"
+    "border:1px solid #333;border-radius:5px;padding:6px;font-family:inherit}"
+    "button{background:#d70000;color:#fff;border:0;border-radius:6px;padding:8px 18px;margin-top:8px;cursor:pointer}"
+    ".muted{color:#a8a8a8;font-size:13px}</style>"
     "<script>"
     "document.getElementById('go').onclick=async()=>{"
     "const out=document.getElementById('out');out.textContent='sending…';"
@@ -66,9 +66,11 @@ _REPEATER_BODY = (
     "</script>"
 )
 
+# Red/white/black palette: severity reads as a red-intensity ramp (hottest =
+# critical) fading to grey for low/info — no off-brand hues.
 _SEV_COLOR = {
-    "critical": "#b30000", "high": "#e8491d", "medium": "#d98800",
-    "low": "#3aa775", "info": "#7889a6",
+    "critical": "#ff3b3b", "high": "#ff6b6b", "medium": "#ff9e9e",
+    "low": "#c9c9c9", "info": "#8a8a8a",
 }
 _SEV_RANK = {"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}
 
@@ -79,12 +81,12 @@ def _page(title: str, body: str) -> str:
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         '<meta name=viewport content="width=device-width, initial-scale=1">'
         f"<title>{html.escape(title)}</title><style>"
-        "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f1117;color:#e6e6e6;margin:0;padding:24px}"
-        "h1{color:#e8491d;margin:0 0 4px} a{color:#5ab0ff;text-decoration:none} a:hover{text-decoration:underline}"
+        "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;margin:0;padding:24px}"
+        "h1{color:#d70000;margin:0 0 4px} a{color:#ff5a5a;text-decoration:none} a:hover{text-decoration:underline}"
         "table{border-collapse:collapse;width:100%;margin-top:14px}"
-        "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #242a36;font-size:14px}"
-        "th{color:#9aa6bf;font-weight:600} .sev{font-weight:700} code{color:#7fd9c0;word-break:break-all}"
-        ".pill{display:inline-block;padding:2px 9px;border-radius:11px;color:#fff;font-size:12px;margin-right:6px}"
+        "th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #2b2b2b;font-size:14px}"
+        "th{color:#a8a8a8;font-weight:600} .sev{font-weight:700} code{color:#e0e0e0;word-break:break-all}"
+        ".pill{display:inline-block;padding:2px 9px;border-radius:11px;color:#0f0f0f;font-weight:700;font-size:12px;margin-right:6px}"
         "</style></head><body>" + body + "</body></html>"
     )
 

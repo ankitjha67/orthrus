@@ -159,8 +159,8 @@ def _render_body(md: str) -> str:  # noqa: C901 — a small, linear block dispat
 
 
 _CSS = """
-:root { --ink:#1a1f2b; --muted:#5b6472; --line:#d9dee7; --accent:#0b3d68;
-        --crit:#8b1a1a; --high:#b4531a; --med:#8a6d0b; --low:#2f6f3e; --code:#f4f6f9; }
+:root { --ink:#1a1a1a; --muted:#666666; --line:#e2e2e2; --accent:#c40000;
+        --crit:#a10000; --high:#c0392b; --med:#8a3a3a; --low:#555555; --code:#f5f5f5; }
 * { box-sizing: border-box; }
 body { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: var(--ink);
        line-height: 1.55; margin: 0; font-size: 11pt; }
@@ -170,7 +170,7 @@ h1 { font-size: 30pt; color: var(--accent); border-bottom: 3px solid var(--accen
 h2 { font-size: 18pt; color: var(--accent); border-bottom: 1px solid var(--line);
      padding-bottom: 5px; margin: 34px 0 14px; page-break-before: always; }
 h1 + * , h2:first-of-type { page-break-before: auto; }
-h3 { font-size: 14pt; color: #12314f; margin: 22px 0 8px; }
+h3 { font-size: 14pt; color: #8a0000; margin: 22px 0 8px; }
 h4 { font-size: 11.5pt; color: var(--muted); text-transform: uppercase;
      letter-spacing: .04em; margin: 16px 0 6px; }
 p { margin: 8px 0; }
@@ -179,7 +179,7 @@ ul { margin: 8px 0 8px 22px; }
 li { margin: 3px 0; }
 hr { border: 0; border-top: 1px solid var(--line); margin: 20px 0; }
 blockquote { margin: 12px 0; padding: 8px 16px; border-left: 4px solid var(--accent);
-             background: #f6f8fb; color: var(--muted); }
+             background: #f7f7f7; color: var(--muted); }
 code { background: var(--code); border: 1px solid var(--line); border-radius: 3px;
        padding: 1px 5px; font-family: "Cascadia Code", Consolas, monospace; font-size: 9.5pt; }
 pre { background: var(--code); border: 1px solid var(--line); border-radius: 5px;
@@ -190,7 +190,7 @@ table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 9.8pt
         page-break-inside: avoid; }
 th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
 th { background: var(--accent); color: #fff; font-weight: 600; }
-tbody tr:nth-child(even) { background: #f6f8fb; }
+tbody tr:nth-child(even) { background: #f7f7f7; }
 @page { size: A4; margin: 18mm 16mm; }
 @media print { h2 { page-break-before: always; } main { padding: 0; max-width: none; } }
 """

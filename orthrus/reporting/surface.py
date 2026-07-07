@@ -130,8 +130,8 @@ _GRAPH_JS = r"""
 const G = __DATA__;
 const svg = document.getElementById('graph'), W = svg.clientWidth || 900, H = 560;
 svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-const COL = {target:'#e8491d', host:'#5ab0ff', port:'#7fd9c0', 'risky-port':'#ff5c6c',
-             tech:'#b48ead', path:'#8894a8', endpoint:'#4a5568'};
+const COL = {target:'#d70000', host:'#f0f0f0', port:'#b8b8b8', 'risky-port':'#ff3b3b',
+             tech:'#8f8f8f', path:'#6f6f6f', endpoint:'#454545'};
 const R = {target:16, host:11, 'risky-port':7, port:6, tech:6, path:7, endpoint:4};
 const idx = {}; G.nodes.forEach((n,i)=>{idx[n.id]=n;
   n.x = W/2 + 240*Math.cos(i)*(0.3+((i*53)%7)/10); n.y = H/2 + 180*Math.sin(i)*(0.3+((i*31)%5)/10);
@@ -139,13 +139,13 @@ const idx = {}; G.nodes.forEach((n,i)=>{idx[n.id]=n;
 G.links.forEach(l=>{l.s=idx[l.source]; l.t=idx[l.target];});
 const gL = document.getElementById('links'), gN = document.getElementById('nodes');
 G.links.forEach(l=>{const e=document.createElementNS(svg.namespaceURI,'line');
-  e.setAttribute('stroke','#2b3242'); e.setAttribute('stroke-width','1'); l.el=e; gL.appendChild(e);});
+  e.setAttribute('stroke','#333'); e.setAttribute('stroke-width','1'); l.el=e; gL.appendChild(e);});
 G.nodes.forEach(n=>{const g=document.createElementNS(svg.namespaceURI,'g'); g.style.cursor='grab';
   const c=document.createElementNS(svg.namespaceURI,'circle');
   c.setAttribute('r', R[n.group]||6); c.setAttribute('fill', COL[n.group]||'#789');
-  c.setAttribute('stroke','#0f1117'); c.setAttribute('stroke-width','1.5');
+  c.setAttribute('stroke','#0f0f0f'); c.setAttribute('stroke-width','1.5');
   const t=document.createElementNS(svg.namespaceURI,'text'); t.textContent=n.label;
-  t.setAttribute('font-size', n.group==='target'?'13':'10'); t.setAttribute('fill','#c7d0e0');
+  t.setAttribute('font-size', n.group==='target'?'13':'10'); t.setAttribute('fill','#d0d0d0');
   t.setAttribute('dx', (R[n.group]||6)+3); t.setAttribute('dy','3'); t.style.pointerEvents='none';
   g.appendChild(c); g.appendChild(t); n.g=g; n.el=c;
   g.addEventListener('mousedown',e=>{drag=n; n.fixed=true; e.preventDefault();});
@@ -193,29 +193,29 @@ def render_surface_html(
         for r in model["endpoints"]
     )
     legend = (
-        "<span style='color:#e8491d'>● target</span> "
-        "<span style='color:#5ab0ff'>● host</span> "
-        "<span style='color:#7fd9c0'>● port</span> "
-        "<span style='color:#ff5c6c'>● risky port</span> "
-        "<span style='color:#b48ead'>● technology</span> "
-        "<span style='color:#8894a8'>● path</span> "
-        "<span style='color:#4a5568'>● endpoint</span>"
+        "<span style='color:#d70000'>● target</span> "
+        "<span style='color:#f0f0f0'>● host</span> "
+        "<span style='color:#b8b8b8'>● port</span> "
+        "<span style='color:#ff3b3b'>● risky port</span> "
+        "<span style='color:#8f8f8f'>● technology</span> "
+        "<span style='color:#6f6f6f'>● path</span> "
+        "<span style='color:#454545'>● endpoint</span>"
     )
     data_json = json.dumps({"nodes": model["nodes"], "links": model["links"]})
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         '<meta name=viewport content="width=device-width, initial-scale=1">'
         f"<title>{html.escape(title)} — {html.escape(target)}</title><style>"
-        "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f1117;color:#e6e6e6;margin:0;padding:20px}"
-        "h1{color:#e8491d;margin:0 0 2px;font-size:20px} .muted{color:#9aa6bf;font-size:13px}"
-        "#wrap{position:relative;border:1px solid #242a36;border-radius:8px;margin:12px 0;background:#0b0d13}"
+        "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;margin:0;padding:20px}"
+        "h1{color:#d70000;margin:0 0 2px;font-size:20px} .muted{color:#a8a8a8;font-size:13px}"
+        "#wrap{position:relative;border:1px solid #2b2b2b;border-radius:8px;margin:12px 0;background:#0b0b0b}"
         "#graph{width:100%;height:560px;display:block}"
-        "#tip{position:absolute;pointer-events:none;background:#1b2130;border:1px solid #333c4e;color:#e6e6e6;"
+        "#tip{position:absolute;pointer-events:none;background:#181818;border:1px solid #333;color:#f0f0f0;"
         "padding:5px 9px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .1s;max-width:340px;z-index:5}"
         ".legend{font-size:12px;margin:6px 0}"
         "table{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px}"
-        "th,td{text-align:left;padding:6px 9px;border-bottom:1px solid #242a36} th{color:#9aa6bf}"
-        "code{color:#7fd9c0;word-break:break-all}"
+        "th,td{text-align:left;padding:6px 9px;border-bottom:1px solid #2b2b2b} th{color:#a8a8a8}"
+        "code{color:#e0e0e0;word-break:break-all}"
         "</style></head><body>"
         f"<h1>Attack surface — {html.escape(target)}</h1>"
         f"<div class=muted>{s['hosts']} host(s) · {s['ports']} open port(s) · "
@@ -223,7 +223,7 @@ def render_surface_html(
         f"<div class=legend>{legend}</div>"
         "<div id=wrap><svg id=graph xmlns='http://www.w3.org/2000/svg'>"
         "<g id=links></g><g id=nodes></g></svg><div id=tip></div></div>"
-        f"<h2 style='font-size:15px;color:#9aa6bf'>Endpoints ({s['endpoints']})</h2>"
+        f"<h2 style='font-size:15px;color:#a8a8a8'>Endpoints ({s['endpoints']})</h2>"
         "<table><tr><th>Method</th><th>URL</th><th>Status</th><th>Params</th></tr>"
         + (rows or "<tr><td colspan=4>No endpoints recorded.</td></tr>")
         + "</table>"
