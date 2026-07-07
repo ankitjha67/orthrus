@@ -40,7 +40,7 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1064-test / lint-clean quality gates.
+1065-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
@@ -125,7 +125,7 @@ roadmap for advanced scanners & methods.
 - Passive IP-address intelligence (reverse-DNS / ASN / geo / cloud attribution) + co-hosted host gathering
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (58)**
+**Vulnerability scanners (59)**
 
 | Category | Scanners |
 |---|---|
@@ -136,7 +136,7 @@ roadmap for advanced scanners & methods.
 | Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks, **RS->HS algorithm confusion** via published JWKS), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)**, **SAML response inspection (unsigned assertion, signature-wrapping, NameID comment-truncation)** |
 | Server-side | SSRF (out-of-band + metadata), **OS command injection (output / time / OOB-callback blind RCE)**, deserialization, prototype pollution (client- & server-side) |
 | Config / transport | Security headers, **CSP weakness analysis**, **mixed-content / insecure-transport refs**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **HTTP misconfig (TRACE/XST, dangerous methods)** |
-| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading + circular-fragment DoS, debug/stack-trace disclosure — DVGA-grade), WebSocket, **gRPC server-reflection exposure**, **shadow / improper-inventory API (API9)** |
+| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading + circular-fragment DoS, debug/stack-trace disclosure, **argument injection — introspect the schema, then fuzz mutation/query arguments for SQLi / OS-command / SSTI** — DVGA-grade), WebSocket, **gRPC server-reflection exposure**, **shadow / improper-inventory API (API9)** |
 | Secrets | **Exposed-secret scanner** — AWS/Google/Slack/Stripe/GitHub keys + private-key blocks in responses/JS (redacted) |
 | Supply chain | SCA — known-vulnerable JS libraries (retire.js-style) |
 | Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
@@ -275,6 +275,20 @@ pip install -e ".[dev]"          # pytest, ruff, mypy
 # After installing [browser], download the Chromium runtime once:
 playwright install chromium
 ```
+
+**Or skip the clone** — run the published container image or a standalone binary:
+
+```bash
+# Docker (core + scanners + API/dashboard; no local Python needed)
+docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://TARGET --scope TARGET
+docker run --rm -p 8000:8000 ghcr.io/ankitjha67/orthrus serve --host 0.0.0.0   # dashboard
+
+# Standalone binary (no dependencies) — download from Releases, then:
+./orthrus scan -t http://TARGET --scope TARGET
+```
+
+Prebuilt binaries for Linux / macOS / Windows and the container image are attached
+to each [GitHub release](https://github.com/ankitjha67/orthrus/releases).
 
 > The **jwt** and **tls** scanners need `[scanners]`; **dom-xss** / **stored-xss**
 > and XSS confirmation need `[browser]` + `playwright install chromium`. Each
