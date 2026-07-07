@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 
 from orthrus.core.schemas import Asset, Endpoint
 
+# Colours here are red/white/black only — canonical tokens in orthrus/utils/palette.py.
 # Ports that are worth flagging red in the graph (admin / data / remote-access).
 _RISKY_PORTS = {21, 22, 23, 445, 1433, 1521, 2049, 3306, 3389, 5432, 5900, 6379, 9200, 27017}
 

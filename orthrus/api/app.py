@@ -66,8 +66,8 @@ _REPEATER_BODY = (
     "</script>"
 )
 
-# Red/white/black palette: severity reads as a red-intensity ramp (hottest =
-# critical) fading to grey for low/info — no off-brand hues.
+# Red/white/black palette (canonical tokens in orthrus/utils/palette.py): severity
+# reads as a red-intensity ramp (hottest = critical) fading to grey for low/info.
 _SEV_COLOR = {
     "critical": "#ff3b3b", "high": "#ff6b6b", "medium": "#ff9e9e",
     "low": "#c9c9c9", "info": "#8a8a8a",

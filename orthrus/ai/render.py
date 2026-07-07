@@ -158,6 +158,7 @@ def _render_body(md: str) -> str:  # noqa: C901 — a small, linear block dispat
     return "\n".join(out)
 
 
+# Colours are red/white/black only — canonical tokens in orthrus/utils/palette.py.
 _CSS = """
 :root { --ink:#1a1a1a; --muted:#666666; --line:#e2e2e2; --accent:#c40000;
         --crit:#a10000; --high:#c0392b; --med:#8a3a3a; --low:#555555; --code:#f5f5f5; }

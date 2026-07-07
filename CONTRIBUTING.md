@@ -71,6 +71,19 @@ green; a PR that breaks either won't merge.
 The same pattern applies to recon modules (`orthrus/recon/`), exploit confirmers
 (`orthrus/exploits/`), and reporters — each has a registry and a base class.
 
+## Visual style — red / white / black only
+
+ORTHRUS has one palette: **red, white, and black** (plus neutral greys, which are
+just shades of black↔white). It's anchored to the CLI's crimson identity
+(`orthrus/utils/theme.py`, Rich `red3`). Every visual surface follows it — the web
+dashboard, the attack-surface graph, the AI consultant report, and the Jinja
+report templates.
+
+The canonical colours live in **`orthrus/utils/palette.py`** — use those tokens for
+any new report, view, or UI, now and in future. Do **not** introduce blue / green /
+teal / amber / purple. Severity reads as a red-intensity ramp (critical hottest →
+grey for low/info), never a green→red rainbow.
+
 ## Pull requests
 
 - Branch off `main`; keep PRs focused.
