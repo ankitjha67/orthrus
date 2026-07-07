@@ -195,10 +195,14 @@ def create_app(db_url: str | None = None) -> FastAPI:
         summary = await app.state.store.severity_counts(scan_id)
         pairs = await app.state.store.get_findings_with_ids(scan_id)
         pairs.sort(key=lambda p: _SEV_RANK.get(p[1].severity.value, 9))
+        # Chips in severity order (critical → high → medium → low → info), not the
+        # store's alphabetical dict order.
         chips = "".join(
-            f"<span class=pill style='background:{_SEV_COLOR.get(k, '#789')}'>{html.escape(k)} {v}</span>"
-            for k, v in summary.items()
-            if k != "total" and v
+            f"<span class=pill style='background:{_SEV_COLOR.get(k, '#789')}'>{html.escape(k)} {summary[k]}</span>"
+            for k in sorted(
+                (k for k in summary if k != "total" and summary[k]),
+                key=lambda k: _SEV_RANK.get(k, 9),
+            )
         )
         frs = "".join(
             "<tr>"

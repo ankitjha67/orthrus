@@ -127,6 +127,13 @@ def test_dashboard_escapes_xss_payload(client) -> None:
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in r.text
 
 
+def test_dashboard_chips_in_severity_order(client) -> None:
+    # scan-apitest has a high (sqli) and a medium (xss) finding; the severity chips
+    # must render high before medium (severity order), not alphabetically.
+    txt = client.get("/dashboard/scans/scan-apitest").text
+    assert txt.index(">high ") < txt.index(">medium ")
+
+
 def test_dashboard_surface_route(client) -> None:
     r = client.get("/dashboard/scans/scan-apitest/surface")
     assert r.status_code == 200 and "<svg" in r.text and "example.com" in r.text
