@@ -13,8 +13,22 @@ permissions:
   packages: write   # push the image to GHCR
 
 jobs:
+  create-release:
+    name: create release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Ensure the release exists (once, before the matrix uploads to it)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+          || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+          --title "$GITHUB_REF_NAME" --generate-notes
+
   binaries:
     name: binary (${{ matrix.os }})
+    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -52,7 +66,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/${{ matrix.asset }}
-          generate_release_notes: true
 
   docker:
     name: docker image (GHCR)
