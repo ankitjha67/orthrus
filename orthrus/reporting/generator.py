@@ -315,7 +315,9 @@ async def _build_context(
 
 
 def _resolve_branding(branding: dict | None) -> dict:
-    resolved = {"name": "Project ORTHRUS", "color": "#0b7285"}
+    from orthrus.utils.palette import RED_PRINT  # canonical red/white/black palette
+
+    resolved = {"name": "Project ORTHRUS", "color": RED_PRINT}
     resolved.update(branding or {})
     logo_path = resolved.pop("logo", None)
     if logo_path and os.path.exists(logo_path):

@@ -12,7 +12,7 @@
   header.brand { background: var(--brand); color: #fff; padding: 26px 28px; }
   header.brand h1 { margin: 0; font-size: 22px; letter-spacing: .3px; }
   header.brand .meta { opacity: .9; font-size: 13px; margin-top: 6px; }
-  .classification { background: #2b2b2b; color: #ffd43b; text-align: center;
+  .classification { background: #2b2b2b; color: #fff; text-align: center;
                     font-size: 11px; letter-spacing: 2px; padding: 5px; text-transform: uppercase; }
   h2 { font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 6px; margin-top: 36px; }
   h3 { font-size: 15px; margin: 0; }
@@ -21,13 +21,14 @@
   th { background: #f6f8fa; }
   .sev { display: inline-block; padding: 2px 9px; border-radius: 10px; color: #fff;
          font-size: 11px; font-weight: 700; text-transform: uppercase; }
-  .sev-critical { background: #b02a37; }
-  .sev-high { background: #d9480f; }
-  .sev-medium { background: #b08900; }
-  .sev-low { background: #1971c2; }
-  .sev-info { background: #6c757d; }
+  /* severity fills — red-intensity ramp; mirrors orthrus/utils/palette.py (SEVERITY_FILL) */
+  .sev-critical { background: #8b0000; }
+  .sev-high { background: #b71c1c; }
+  .sev-medium { background: #c94f4f; }
+  .sev-low { background: #5c636a; }
+  .sev-info { background: #868e96; }
   .conf { font-size: 11px; padding: 1px 7px; border-radius: 8px; border: 1px solid #ccc; }
-  .conf-confirmed { border-color: #2f9e44; color: #2f9e44; font-weight: 700; }
+  .conf-confirmed { border-color: #c40000; color: #c40000; font-weight: 700; }
   .bar-row { display: flex; align-items: center; gap: 10px; margin: 4px 0; }
   .bar-label { width: 80px; font-size: 12px; }
   .bar-track { flex: 1; background: #f1f3f5; border-radius: 4px; height: 16px; overflow: hidden; }
@@ -36,13 +37,13 @@
   .finding .hd { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .kv { font-size: 12px; color: #444; margin: 8px 0; }
   .kv code { background: #f6f8fa; padding: 1px 5px; border-radius: 4px; }
-  pre { background: #0d1117; color: #c9d1d9; padding: 12px; border-radius: 6px;
+  pre { background: #0d1117; color: #e0e0e0; padding: 12px; border-radius: 6px;
         overflow-x: auto; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
   .shot { max-width: 100%; border: 1px solid #ddd; border-radius: 6px; margin: 8px 0; }
   .cvss { font-variant-numeric: tabular-nums; font-weight: 700; }
   footer { color: #888; font-size: 11px; text-align: center; margin-top: 50px;
            border-top: 1px solid #eee; padding-top: 14px; }
-  .pill { background:#eef; color:#338; font-size:11px; padding:1px 8px; border-radius:8px; }
+  .pill { background:#f7e6e6; color:#a10000; font-size:11px; padding:1px 8px; border-radius:8px; }
 </style>
 </head>
 <body>
