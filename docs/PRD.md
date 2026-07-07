@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 59 scanners · 17 confirmation modules · 18 recon modules · 1052 passing tests · `ruff` clean |
+| Verified snapshot | 59 scanners · 17 confirmation modules · 18 recon modules · 1064 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -380,14 +380,14 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 14. Platform & integrations
-- **REST API** (`orthrus serve`, `[api]`): `GET /health`, `/api/scans`, `/api/scans/{id}`, `/api/scans/{id}/findings`, `/api/scans/{id}/report`, plus dark-theme **dashboard** at `/` and `/dashboard/scans/{id}`. All HTML-escaped.
+- **REST API** (`orthrus serve`, `[api]`): `GET /health`, `/api/scans`, `/api/scans/{id}`, `/api/scans/{id}/findings`, `/api/scans/{id}/report`, plus dark-theme **dashboard** at `/` and `/dashboard/scans/{id}`, an interactive **attack-surface graph** (`/dashboard/scans/{id}/surface`), and a **Repeater** (`/dashboard/repeater` + `POST /api/replay`, scope-gated to scanned hosts). All HTML-escaped.
 - **MCP server** (`orthrus mcp`, `[mcp]`): FastMCP tools `list_scans`, `get_scan`, `get_findings`, `list_modules` (+ SDK-free data fns).
 - **External tools** (`--tools`): `ExternalToolAdapter` ABC + `NucleiAdapter` (`nuclei -jsonl` → `tool-nuclei` findings); scope-checked subprocess; `available_tools()` PATH probe. Native scanners never depend on these.
 
 ---
 
 ## 15. CLI surface (`orthrus …`)
-**28 commands.** `scan` (full pipeline, 60+ flags), `recon` (selective), `exploit` (confirmation-only re-run), `report` (regenerate from stored scan), **`ai-report`** (AI consultant deliverable — md/html/pdf), `scans` (list), `findings` / `finding` (triage + lifecycle status/assign), `triage` (ranked view), `chains` (attack-chain correlation), `graph` (reachability attack-graph), `runbook` (consolidated remediation), `patch` (defensive patch-gen), `notify` (Slack/Jira), `hosts` (host inventory), `diff` (NEW/FIXED/PERSISTING + `--fail-on-new`), `modules` (inventory + per-module detail), `monitor` (continuous re-scan), `cloud` (read-only CSPM/IAM posture), `iac` (IaC scan), `proxy` (scope-aware capturing proxy), `agent` (bounded LLM planner), `benchmark` (detection accuracy), `completion` (bash/zsh/fish), `doctor` (env readiness), `update` (refresh KEV), `serve` (API + dashboard), `mcp` (MCP server). Exit codes: `0` success, `2` usage, `3` `--fail-on` breached. `--config file.toml`, `--resume --scan-id`, `--dry-run`, `--target-file` (batch), `--distributed` (Celery/Redis).
+**30 commands.** `scan` (full pipeline, 60+ flags), `recon` (selective), `exploit` (confirmation-only re-run), `report` (regenerate from stored scan), **`ai-report`** (AI consultant deliverable — md/html/pdf), **`surface`** (interactive attack-surface graph — hosts/ports/tech/endpoints), **`replay`** (mini-Repeater — resend a finding's/raw request with tweaks, scope-enforced), `scans` (list), `findings` / `finding` (triage + lifecycle status/assign), `triage` (ranked view), `chains` (attack-chain correlation), `graph` (reachability attack-graph), `runbook` (consolidated remediation), `patch` (defensive patch-gen), `notify` (Slack/Jira), `hosts` (host inventory), `diff` (NEW/FIXED/PERSISTING + `--fail-on-new`), `modules` (inventory + per-module detail), `monitor` (continuous re-scan), `cloud` (read-only CSPM/IAM posture), `iac` (IaC scan), `proxy` (scope-aware capturing proxy), `agent` (bounded LLM planner), `benchmark` (detection accuracy), `completion` (bash/zsh/fish), `doctor` (env readiness), `update` (refresh KEV), `serve` (API + dashboard + repeater), `mcp` (MCP server). Exit codes: `0` success, `2` usage, `3` `--fail-on` breached. `--config file.toml`, `--resume --scan-id`, `--dry-run`, `--target-file` (batch), `--distributed` (Celery/Redis).
 
 ---
 
@@ -401,7 +401,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **1052 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1064 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -429,8 +429,8 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | AI consultant report | `ai-report` — grounded LLM narrative, md/html/pdf, local or any market model |
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
-| CLI commands | 28 |
-| Automated tests | **1052** (ruff clean) |
+| CLI commands | 30 |
+| Automated tests | **1064** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -580,9 +580,9 @@ orthrus/
   api/         FastAPI REST + dashboard
   db/          SQLAlchemy async store + models (encrypted evidence)
   mcp_server.py  FastMCP tools
-  main.py      Click CLI (28 commands)
+  main.py      Click CLI (30 commands)
 docs/          README, PROOF.md, this PRD, screenshot
-tests/         unit + integration (1052 tests)
+tests/         unit + integration (1064 tests)
 .github/       CI matrix + reusable scan action
 docker/        Dockerfile (all extras + Chromium)
 ```

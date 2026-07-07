@@ -18,7 +18,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Tool | ORTHRUS v0.1.0 |
 | Date of run | 2026-05-30 · 2026-07-05 (full-pipeline smoke) |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
-| Automated gates | **1052 tests pass**, `ruff check orthrus tests` clean |
+| Automated gates | **1064 tests pass**, `ruff check orthrus tests` clean |
 | Coverage | **59 vulnerability scanners · 17 confirmation modules · 18 recon modules** |
 | Authorized ranges | `pentest-ground.com` (Pentest-Tools.com) · `ginandjuice.shop` (PortSwigger) + purpose-built localhost targets |
 
@@ -31,7 +31,7 @@ $ ruff check orthrus tests
 All checks passed!
 
 $ pytest -q
-1052 passed, 4 warnings
+1064 passed, 4 warnings
 ```
 
 Every detector ships with pure unit tests; scanners additionally have
@@ -248,7 +248,7 @@ Run the full pipeline (recon → scan → confirm → report) by dropping `--mod
 ## 6. Expanded fleet — new-capability verifications (controlled & reproducible)
 
 The roadmap build-out grew ORTHRUS from 42 → **59 scanners**, 13 → **18 recon**,
-and 667 → **1052 tests**. (Recon's latest addition is passive IP-address
+and 667 → **1064 tests**. (Recon's latest addition is passive IP-address
 intelligence — PTR/ASN/geo/cloud — verified live below.) A correlation & delivery
 layer now sits on top of the detectors: an attack-**graph** that merges chain
 rules into maximal kill-chains, finding **lifecycle** (status/owner), a

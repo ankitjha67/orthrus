@@ -125,3 +125,31 @@ def test_dashboard_escapes_xss_payload(client) -> None:
     assert r.status_code == 200
     assert "<script>alert(1)</script>" not in r.text
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in r.text
+
+
+def test_dashboard_surface_route(client) -> None:
+    r = client.get("/dashboard/scans/scan-apitest/surface")
+    assert r.status_code == 200 and "<svg" in r.text and "example.com" in r.text
+
+
+def test_replay_requires_a_url(client) -> None:
+    assert client.post("/api/replay", json={}).status_code == 400
+
+
+def test_replay_rejects_unscanned_host(client) -> None:
+    # the browser Repeater is scope-gated to hosts that appear as a scan target
+    r = client.post("/api/replay", json={"url": "http://evil.test/"})
+    assert r.status_code == 403
+
+
+def test_replay_allows_scanned_host(client, monkeypatch) -> None:
+    from orthrus.api import app as app_mod
+    from orthrus.proxy.replay import ReplayResult
+
+    async def _fake(spec, validator, **kw):
+        return ReplayResult(method=spec.method, url=spec.url, status=204, reason="No Content",
+                            elapsed_ms=1.0)
+
+    monkeypatch.setattr(app_mod, "_replay", _fake)
+    r = client.post("/api/replay", json={"url": "https://example.com/x", "method": "GET"})
+    assert r.status_code == 200 and r.json()["status"] == 204

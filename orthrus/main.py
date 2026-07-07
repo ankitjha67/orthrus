@@ -1850,6 +1850,147 @@ async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed,
     )
 
 
+@cli.command(name="surface")
+@click.option("--scan-id", required=True, help="Scan whose recon to visualize.")
+@click.option("--output", "-o", default="orthrus_surface", help="Output HTML file.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def surface(scan_id: str, output: str, verbose: str) -> None:
+    """Render a scan's recon (hosts / ports / technologies / endpoints) as an
+    interactive attack-surface graph — a self-contained HTML page."""
+    configure_logging(verbose)
+    markup = asyncio.run(_surface_build(scan_id))
+    if markup is None:
+        return
+    path = output if output.endswith((".html", ".htm")) else output + ".html"
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(markup)
+    console.print(f"[status.completed]Attack-surface map written to {path}[/] — open it in a browser.")
+
+
+async def _surface_build(scan_id: str) -> str | None:
+    from orthrus.reporting.surface import render_surface_html
+
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        scan = await store.get_scan(scan_id)
+        if scan is None:
+            logger.error("no such scan: %s (list scans with `orthrus scans`)", scan_id)
+            return None
+        assets = await store.get_assets(scan_id)
+        endpoints = await store.get_endpoints(scan_id)
+        return render_surface_html(scan.target, assets, endpoints)
+    finally:
+        await store.close()
+
+
+@cli.command(name="replay")
+@click.option("--request-file", "request_file", type=click.Path(exists=True, dir_okay=False),
+              default=None, help="Raw HTTP request file (Burp-style paste).")
+@click.option("--scan-id", default=None, help="Replay a finding's recorded request from this scan.")
+@click.option("--finding-id", "finding_id", default=None,
+              help="Finding id (with --scan-id) whose recorded request to replay.")
+@click.option("--url", default=None, help="Ad-hoc URL to request, or override the source URL.")
+@click.option("--method", default=None, help="Override the HTTP method.")
+@click.option("--header", "headers", multiple=True,
+              help="Add/override a header 'Name: value' (repeatable).")
+@click.option("--body", default=None, help="Override the request body.")
+@click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the request host.")
+@click.option("--scheme", default="https", help="Scheme for origin-form raw requests (default https).")
+@click.option("--repeat", default=1, type=int, help="Send the request N times (timing/consistency).")
+@click.option("--follow-redirects", is_flag=True, help="Follow redirects.")
+@click.option("--show-body", is_flag=True, help="Print the full response body (default: a preview).")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def replay(
+    request_file: str | None, scan_id: str | None, finding_id: str | None, url: str | None,
+    method: str | None, headers: tuple[str, ...], body: str | None, scope_str: str | None,
+    scheme: str, repeat: int, follow_redirects: bool, show_body: bool, verbose: str,
+) -> None:
+    """Resend a recorded request with optional tweaks — the mini-Repeater.
+
+    Source the request from a finding (`--scan-id --finding-id`), a raw request
+    file (`--request-file`), or an ad-hoc `--url`; tweak it with `--method`,
+    `--header`, `--body`, `--url`; and observe the response. Scope-enforced.
+    """
+    configure_logging(verbose)
+    raw_request = None
+    if request_file:  # read here (sync) so the async worker never blocks on file I/O
+        with open(request_file, encoding="utf-8") as fh:
+            raw_request = fh.read()
+    asyncio.run(_replay_run(
+        raw_request, scan_id, finding_id, url, method, headers, body, scope_str,
+        scheme, repeat, follow_redirects, show_body,
+    ))
+
+
+async def _replay_run(
+    raw_request, scan_id, finding_id, url, method, headers, body, scope_str,
+    scheme, repeat, follow_redirects, show_body,
+) -> None:
+    from urllib.parse import urlsplit
+
+    from orthrus.proxy.replay import RequestSpec, parse_raw_http
+    from orthrus.proxy.replay import replay as do_replay
+    from orthrus.utils.scope import ScopeValidator
+
+    spec: RequestSpec | None = None
+    if raw_request is not None:
+        spec = parse_raw_http(raw_request, default_scheme=scheme)
+    elif scan_id and finding_id:
+        settings = get_settings()
+        store = Store(settings.db_url, encryption_key=settings.encryption_key)
+        try:
+            await store.init()
+            pairs = await store.get_findings_with_ids(scan_id)
+            match = next((f for fid, f in pairs if str(fid) == finding_id or f.id == finding_id), None)
+        finally:
+            await store.close()
+        if match is None:
+            logger.error("finding '%s' not found in scan '%s'", finding_id, scan_id)
+            return
+        raw = match.evidence.request_raw if match.evidence else None
+        if not raw:
+            logger.error("finding '%s' has no recorded request to replay", finding_id)
+            return
+        spec = parse_raw_http(raw, default_scheme=urlsplit(match.url).scheme or scheme)
+        if not urlsplit(spec.url).netloc:
+            spec = spec.tweaked(url=match.url)
+    elif url:
+        spec = RequestSpec(method=(method or "GET").upper(), url=url)
+    else:
+        logger.error("give a request source: --request-file, --scan-id/--finding-id, or --url")
+        return
+
+    hdr_overrides: dict[str, str] = {}
+    for raw_hdr in headers:
+        name, sep, value = raw_hdr.partition(":")
+        if sep:
+            hdr_overrides[name.strip()] = value.strip()
+    spec = spec.tweaked(method=method, url=url, set_headers=hdr_overrides or None, body=body)
+
+    host = urlsplit(spec.url).netloc.split("@")[-1].split(":")[0]
+    scope = build_scope(scope_str or host, spec.url, None)
+    validator = ScopeValidator(scope)
+
+    console.print(f"[orthrus.muted]{spec.method} {spec.url}[/]")
+    for i in range(max(1, repeat)):
+        result = await do_replay(spec, validator, follow_redirects=follow_redirects)
+        if not result.ok:
+            console.print(f"[status.error]{result.error}[/]")
+            continue
+        tag = f" [{i + 1}/{repeat}]" if repeat > 1 else ""
+        console.print(
+            f"[status.completed]{result.status} {result.reason}[/]{tag} · "
+            f"{result.elapsed_ms} ms · {len(result.body):,} bytes"
+        )
+        if show_body:
+            console.print(result.body)
+        elif i == 0 and result.body:
+            preview = result.body[:400]
+            console.print(f"[orthrus.muted]{preview}{'…' if len(result.body) > 400 else ''}[/]")
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
