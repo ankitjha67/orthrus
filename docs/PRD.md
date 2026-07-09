@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 59 scanners · 17 confirmation modules · 18 recon modules · 1065 passing tests · `ruff` clean |
+| Verified snapshot | 59 scanners · 18 confirmation modules · 18 recon modules · 1065 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 18 mods  │   │ 59 scan  │   │ 17 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 59 scan  │   │ 18 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -310,7 +310,7 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 
 ---
 
-## 8. Exploitation-confirmation subsystem (17 modules)
+## 8. Exploitation-confirmation subsystem (18 modules)
 
 Each confirmer subclasses `BaseExploit`, declares a `handles` tuple of `vuln_type`s, and re-proves impact with a **fresh** probe — upgrading `tentative/firm → confirmed`. Helpers in `_replay.py`: `reissue` (replay original GET/body/JSON), `send_value` (fresh value into the param), `replay_get/post/json`, `payload_from_evidence`, `find_endpoint`, `format_request/response`.
 
@@ -333,9 +333,10 @@ Each confirmer subclasses `BaseExploit`, declares a `handles` tuple of `vuln_typ
 | `jwt-confirm` | jwt | Weak-secret only: recover key, forge tampered token, round-trip verify (secret never emitted) |
 | `prototype-pollution-confirm` | prototype-pollution | Server-side differential with **fresh sentinel** |
 | `graphql-dos-confirm` | graphql-dos | Re-issue batching array / 100-alias probe and re-observe amplification |
+| `graphql-injection-confirm` | graphql-injection | Re-inject a **fresh** canary / operands / quote into the GraphQL argument → the sink re-evaluates (SQL error / echoed canary / computed product) |
 
 ### 8.1 The confirmation doctrine (why exactly these)
-- **Actively-confirmable (17 above):** a safe, generic active proof exists.
+- **Actively-confirmable (18 above):** a safe, generic active proof exists.
 - **Confirmed-by-detection:** observation *is* the proof and ships `firm`/`confirmed` — security-headers, TLS, banner, known-CVE product, SCA, subdomain-takeover, web-cache-deception, framework-debug, GraphQL introspection; plus classes already actively proven at detection time (default-creds login, request-smuggling desync timing, native service-exposure protocol probe, stored/DOM-XSS browser execution).
 - **Detection-only by design:** **insecure deserialization** — a passive serialized-blob signature; proving RCE needs a target-specific gadget chain, so ORTHRUS reports it rather than inventing a misleading confirmation.
 
@@ -422,7 +423,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Metric | Value |
 |---|---|
 | Vulnerability scanners | **59** |
-| Exploitation-confirmation modules | **17** |
+| Exploitation-confirmation modules | **18** |
 | Reconnaissance modules | **18** |
 | Spec formats imported | 5 (OpenAPI/Swagger/GraphQL/HAR/Postman) |
 | Report formats | 6 (JSON/CSV/HTML/PDF/SARIF/MD) |
@@ -570,7 +571,7 @@ orthrus/
   utils/       scope (deny-by-default), encoding, logger, crypto, palette (red/white/black tokens)
   recon/       18 modules + spec_parsers + registry
   scanners/    59 scanners + base + registry + _injection + _evasion
-  exploits/    17 confirmation modules + base + registry + _replay
+  exploits/    18 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
   iac/         Dockerfile/compose/Terraform analyzer
