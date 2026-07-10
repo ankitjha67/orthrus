@@ -94,6 +94,23 @@ class LLMConfig:
         return self.provider == "ollama" or "localhost" in base or "127.0.0.1" in base
 
 
+def _env_timeout(default: float = 180.0) -> float:
+    """Per-request timeout, overridable via ``ORTHRUS_LLM_TIMEOUT`` (seconds).
+
+    Slow reasoning models and cold-started hosted endpoints can take minutes to
+    first token; the default suits fast models but is raisable for the rest.
+    """
+    raw = os.environ.get("ORTHRUS_LLM_TIMEOUT")
+    if not raw:
+        return default
+    try:
+        val = float(raw)
+    except ValueError:
+        logger.warning("ignoring invalid ORTHRUS_LLM_TIMEOUT=%r; using %.0fs", raw, default)
+        return default
+    return val if val > 0 else default
+
+
 def resolve_config(spec: str, *, model: str | None = None, temperature: float = 0.3,
                    max_tokens: int = 4096) -> LLMConfig:
     """Resolve a ``provider:model`` spec + env (keys, base URL) into an LLMConfig."""
@@ -108,7 +125,7 @@ def resolve_config(spec: str, *, model: str | None = None, temperature: float = 
     return LLMConfig(
         provider=provider, model=resolved_model, api_key=api_key,
         base_url=os.environ.get("ORTHRUS_LLM_BASE_URL"),
-        temperature=temperature, max_tokens=max_tokens,
+        temperature=temperature, max_tokens=max_tokens, timeout=_env_timeout(),
     )
 
 

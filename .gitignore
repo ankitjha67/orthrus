@@ -61,3 +61,6 @@ dist/
 build/
 dist_bin/
 build_bin/
+
+# Ad-hoc report working dir (published copies live in samples/)
+reports_demo/

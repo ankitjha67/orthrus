@@ -548,7 +548,11 @@ OpenRouter, vLLM, LM Studio — via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama
 model so sensitive findings never leave your infrastructure. Credentials and
 cookies in captured evidence are redacted before anything is sent to a remote
 model. The narrative is AI-generated and grounded in the recorded evidence —
-review before client delivery.
+review before client delivery. Slow or cold-starting hosted models can be given
+more headroom with `ORTHRUS_LLM_TIMEOUT` (seconds per call; default 180).
+
+See [`samples/`](samples/) for a full report generated this way against the
+bundled test target (HTML, PDF, JSON, and SARIF).
 
 Every finding carries CVSS v3.1 + v4.0 vectors/scores and is mapped to OWASP Top
 10, CWE, PCI-DSS, NIST-CSF, **MITRE ATT&CK** (structured technique IDs), and
