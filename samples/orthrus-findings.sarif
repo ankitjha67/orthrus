@@ -1,0 +1,3536 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ORTHRUS",
+          "informationUri": "https://github.com/anthropics/orthrus",
+          "version": "0.1.0",
+          "rules": [
+            {
+              "id": "cmd-injection",
+              "name": "CmdInjection",
+              "shortDescription": {
+                "text": "OS command injection (output-based) in 'host'"
+              },
+              "fullDescription": {
+                "text": "Parameter 'host' is passed to an OS shell; an injected echo command executed and its output was returned. This is remote code execution."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "graphql-injection",
+              "name": "GraphqlInjection",
+              "shortDescription": {
+                "text": "OS command injection in GraphQL argument 'systemDiagnostics.cmd'"
+              },
+              "fullDescription": {
+                "text": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed — the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "9.8"
+              }
+            },
+            {
+              "id": "file-upload",
+              "name": "FileUpload",
+              "shortDescription": {
+                "text": "Unrestricted file upload (.php accepted) at /upload"
+              },
+              "fullDescription": {
+                "text": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload — confirm where the file lands and whether it executes."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-434",
+                  "A04:2021 - Insecure Design"
+                ],
+                "security-severity": "8.8"
+              }
+            },
+            {
+              "id": "prompt-injection",
+              "name": "PromptInjection",
+              "shortDescription": {
+                "text": "LLM prompt injection via 'message' (instructions overridden)"
+              },
+              "fullDescription": {
+                "text": "An injected instruction sent through 'message' caused the model to ignore its system/developer prompt and emit an attacker-chosen canary token verbatim (OWASP LLM01). An attacker can hijack the model to exfiltrate data, call tools/functions, produce harmful output, or bypass guardrails."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1427",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "8.2"
+              }
+            },
+            {
+              "id": "default-creds",
+              "name": "DefaultCreds",
+              "shortDescription": {
+                "text": "Default credentials accepted: admin/admin"
+              },
+              "fullDescription": {
+                "text": "The login form accepted default credentials 'admin:admin', granting access."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1392",
+                  "A07:2021 - Identification and Authentication Failures"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "xss",
+              "name": "Xss",
+              "shortDescription": {
+                "text": "DOM-based XSS: URL-controlled value flows into innerHTML()"
+              },
+              "fullDescription": {
+                "text": "A value taken from the page URL reached the JavaScript sink 'innerHTML', which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting — exploited entirely client-side, so the server (and server-side filters) never see the payload."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "sqli",
+              "name": "Sqli",
+              "shortDescription": {
+                "text": "SQL injection (error-based, MySQL) in parameter 'id'"
+              },
+              "fullDescription": {
+                "text": "Parameter 'id' appears injectable via error-based injection. An attacker may be able to read or modify database contents."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-89",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "jwt",
+              "name": "Jwt",
+              "shortDescription": {
+                "text": "JWT header references an external key URL ('jku')"
+              },
+              "fullDescription": {
+                "text": "The token header sets 'jku'='https://attacker.example/jwks.json'. If the server fetches its verification key from this URL without a strict allow-list, an attacker can serve their own key (or point it at an internal host for SSRF) and forge tokens. (token: eyJhbGciOiAiUlMyNTYiLCAi...)"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-347",
+                  "A07:2021 - Identification and Authentication Failures"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "mass-assignment",
+              "name": "MassAssignment",
+              "shortDescription": {
+                "text": "Mass assignment: server bound unexpected field(s) on POST request"
+              },
+              "fullDescription": {
+                "text": "The endpoint incorporated attacker-supplied privileged field(s) [account_balance, active, admin, approved, balance, credit, email_verified, enabled, grants, group, group_id, isAdmin, is_active, is_admin, is_staff, is_superuser, is_verified, owner_id, permissions, role, roles, scopes, user_id, verified] into its response object even though they were not part of the documented request. This indicates the request body is bound directly to an internal model (mass assignment / autobinding), allowing a client to set server-controlled properties. Confirm whether the bound values are persisted/honored downstream."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-915"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "nosql-injection",
+              "name": "NosqlInjection",
+              "shortDescription": {
+                "text": "NoSQL injection (error-based) in 'user'"
+              },
+              "fullDescription": {
+                "text": "The parameter 'user' reflected a NoSQL driver error when sent a query-breaking payload. This indicates user input is concatenated into a NoSQL query (e.g. MongoDB), allowing authentication bypass, data exfiltration via operator injection ($ne/$gt/$regex), or $where JavaScript execution."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-943",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "ssti",
+              "name": "Ssti",
+              "shortDescription": {
+                "text": "Server-side template injection (Jinja2/Twig) in 'name'"
+              },
+              "fullDescription": {
+                "text": "Parameter 'name' is evaluated by a server-side template engine (Jinja2/Twig): the expression 5082*3869 returned 19662258. SSTI commonly leads to remote code execution."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1336",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "8.1"
+              }
+            },
+            {
+              "id": "prototype-pollution",
+              "name": "PrototypePollution",
+              "shortDescription": {
+                "text": "Client-side prototype pollution"
+              },
+              "fullDescription": {
+                "text": "A payload polluted Object.prototype in the browser (Object.prototype.hpp1f3780 === '841bf610'). A vulnerable client-side merge can be abused for DOM XSS, auth bypass, or RCE in gadgets."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1321",
+                  "A08:2021 - Software and Data Integrity Failures"
+                ],
+                "security-severity": "7.7"
+              }
+            },
+            {
+              "id": "cors",
+              "name": "Cors",
+              "shortDescription": {
+                "text": "CORS misconfiguration: reflects an arbitrary request Origin with credentials allowed"
+              },
+              "fullDescription": {
+                "text": "The endpoint reflects an arbitrary request Origin with credentials allowed. An attacker-controlled site could send cross-origin requests and read the responses, exposing data of authenticated users when credentials are allowed."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-942",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "exposed-file",
+              "name": "ExposedFile",
+              "shortDescription": {
+                "text": "Exposed sensitive file: /.env"
+              },
+              "fullDescription": {
+                "text": "The sensitive file /.env is publicly accessible (HTTP 200). It may expose credentials, source code, or internal configuration."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-538",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "framework-debug",
+              "name": "FrameworkDebug",
+              "shortDescription": {
+                "text": "Exposed framework/management endpoint: Spring Boot Actuator (env) (/actuator/env)"
+              },
+              "fullDescription": {
+                "text": "The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "lfi",
+              "name": "Lfi",
+              "shortDescription": {
+                "text": "Local file inclusion / path traversal in 'file'"
+              },
+              "fullDescription": {
+                "text": "Parameter 'file' allows reading arbitrary files; the contents of /etc/passwd were returned. This can expose credentials, source code, and configuration."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-22",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "exposed-secret",
+              "name": "ExposedSecret",
+              "shortDescription": {
+                "text": "Exposed secret: AWS access key"
+              },
+              "fullDescription": {
+                "text": "A AWS access key appears to be exposed in the response served at http://127.0.0.1:8791/app.js. Secrets embedded in HTML, inline JavaScript, or JSON responses are trivially harvested by anyone who loads the page and can grant direct access to cloud accounts, third-party APIs, source repositories, or payment systems."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-798",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "ssrf",
+              "name": "Ssrf",
+              "shortDescription": {
+                "text": "Server-side request forgery via 'url' (out-of-band)"
+              },
+              "fullDescription": {
+                "text": "The server fetched an attacker-supplied URL placed in 'url'. The callback server received a HTTP request from 127.0.0.1. SSRF can reach internal services and cloud metadata."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-918",
+                  "A10:2021 - Server-Side Request Forgery"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "xxe",
+              "name": "Xxe",
+              "shortDescription": {
+                "text": "XML external entity (XXE) injection"
+              },
+              "fullDescription": {
+                "text": "The XML parser resolved an external entity and returned the contents of /etc/passwd. XXE can lead to file disclosure, SSRF, and DoS."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-611",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "7.5"
+              }
+            },
+            {
+              "id": "crlf-injection",
+              "name": "CrlfInjection",
+              "shortDescription": {
+                "text": "CRLF injection / HTTP response splitting in 'url'"
+              },
+              "fullDescription": {
+                "text": "A CRLF sequence injected via 'url' produced an attacker-controlled response header (a sentinel header and Set-Cookie appeared in the response). This HTTP response splitting enables session fixation, cache poisoning, and reflected XSS by smuggling headers or a second response body."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-113",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "csrf",
+              "name": "Csrf",
+              "shortDescription": {
+                "text": "POST form without anti-CSRF token"
+              },
+              "fullDescription": {
+                "text": "A state-changing POST form was found with no recognizable anti-CSRF token field (fields: text, email). If the session relies on cookies without SameSite protection, the action may be forgeable cross-site."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-352",
+                  "A01:2021 - Broken Access Control"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "idor",
+              "name": "Idor",
+              "shortDescription": {
+                "text": "Possible IDOR / object enumeration via 'id'"
+              },
+              "fullDescription": {
+                "text": "Changing the numeric reference 'id' from 1 to 2 returned a different valid object. If access control is not enforced per object, this exposes other users' data. Manual authorization review required."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-639",
+                  "A01:2021 - Broken Access Control"
+                ],
+                "security-severity": "6.5"
+              }
+            },
+            {
+              "id": "web-cache-deception",
+              "name": "WebCacheDeception",
+              "shortDescription": {
+                "text": "Web cache deception: dynamic page served at a static URL (/account/orthrus-wcd-f3d751.css)"
+              },
+              "fullDescription": {
+                "text": "Appending '/<file>.css' to /account returned the original dynamic page verbatim instead of a 404. A CDN or proxy that caches by file extension can then store this 'static' response and serve one user's private content to others. The response carries cache indicators."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-525",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "5.9"
+              }
+            },
+            {
+              "id": "cache-poisoning",
+              "name": "CachePoisoning",
+              "shortDescription": {
+                "text": "Unkeyed header reflected (web cache poisoning candidate)"
+              },
+              "fullDescription": {
+                "text": "An unkeyed request header (e.g. X-Forwarded-Host) is reflected into the response and the response shows cache indicators. If this response is cached, an attacker can poison it for other users."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-444",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "5.6"
+              }
+            },
+            {
+              "id": "auth-session",
+              "name": "AuthSession",
+              "shortDescription": {
+                "text": "Low-entropy session token ('sid')"
+              },
+              "fullDescription": {
+                "text": "The session token 'sid' has ~43 bits of entropy (< 64), making it potentially predictable/brute-forceable."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-331",
+                  "A07:2021 - Identification and Authentication Failures"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "deserialization",
+              "name": "Deserialization",
+              "shortDescription": {
+                "text": "Serialized object in cookie 'obj' (PHP serialized object)"
+              },
+              "fullDescription": {
+                "text": "A PHP serialized object appears in a user-controllable cookie 'obj'. If deserialized without integrity checks, this can lead to remote code execution via gadget chains."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-502",
+                  "A08:2021 - Software and Data Integrity Failures"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "graphql-dos",
+              "name": "GraphqlDos",
+              "shortDescription": {
+                "text": "GraphQL query batching enabled"
+              },
+              "fullDescription": {
+                "text": "The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request — amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-770",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "security-headers",
+              "name": "SecurityHeaders",
+              "shortDescription": {
+                "text": "Missing Content-Security-Policy header"
+              },
+              "fullDescription": {
+                "text": "No Content-Security-Policy header is set, removing a key defense against cross-site scripting and data injection."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-693",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "llm-info-disclosure",
+              "name": "LlmInfoDisclosure",
+              "shortDescription": {
+                "text": "LLM system-prompt / sensitive-info disclosure via 'message'"
+              },
+              "fullDescription": {
+                "text": "Asking the model (via 'message') to repeat its instructions returned text that reads like a leaked system prompt (OWASP LLM06). Leaked system prompts expose hidden rules, embedded secrets/keys, and tool definitions that aid further attacks. Confirm manually that the disclosed text is the real system prompt."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "A04:2021 - Insecure Design"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "oauth-misconfig",
+              "name": "OauthMisconfig",
+              "shortDescription": {
+                "text": "OAuth authorization request without 'state' (CSRF)"
+              },
+              "fullDescription": {
+                "text": "No 'state' parameter is present, so the authorization response is not bound to the user's session — enabling login CSRF / authorization-code injection."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-352",
+                  "A07:2021 - Identification and Authentication Failures"
+                ],
+                "security-severity": "5.5"
+              }
+            },
+            {
+              "id": "graphql",
+              "name": "Graphql",
+              "shortDescription": {
+                "text": "GraphQL introspection enabled"
+              },
+              "fullDescription": {
+                "text": "The GraphQL endpoint answered an introspection query, exposing its full schema (types, queries, mutations). This aids attackers in mapping the API."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "5.3"
+              }
+            },
+            {
+              "id": "open-redirect",
+              "name": "OpenRedirect",
+              "shortDescription": {
+                "text": "Open redirect via parameter 'url'"
+              },
+              "fullDescription": {
+                "text": "Parameter 'url' controls the redirect target. The server redirected to the attacker-controlled host via Location: https://orthrus-redirect.example/. This enables phishing and OAuth token theft."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-601",
+                  "A01:2021 - Broken Access Control"
+                ],
+                "security-severity": "4.7"
+              }
+            },
+            {
+              "id": "host-header-injection",
+              "name": "HostHeaderInjection",
+              "shortDescription": {
+                "text": "Host header injection (attacker-controlled host reflected into links/redirects)"
+              },
+              "fullDescription": {
+                "text": "A sentinel host sent in the 'Host'/'X-Forwarded-Host' request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link — e.g. a poisoned password-reset email — leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-644",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "4.2"
+              }
+            },
+            {
+              "id": "vulnerable-component",
+              "name": "VulnerableComponent",
+              "shortDescription": {
+                "text": "Outdated/vulnerable JS library: jQuery 1.7.1"
+              },
+              "fullDescription": {
+                "text": "http://127.0.0.1:8791/app.js bundles jQuery 1.7.1. jQuery < 3.5.0 is vulnerable to XSS via htmlPrefilter (CVE-2020-11022 / CVE-2020-11023). Client-side libraries with known vulnerabilities expose users to XSS, prototype pollution, and other client-side attacks."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-79",
+                  "A06:2021 - Vulnerable and Outdated Components"
+                ],
+                "security-severity": "4.2"
+              }
+            },
+            {
+              "id": "parameter-pollution",
+              "name": "ParameterPollution",
+              "shortDescription": {
+                "text": "HTTP parameter pollution: duplicate 'q' silently dropped"
+              },
+              "fullDescription": {
+                "text": "Sending 'q' twice in one query string caused the server to keep only the first occurrence and discard the other. When a security control (WAF rule, authorization filter, or input validator) inspects the discarded copy while application code reads the surviving one, an attacker can smuggle a malicious value past the control via the dropped duplicate."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-235",
+                  "A03:2021 - Injection"
+                ],
+                "security-severity": "3.1"
+              }
+            },
+            {
+              "id": "example",
+              "name": "Example",
+              "shortDescription": {
+                "text": "Server banner disclosed: BaseHTTP/0.6 Python/3.14.5"
+              },
+              "fullDescription": {
+                "text": "Example plugin: the Server header advertises 'BaseHTTP/0.6 Python/3.14.5'."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "A05:2021 - Security Misconfiguration"
+                ],
+                "security-severity": "0.0"
+              }
+            },
+            {
+              "id": "attack-path-chain",
+              "name": "AttackPathChain",
+              "shortDescription": {
+                "text": "Correlated multi-step attack path"
+              },
+              "fullDescription": {
+                "text": "Two or more findings that combine into an attacker-walkable kill-chain."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "attack-path"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "cmd-injection",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "OS command injection (output-based) in 'host' (parameter: host) at http://127.0.0.1:8791/ping?host=127.0.0.1%3B+echo+ORTHRUSFDDC6698"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/ping?host=127.0.0.1%3B+echo+ORTHRUSFDDC6698"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "eebf63653cbb5a1d1dc655def5e87552"
+          },
+          "properties": {
+            "security-severity": "9.8",
+            "confidence": "confirmed",
+            "scanner": "cmd-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-78",
+            "parameter": "host"
+          }
+        },
+        {
+          "ruleId": "graphql-injection",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "OS command injection in GraphQL argument 'systemDiagnostics.cmd' (parameter: mutation systemDiagnostics(cmd)) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "088cf6600a3d0fa5f069f63aa726a4f8"
+          },
+          "properties": {
+            "security-severity": "9.8",
+            "confidence": "confirmed",
+            "scanner": "graphql-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-78",
+            "parameter": "mutation systemDiagnostics(cmd)"
+          }
+        },
+        {
+          "ruleId": "file-upload",
+          "ruleIndex": 2,
+          "level": "error",
+          "message": {
+            "text": "Unrestricted file upload (.php accepted) at /upload at http://127.0.0.1:8791/upload"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/upload"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "dd9b7e02e1c8dfb2f25fac062a650448"
+          },
+          "properties": {
+            "security-severity": "8.8",
+            "confidence": "firm",
+            "scanner": "file-upload",
+            "owasp": "A04:2021 - Insecure Design",
+            "cwe": "CWE-434"
+          }
+        },
+        {
+          "ruleId": "prompt-injection",
+          "ruleIndex": 3,
+          "level": "error",
+          "message": {
+            "text": "LLM prompt injection via 'message' (instructions overridden) (parameter: message) at http://127.0.0.1:8791/chat?message=%3Cprompt-injection%3E"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/chat?message=%3Cprompt-injection%3E"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ae8031e207d95c9c0483e93d1eae547f"
+          },
+          "properties": {
+            "security-severity": "8.2",
+            "confidence": "confirmed",
+            "scanner": "llm-prompt-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-1427",
+            "parameter": "message"
+          }
+        },
+        {
+          "ruleId": "default-creds",
+          "ruleIndex": 4,
+          "level": "error",
+          "message": {
+            "text": "Default credentials accepted: admin/admin (parameter: username) at http://127.0.0.1:8791/login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/login"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "a2a8f1836b0f3c7a971ecfdb727051d2"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "default-credentials",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1392",
+            "parameter": "username"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "DOM-based XSS: URL-controlled value flows into innerHTML() at http://127.0.0.1:8791/dom?html=hi"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/dom?html=hi"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "1d851374069b81a168ed14343c0a1787"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "dom-taint",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'text' (parameter: text) at http://127.0.0.1:8791/comment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/comment"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "4255219b8c29ca24abefbd6c52483755"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "text"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'q' (parameter: q) at http://127.0.0.1:8791/search?q=hxss61008e%3Chxss61008e%3Ehxss61008e%22hxss61008e%27hxss61008e"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/search?q=hxss61008e%3Chxss61008e%3Ehxss61008e%22hxss61008e%27hxss61008e"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "8bf41e6e7f7bd253104720b5cbbf06e3"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "q"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'name' (parameter: name) at http://127.0.0.1:8791/render?name=hxss1e980e%3Chxss1e980e%3Ehxss1e980e%22hxss1e980e%27hxss1e980e"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/render?name=hxss1e980e%3Chxss1e980e%3Ehxss1e980e%22hxss1e980e%27hxss1e980e"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "c9941ce4eed3665e6bbd3ed717fc27cc"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "name"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'host' (parameter: host) at http://127.0.0.1:8791/ping?host=hxssf9e8b2%3Chxssf9e8b2%3Ehxssf9e8b2%22hxssf9e8b2%27hxssf9e8b2"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/ping?host=hxssf9e8b2%3Chxssf9e8b2%3Ehxssf9e8b2%22hxssf9e8b2%27hxssf9e8b2"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "c57e367f073ed248c6d3c1b139a78a50"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "host"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'id' (parameter: id) at http://127.0.0.1:8791/profile?id=hxssc13b44%3Chxssc13b44%3Ehxssc13b44%22hxssc13b44%27hxssc13b44"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/profile?id=hxssc13b44%3Chxssc13b44%3Ehxssc13b44%22hxssc13b44%27hxssc13b44"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "9b28d3058f5329881d0cafe1b65e8423"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "id"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'comment' (parameter: comment) at http://127.0.0.1:8791/guestbook"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/guestbook"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "d235b791765e8dc4d0eea6b668870c35"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "comment"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Reflected XSS via parameter 'message' (parameter: message) at http://127.0.0.1:8791/chat?message=hxssd0c045%3Chxssd0c045%3Ehxssd0c045%22hxssd0c045%27hxssd0c045"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/chat?message=hxssd0c045%3Chxssd0c045%3Ehxssd0c045%22hxssd0c045%27hxssd0c045"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "9425610878aff19cb3598a96f7ffdc13"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "reflected-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "message"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "DOM-based XSS via URL fragment at http://127.0.0.1:8791/dom?html=hi#%3Cimg%20src%3Dx%20onerror%3D%22window%5B%27__hx_hdxed22ef9d%27%5D%3D1%22%3E"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/dom?html=hi#%3Cimg%20src%3Dx%20onerror%3D%22window%5B%27__hx_hdxed22ef9d%27%5D%3D1%22%3E"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "685c71a51ee4298780e68979d5df26d9"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "dom-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "DOM-based XSS via parameter 'html' (parameter: html) at http://127.0.0.1:8791/dom?html=%3Cimg+src%3Dx+onerror%3D%22window%5B%27__hx_hdxa33b958b%27%5D%3D1%22%3E"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/dom?html=%3Cimg+src%3Dx+onerror%3D%22window%5B%27__hx_hdxa33b958b%27%5D%3D1%22%3E"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "59e7ed246c92557d809359ec18559324"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "dom-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "html"
+          }
+        },
+        {
+          "ruleId": "sqli",
+          "ruleIndex": 6,
+          "level": "error",
+          "message": {
+            "text": "SQL injection (error-based, MySQL) in parameter 'id' (parameter: id) at http://127.0.0.1:8791/sqli?id=1%27"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/sqli?id=1%27"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "b9305b2884988dcddcd7ab02a61c86d6"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "sqli",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-89",
+            "parameter": "id"
+          }
+        },
+        {
+          "ruleId": "graphql-injection",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "SQL injection in GraphQL argument 'userByName.name' (parameter: query userByName(name)) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "1fb2c31b0be24361b62420c66e3c62d8"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "graphql-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-89",
+            "parameter": "query userByName(name)"
+          }
+        },
+        {
+          "ruleId": "graphql-injection",
+          "ruleIndex": 1,
+          "level": "error",
+          "message": {
+            "text": "Server-side template injection in GraphQL argument 'renderTemplate.tpl' (parameter: query renderTemplate(tpl)) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "a7cebddf69a54a4b14b4645b5ec654e3"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "graphql-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-1336",
+            "parameter": "query renderTemplate(tpl)"
+          }
+        },
+        {
+          "ruleId": "jwt",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "JWT header references an external key URL ('jku') at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ccd629b98754f8906dc7ec8790ad2f80"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "firm",
+            "scanner": "jwt",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-347"
+          }
+        },
+        {
+          "ruleId": "jwt",
+          "ruleIndex": 7,
+          "level": "error",
+          "message": {
+            "text": "JWT signed with a weak/guessable secret ('secret') at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ccd629b98754f8906dc7ec8790ad2f80"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "jwt",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-347"
+          }
+        },
+        {
+          "ruleId": "mass-assignment",
+          "ruleIndex": 8,
+          "level": "error",
+          "message": {
+            "text": "Mass assignment: server bound unexpected field(s) on POST request at http://127.0.0.1:8791/api/account"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/api/account"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "bb51738c4e4f2c1fbd34881e0b5ce283"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "mass-assignment",
+            "owasp": "Unmapped",
+            "cwe": "CWE-915"
+          }
+        },
+        {
+          "ruleId": "nosql-injection",
+          "ruleIndex": 9,
+          "level": "error",
+          "message": {
+            "text": "NoSQL injection (error-based) in 'user' (parameter: user) at http://127.0.0.1:8791/nosql?user=%27"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/nosql?user=%27"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "deaab3c1354fd2e4fc506ba2fa7a1208"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "nosql-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-943",
+            "parameter": "user"
+          }
+        },
+        {
+          "ruleId": "ssti",
+          "ruleIndex": 10,
+          "level": "error",
+          "message": {
+            "text": "Server-side template injection (Jinja2/Twig) in 'name' (parameter: name) at http://127.0.0.1:8791/render?name=%7B%7B5082%2A3869%7D%7D"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/render?name=%7B%7B5082%2A3869%7D%7D"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "34206f48aec2bda8aa94bb319aa7c180"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "ssti",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-1336",
+            "parameter": "name"
+          }
+        },
+        {
+          "ruleId": "xss",
+          "ruleIndex": 5,
+          "level": "error",
+          "message": {
+            "text": "Stored XSS (parameter: comment) at http://127.0.0.1:8791/guestbook"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/guestbook"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "d235b791765e8dc4d0eea6b668870c35"
+          },
+          "properties": {
+            "security-severity": "8.1",
+            "confidence": "confirmed",
+            "scanner": "stored-xss",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-79",
+            "parameter": "comment"
+          }
+        },
+        {
+          "ruleId": "prototype-pollution",
+          "ruleIndex": 11,
+          "level": "error",
+          "message": {
+            "text": "Client-side prototype pollution at http://127.0.0.1:8791/pp?a=1&__proto__[hpp1f3780]=841bf610"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/pp?a=1&__proto__[hpp1f3780]=841bf610"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "b2d87d8861f5801cb8bc41d66d81d948"
+          },
+          "properties": {
+            "security-severity": "7.7",
+            "confidence": "confirmed",
+            "scanner": "prototype-pollution",
+            "owasp": "A08:2021 - Software and Data Integrity Failures",
+            "cwe": "CWE-1321"
+          }
+        },
+        {
+          "ruleId": "prototype-pollution",
+          "ruleIndex": 11,
+          "level": "error",
+          "message": {
+            "text": "Server-side prototype pollution (__proto__ persisted to new objects) at http://127.0.0.1:8791/api/merge"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/api/merge"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "220a238d53ed90a7a25aa1afceff080e"
+          },
+          "properties": {
+            "security-severity": "7.7",
+            "confidence": "confirmed",
+            "scanner": "server-side-prototype-pollution",
+            "owasp": "A08:2021 - Software and Data Integrity Failures",
+            "cwe": "CWE-1321"
+          }
+        },
+        {
+          "ruleId": "cors",
+          "ruleIndex": 12,
+          "level": "error",
+          "message": {
+            "text": "CORS misconfiguration: reflects an arbitrary request Origin with credentials allowed at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "f2ce2e8549846b9ce270fb2dc8315f0c"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "cors",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-942"
+          }
+        },
+        {
+          "ruleId": "cors",
+          "ruleIndex": 12,
+          "level": "error",
+          "message": {
+            "text": "CORS misconfiguration: trusts the 'null' origin with credentials allowed at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "f2ce2e8549846b9ce270fb2dc8315f0c"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "cors",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-942"
+          }
+        },
+        {
+          "ruleId": "exposed-file",
+          "ruleIndex": 13,
+          "level": "error",
+          "message": {
+            "text": "Exposed sensitive file: /.env at http://127.0.0.1:8791/.env"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/.env"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "01acbc130841e93de66997e5cd6e120a"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "firm",
+            "scanner": "exposed-files",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-538"
+          }
+        },
+        {
+          "ruleId": "exposed-file",
+          "ruleIndex": 13,
+          "level": "error",
+          "message": {
+            "text": "Exposed sensitive file: /.git/HEAD at http://127.0.0.1:8791/.git/HEAD"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/.git/HEAD"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "1907d7f18efcb7c40d05bb461a64b511"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "firm",
+            "scanner": "exposed-files",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-538"
+          }
+        },
+        {
+          "ruleId": "framework-debug",
+          "ruleIndex": 14,
+          "level": "error",
+          "message": {
+            "text": "Exposed framework/management endpoint: Spring Boot Actuator (env) (/actuator/env) at http://127.0.0.1:8791/actuator/env"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/actuator/env"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "9c5463502a31a06368ef87f95d415f8a"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "firm",
+            "scanner": "framework-debug-exposure",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "lfi",
+          "ruleIndex": 15,
+          "level": "error",
+          "message": {
+            "text": "Local file inclusion / path traversal in 'file' (parameter: file) at http://127.0.0.1:8791/download?file=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/download?file=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "7d46cb96f0c7fb294741c3c4c5927068"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "lfi",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-22",
+            "parameter": "file"
+          }
+        },
+        {
+          "ruleId": "exposed-secret",
+          "ruleIndex": 16,
+          "level": "error",
+          "message": {
+            "text": "Exposed secret: AWS access key at http://127.0.0.1:8791/app.js"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/app.js"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "8740b23e4f6d4bc4ac59beafcd5e652b"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "firm",
+            "scanner": "secret-exposure",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-798"
+          }
+        },
+        {
+          "ruleId": "ssrf",
+          "ruleIndex": 17,
+          "level": "error",
+          "message": {
+            "text": "Server-side request forgery via 'url' (out-of-band) (parameter: url) at http://127.0.0.1:8791/fetch"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/fetch"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "df86a1013501ac233c5858c5b3dffdf5"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "ssrf",
+            "owasp": "A10:2021 - Server-Side Request Forgery",
+            "cwe": "CWE-918",
+            "parameter": "url"
+          }
+        },
+        {
+          "ruleId": "ssrf",
+          "ruleIndex": 17,
+          "level": "error",
+          "message": {
+            "text": "Server-side request forgery via 'url' (out-of-band) (parameter: url) at http://127.0.0.1:8791/fetch?url=http%3A%2F%2F127.0.0.1%3A42956%2F24fe277b779b4a4d"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/fetch?url=http%3A%2F%2F127.0.0.1%3A42956%2F24fe277b779b4a4d"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "baa8ae69a454668ca4375e3b57d53e77"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "ssrf",
+            "owasp": "A10:2021 - Server-Side Request Forgery",
+            "cwe": "CWE-918",
+            "parameter": "url"
+          }
+        },
+        {
+          "ruleId": "xxe",
+          "ruleIndex": 18,
+          "level": "error",
+          "message": {
+            "text": "XML external entity (XXE) injection at http://127.0.0.1:8791/xml?doc=1"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/xml?doc=1"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ebcb224dfeae8c62462904bca80754b2"
+          },
+          "properties": {
+            "security-severity": "7.5",
+            "confidence": "confirmed",
+            "scanner": "xxe",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-611"
+          }
+        },
+        {
+          "ruleId": "crlf-injection",
+          "ruleIndex": 19,
+          "level": "warning",
+          "message": {
+            "text": "CRLF injection / HTTP response splitting in 'url' (parameter: url) at http://127.0.0.1:8791/redirect?url=%250d%250a..."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/redirect?url=%250d%250a..."
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "664c4242f1a179468f826f9eb3d1d0f6"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "confirmed",
+            "scanner": "crlf-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-113",
+            "parameter": "url"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/comment"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/comment"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "13fa0eb4edc06037772c403e616c9f99"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/fetch"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/fetch"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "b53deac7788575cb8736287238c7d06e"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/api/account"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/api/account"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ff9dcab1d8a87ba4f5a2872a658b37da"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/guestbook"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/guestbook"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "e492726d99a3c7ddb1068840dc41dca8"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/redeem"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/redeem"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "a51bb415f2760fd01d60d30d265975d9"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "POST form without anti-CSRF token at http://127.0.0.1:8791/login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/login"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "397ac6b82eac73d194bf673e6029fb36"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "csrf",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "csrf",
+          "ruleIndex": 20,
+          "level": "warning",
+          "message": {
+            "text": "GraphQL queries executable over HTTP GET (CSRF) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "cc3a40794ab0c25731adf9bd3f210e6d"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "firm",
+            "scanner": "graphql",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "idor",
+          "ruleIndex": 21,
+          "level": "warning",
+          "message": {
+            "text": "Possible IDOR / object enumeration via 'id' (parameter: id) at http://127.0.0.1:8791/profile?id=2"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/profile?id=2"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "adfbee58d8f8200c42dcd056c5d5c366"
+          },
+          "properties": {
+            "security-severity": "6.5",
+            "confidence": "tentative",
+            "scanner": "idor",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-639",
+            "parameter": "id"
+          }
+        },
+        {
+          "ruleId": "web-cache-deception",
+          "ruleIndex": 22,
+          "level": "warning",
+          "message": {
+            "text": "Web cache deception: dynamic page served at a static URL (/account/orthrus-wcd-f3d751.css) at http://127.0.0.1:8791/account/orthrus-wcd-f3d751.css"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/account/orthrus-wcd-f3d751.css"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "8a5d3e7ae188e403977c5ca31b0ad789"
+          },
+          "properties": {
+            "security-severity": "5.9",
+            "confidence": "firm",
+            "scanner": "web-cache-deception",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-525"
+          }
+        },
+        {
+          "ruleId": "cache-poisoning",
+          "ruleIndex": 23,
+          "level": "warning",
+          "message": {
+            "text": "Unkeyed header reflected (web cache poisoning candidate) at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "414425dd9966822297fa190297e3a947"
+          },
+          "properties": {
+            "security-severity": "5.6",
+            "confidence": "firm",
+            "scanner": "cache-poisoning",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-444"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "warning",
+          "message": {
+            "text": "Low-entropy session token ('sid') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "tentative",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-331"
+          }
+        },
+        {
+          "ruleId": "deserialization",
+          "ruleIndex": 25,
+          "level": "warning",
+          "message": {
+            "text": "Serialized object in cookie 'obj' (PHP serialized object) (parameter: cookie 'obj') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "74c43c7ab33245b7b787733d4de8e6ac"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "tentative",
+            "scanner": "deserialization",
+            "owasp": "A08:2021 - Software and Data Integrity Failures",
+            "cwe": "CWE-502",
+            "parameter": "cookie 'obj'"
+          }
+        },
+        {
+          "ruleId": "framework-debug",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Exposed framework/management endpoint: Apache server-status (/server-status) at http://127.0.0.1:8791/server-status"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/server-status"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "7e9422152ef6e0e2160ca79a0f8ad75a"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "firm",
+            "scanner": "framework-debug-exposure",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "graphql-dos",
+          "ruleIndex": 26,
+          "level": "warning",
+          "message": {
+            "text": "GraphQL query batching enabled at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "fa1549318566245236e25e808f624f22"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "confirmed",
+            "scanner": "graphql",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-770"
+          }
+        },
+        {
+          "ruleId": "graphql-dos",
+          "ruleIndex": 26,
+          "level": "warning",
+          "message": {
+            "text": "GraphQL alias overloading (no query-cost limit) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "fa1549318566245236e25e808f624f22"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "confirmed",
+            "scanner": "graphql",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-770"
+          }
+        },
+        {
+          "ruleId": "graphql-dos",
+          "ruleIndex": 26,
+          "level": "warning",
+          "message": {
+            "text": "GraphQL accepts circular fragments (recursion DoS) at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "fa1549318566245236e25e808f624f22"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "confirmed",
+            "scanner": "graphql",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-674"
+          }
+        },
+        {
+          "ruleId": "security-headers",
+          "ruleIndex": 27,
+          "level": "warning",
+          "message": {
+            "text": "Missing Content-Security-Policy header at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "67675c3d7dd5af21f9b9062a34269cea"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "firm",
+            "scanner": "security-headers",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-693"
+          }
+        },
+        {
+          "ruleId": "security-headers",
+          "ruleIndex": 27,
+          "level": "warning",
+          "message": {
+            "text": "Missing clickjacking protection (X-Frame-Options / frame-ancestors) at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "67675c3d7dd5af21f9b9062a34269cea"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "firm",
+            "scanner": "security-headers",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-1021"
+          }
+        },
+        {
+          "ruleId": "llm-info-disclosure",
+          "ruleIndex": 28,
+          "level": "warning",
+          "message": {
+            "text": "LLM system-prompt / sensitive-info disclosure via 'message' (parameter: message) at http://127.0.0.1:8791/chat?message=%3Cprompt-leak%3E"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/chat?message=%3Cprompt-leak%3E"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "f86c548dfac6ad7eba12d418013f696f"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "tentative",
+            "scanner": "llm-prompt-injection",
+            "owasp": "A04:2021 - Insecure Design",
+            "cwe": "CWE-200",
+            "parameter": "message"
+          }
+        },
+        {
+          "ruleId": "oauth-misconfig",
+          "ruleIndex": 29,
+          "level": "warning",
+          "message": {
+            "text": "OAuth authorization request without 'state' (CSRF) at http://127.0.0.1:8791/oauth/authorize"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/oauth/authorize"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "d4443dc0838e86509694b8188cf94f7a"
+          },
+          "properties": {
+            "security-severity": "5.5",
+            "confidence": "firm",
+            "scanner": "oauth-flow",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-352"
+          }
+        },
+        {
+          "ruleId": "graphql",
+          "ruleIndex": 30,
+          "level": "warning",
+          "message": {
+            "text": "GraphQL introspection enabled at http://127.0.0.1:8791/graphql"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/graphql"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "32518af8be5497951f3b771fae89e6bd"
+          },
+          "properties": {
+            "security-severity": "5.3",
+            "confidence": "firm",
+            "scanner": "graphql",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "open-redirect",
+          "ruleIndex": 31,
+          "level": "warning",
+          "message": {
+            "text": "Open redirect via parameter 'url' (parameter: url) at http://127.0.0.1:8791/redirect?url=https%3A%2F%2Forthrus-redirect.example%2F"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/redirect?url=https%3A%2F%2Forthrus-redirect.example%2F"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "16c75df7374aa8f2fff32203a323da13"
+          },
+          "properties": {
+            "security-severity": "4.7",
+            "confidence": "confirmed",
+            "scanner": "open-redirect",
+            "owasp": "A01:2021 - Broken Access Control",
+            "cwe": "CWE-601",
+            "parameter": "url"
+          }
+        },
+        {
+          "ruleId": "host-header-injection",
+          "ruleIndex": 32,
+          "level": "warning",
+          "message": {
+            "text": "Host header injection (attacker-controlled host reflected into links/redirects) at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "30fefe355152385aa40555f74dde6783"
+          },
+          "properties": {
+            "security-severity": "4.2",
+            "confidence": "confirmed",
+            "scanner": "host-header-injection",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-644"
+          }
+        },
+        {
+          "ruleId": "vulnerable-component",
+          "ruleIndex": 33,
+          "level": "warning",
+          "message": {
+            "text": "Outdated/vulnerable JS library: jQuery 1.7.1 at http://127.0.0.1:8791/app.js"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/app.js"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "1260a641c49cb2fc11e9dfe0b1ccf81d"
+          },
+          "properties": {
+            "security-severity": "4.2",
+            "confidence": "firm",
+            "scanner": "sca-js-libraries",
+            "owasp": "A06:2021 - Vulnerable and Outdated Components",
+            "cwe": "CWE-79"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without HttpOnly flag ('sid') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1004"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without SameSite attribute ('sid') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1275"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without HttpOnly flag ('obj') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1004"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without SameSite attribute ('obj') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1275"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without HttpOnly flag ('token') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1004"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without SameSite attribute ('token') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1275"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without HttpOnly flag ('jt') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1004"
+          }
+        },
+        {
+          "ruleId": "auth-session",
+          "ruleIndex": 24,
+          "level": "note",
+          "message": {
+            "text": "Cookie set without SameSite attribute ('jt') at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "17b1ecb95928e42db2e20c7b328d41c2"
+          },
+          "properties": {
+            "security-severity": "3.7",
+            "confidence": "firm",
+            "scanner": "auth-session",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-1275"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'q' silently dropped (parameter: q) at http://127.0.0.1:8791/search?q=orthrushpp28f58ca&q=orthrushpp28f58cb"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/search?q=orthrushpp28f58ca&q=orthrushpp28f58cb"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "7abaec59e0bbb9e560fd277627c0296d"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "q"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'name' silently dropped (parameter: name) at http://127.0.0.1:8791/render?name=orthrushpp6d2fc0a&name=orthrushpp6d2fc0b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/render?name=orthrushpp6d2fc0a&name=orthrushpp6d2fc0b"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "a77d60aeed055bb62ce812cbcf4d55bd"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "name"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'id' silently dropped (parameter: id) at http://127.0.0.1:8791/sqli?id=orthrushpp134989a&id=orthrushpp134989b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/sqli?id=orthrushpp134989a&id=orthrushpp134989b"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "c8700495679af562b56ec298b2f5bcda"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "id"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'host' silently dropped (parameter: host) at http://127.0.0.1:8791/ping?host=orthrushpp3b731fa&host=orthrushpp3b731fb"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/ping?host=orthrushpp3b731fa&host=orthrushpp3b731fb"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "8f4e868578ae74fc43fe12c58ee7f375"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "host"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'id' silently dropped (parameter: id) at http://127.0.0.1:8791/profile?id=orthrushppef9795a&id=orthrushppef9795b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/profile?id=orthrushppef9795a&id=orthrushppef9795b"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "d91e02e5a92600e8f097f2956548f309"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "id"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'user' silently dropped (parameter: user) at http://127.0.0.1:8791/nosql?user=orthrushpp7ab790a&user=orthrushpp7ab790b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/nosql?user=orthrushpp7ab790a&user=orthrushpp7ab790b"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "f323c067675fdf2fe438e603a4dc28f6"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "user"
+          }
+        },
+        {
+          "ruleId": "parameter-pollution",
+          "ruleIndex": 34,
+          "level": "note",
+          "message": {
+            "text": "HTTP parameter pollution: duplicate 'message' silently dropped (parameter: message) at http://127.0.0.1:8791/chat?message=orthrushpp971da8a&message=orthrushpp971da8b"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/chat?message=orthrushpp971da8a&message=orthrushpp971da8b"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "b75524336f19de68b37d57b18808906f"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "tentative",
+            "scanner": "business-logic",
+            "owasp": "A03:2021 - Injection",
+            "cwe": "CWE-235",
+            "parameter": "message"
+          }
+        },
+        {
+          "ruleId": "security-headers",
+          "ruleIndex": 27,
+          "level": "note",
+          "message": {
+            "text": "Missing X-Content-Type-Options: nosniff at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "67675c3d7dd5af21f9b9062a34269cea"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "firm",
+            "scanner": "security-headers",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-693"
+          }
+        },
+        {
+          "ruleId": "security-headers",
+          "ruleIndex": 27,
+          "level": "note",
+          "message": {
+            "text": "Missing Referrer-Policy header at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "67675c3d7dd5af21f9b9062a34269cea"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "firm",
+            "scanner": "security-headers",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "jwt",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "JWT has no expiration (exp) claim at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ccd629b98754f8906dc7ec8790ad2f80"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "firm",
+            "scanner": "jwt",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-613"
+          }
+        },
+        {
+          "ruleId": "jwt",
+          "ruleIndex": 7,
+          "level": "note",
+          "message": {
+            "text": "JWT has no expiration (exp) claim at http://127.0.0.1:8791"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "ccd629b98754f8906dc7ec8790ad2f80"
+          },
+          "properties": {
+            "security-severity": "3.1",
+            "confidence": "firm",
+            "scanner": "jwt",
+            "owasp": "A07:2021 - Identification and Authentication Failures",
+            "cwe": "CWE-613"
+          }
+        },
+        {
+          "ruleId": "security-headers",
+          "ruleIndex": 27,
+          "level": "note",
+          "message": {
+            "text": "Version disclosure via Server header at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "67675c3d7dd5af21f9b9062a34269cea"
+          },
+          "properties": {
+            "security-severity": "0.0",
+            "confidence": "firm",
+            "scanner": "security-headers",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "example",
+          "ruleIndex": 35,
+          "level": "note",
+          "message": {
+            "text": "Server banner disclosed: BaseHTTP/0.6 Python/3.14.5 at http://127.0.0.1:8791/"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusFindingHash/v1": "0980fbea54d8c95411d80d8a40865eab"
+          },
+          "properties": {
+            "security-severity": "0.0",
+            "confidence": "firm",
+            "scanner": "example-server-banner",
+            "owasp": "A05:2021 - Security Misconfiguration",
+            "cwe": "CWE-200"
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Debug surface → remote code execution on 127.0.0.1 — An exposed debug/framework surface combined with an injection primitive yields server-side code execution."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/.env"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/.env"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Debug / framework exposure (exposed-file)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/ping?host=127.0.0.1%3B+echo+ORTHRUSFDDC6698"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Code-execution primitive (cmd-injection)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "d691f4003bf76f6edb5886d45f3f806f"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "attack-path": true,
+            "steps": [
+              "Debug / framework exposure (exposed-file)",
+              "Code-execution primitive (cmd-injection)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Leaked secret → authentication forgery on 127.0.0.1 — A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user — full authentication bypass."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/app.js"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/app.js"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Exposed secret / signing key (exposed-secret)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Token-based authentication (auth-session)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "d8fd0dc71d4bb256005ae32f2c321cc5"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "attack-path": true,
+            "steps": [
+              "Exposed secret / signing key (exposed-secret)",
+              "Token-based authentication (auth-session)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Session foothold → privilege escalation on 127.0.0.1 — An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users' or admin data — full account/admin takeover."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Authentication weakness (auth-session)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/profile?id=2"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Authorization bypass (idor)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "c3048289f0a403dc5e070d5645eb6fe8"
+          },
+          "properties": {
+            "security-severity": "9.5",
+            "attack-path": true,
+            "steps": [
+              "Authentication weakness (auth-session)",
+              "Authorization bypass (idor)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Cache poisoning → fleet-wide XSS on 127.0.0.1 — A poisoned or deceptive cache serves an injected payload to every visitor, turning a single injection into a stored, fleet-wide attack."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Cache poisoning (cache-poisoning)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/dom?html=hi"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Injectable content (xss)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "ceeddf840bd02d4c88a59cc6a48aaa9c"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "attack-path": true,
+            "steps": [
+              "Cache poisoning (cache-poisoning)",
+              "Injectable content (xss)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: File read → secret → lateral movement on 127.0.0.1 — Path traversal / XXE reads config or key files; the leaked secrets enable lateral movement or authentication bypass."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/download?file=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/download?file=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: File read / traversal (lfi)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/app.js"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Secret / credential exposed (exposed-secret)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "a61159ea85a2efcbfbe86b03c41b77fa"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "attack-path": true,
+            "steps": [
+              "File read / traversal (lfi)",
+              "Secret / credential exposed (exposed-secret)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Open redirect → OAuth token theft on 127.0.0.1 — An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse — account takeover."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/redirect?url=https%3A%2F%2Forthrus-redirect.example%2F"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/redirect?url=https%3A%2F%2Forthrus-redirect.example%2F"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Open redirect (open-redirect)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/oauth/authorize"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: OAuth misconfiguration (oauth-misconfig)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "3ded29923a632378b269793135f5987c"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "attack-path": true,
+            "steps": [
+              "Open redirect (open-redirect)",
+              "OAuth misconfiguration (oauth-misconfig)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: Source/config disclosure → secret exposure on 127.0.0.1 — Exposed source, listings, or debug output reveal secrets/credentials that unlock deeper access."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/.env"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/.env"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Content / source disclosure (exposed-file)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/app.js"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Secret exposed (exposed-secret)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "2deabe5e0946c5511c41f7f103ee33d6"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "attack-path": true,
+            "steps": [
+              "Content / source disclosure (exposed-file)",
+              "Secret exposed (exposed-secret)"
+            ]
+          }
+        },
+        {
+          "ruleId": "attack-path-chain",
+          "ruleIndex": 36,
+          "level": "error",
+          "message": {
+            "text": "Attack path: XSS → account takeover on 127.0.0.1 — Script injection with weak session/anti-CSRF protections lets an attacker ride a victim's session and take over the account."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "http://127.0.0.1:8791/dom?html=hi"
+                }
+              }
+            }
+          ],
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791/dom?html=hi"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 1: Cross-site scripting (xss)"
+                        }
+                      }
+                    },
+                    {
+                      "location": {
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "uri": "http://127.0.0.1:8791"
+                          }
+                        },
+                        "message": {
+                          "text": "Step 2: Weak session protection (cors)"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "partialFingerprints": {
+            "orthrusChainHash/v1": "35f411f6aabf5650f7372e708a951a6a"
+          },
+          "properties": {
+            "security-severity": "8.0",
+            "attack-path": true,
+            "steps": [
+              "Cross-site scripting (xss)",
+              "Weak session protection (cors)"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

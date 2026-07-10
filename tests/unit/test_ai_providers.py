@@ -32,6 +32,17 @@ def test_resolve_config_env_key(monkeypatch):
     assert cfg.provider == "anthropic" and cfg.model == "claude-sonnet-5" and cfg.api_key == "k-abc"
 
 
+def test_resolve_config_timeout_env(monkeypatch):
+    # default when unset; honoured when a positive number; ignored when garbage/non-positive
+    monkeypatch.delenv("ORTHRUS_LLM_TIMEOUT", raising=False)
+    assert resolve_config("ollama").timeout == 180.0
+    monkeypatch.setenv("ORTHRUS_LLM_TIMEOUT", "300")
+    assert resolve_config("ollama").timeout == 300.0
+    for bad in ("abc", "0", "-5", ""):
+        monkeypatch.setenv("ORTHRUS_LLM_TIMEOUT", bad)
+        assert resolve_config("ollama").timeout == 180.0
+
+
 def test_ollama_is_local():
     assert LLMConfig("ollama", "llama3.1").is_local is True
     assert LLMConfig("anthropic", "x").is_local is False
