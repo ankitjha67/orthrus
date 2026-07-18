@@ -841,6 +841,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
                   ["generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi"]),
               default="generic", show_default=True,
               help="Shape each per-bug report for this platform's submission form.")
+@click.option("--notify-slack", "notify_slack", envvar="ORTHRUS_SLACK_WEBHOOK", default=None,
+              metavar="WEBHOOK", help="Post a campaign summary to this Slack incoming webhook "
+                                      "(or set ORTHRUS_SLACK_WEBHOOK).")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
 @click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
@@ -858,8 +861,8 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
 def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_authorized,
-           enumerate_subs, min_confidence, platform, aggressive, browser, no_exploit, callback,
-           interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+           enumerate_subs, min_confidence, platform, notify_slack, aggressive, browser, no_exploit,
+           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -990,6 +993,12 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     if prior:
         console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
                       "earlier runs (possible known/duplicate — check before filing).")
+    if notify_slack and result.report.reportable:
+        from orthrus.integrations.notify import send_slack, slack_message
+        payload = slack_message(f"bounty · {program_name or 'campaign'}", program.seeds[0] if seeds else None,
+                                [g.lead for g in result.report.groups], min_severity="high")
+        ok = asyncio.run(send_slack(notify_slack, payload))
+        console.print(f"[bold]Slack[/] campaign summary {'sent' if ok else 'failed'}.")
     _print_bounty_summary(result, outdir, files)
 
 

@@ -48,7 +48,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 6. ✅ **Vuln-class ontology** — `bounty/ontology.py` (versioned): per-class `confidence_ceiling` + `is_destructive` governance metadata; destructive classes get a manual-verification caution in the report.
 7. 🚧 **Audit log** — `bounty/audit.py` + `orthrus audit [--verify]`: hash-chained, append-only JSONL of authorization / kill-list refusals / campaigns; `verify()` pinpoints tampering. (Cost ledger still to come.)
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
-9. **Continuous monitoring** (per-program schedule + notifications + new-asset → auto-scan).
+9. 🚧 **Notifications** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary via the existing notify integration. (Per-program scheduling + new-asset→auto-scan still to come.)
 10. **RAG copilot** over your findings/notes + vendored knowledge.
 11. **External-tool adapter layer** + multi-domain (mobile/web3/LLM/cloud) adapters.
 
