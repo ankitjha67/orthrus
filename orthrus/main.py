@@ -1227,6 +1227,49 @@ def suppressions(program_name: str, remove: int | None) -> None:
                       + f"  [orthrus.muted]({r.get('added', '?')})[/]")
 
 
+@cli.command(name="bounty-report")
+@click.option("--program", "program_name", required=True, help="Saved program to re-render.")
+@click.option("--platform", type=click.Choice(
+                  ["generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi"]),
+              default="generic", help="Shape reports for this platform's submission form.")
+@click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
+              default="firm", help="Report floor.")
+@click.option("-o", "--output", "outdir", default="bounty-report", help="Output directory.")
+def bounty_report(program_name: str, platform: str, min_confidence: str, outdir: str) -> None:
+    """Re-render a saved program's last campaign - no re-scanning.
+
+    Regenerate the submission reports from the findings already stored for a
+    program's past scans, e.g. in a different --platform format, applying the
+    program's current mute rules and flagging cross-run duplicates.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.campaign import report_from_scans, write_reports
+    from orthrus.bounty.history import HistoryStore
+    from orthrus.bounty.store import ProgramStore
+    from orthrus.bounty.suppress import SuppressionStore
+
+    rec = ProgramStore().get(program_name)
+    if rec is None:
+        raise click.UsageError(f"no saved program '{program_name}' (see `orthrus programs`).")
+    if not rec.scan_ids:
+        raise click.UsageError(f"'{program_name}' has no recorded scans yet — run "
+                               f"`orthrus bounty --program {program_name} …` first.")
+    supps = SuppressionStore().rules(program_name)
+    report = asyncio.run(report_from_scans(rec.scan_ids, rec.to_scope(),
+                                           min_confidence=min_confidence, suppressions=supps))
+    if not report.groups:
+        console.print(f"[orthrus.muted]no reportable findings at '{min_confidence}'+ across "
+                      f"{len(rec.scan_ids)} stored scan(s).[/]")
+        return
+    seen_map = HistoryStore().seen_counts([g.lead for g in report.groups])
+    files = write_reports(report, outdir, program_name=program_name, platform=platform,
+                          prior_seen=seen_map)
+    section(console, f"BUG BOUNTY · RE-RENDER · {program_name}")
+    console.print(f"[bold]{report.reportable}[/] bug(s) → [bold]{outdir}/[/] as [bold]{platform}[/] "
+                  f"({len(files)} file(s), from {len(rec.scan_ids)} stored scan(s))"
+                  + (f" · {report.suppressed} muted" if report.suppressed else ""))
+
+
 @cli.command(name="submission")
 @click.option("--id", "sub_id", default=None, help="Existing submission id to UPDATE (else a new one is added).")
 @click.option("--program", default=None, help="Program name (required when adding).")

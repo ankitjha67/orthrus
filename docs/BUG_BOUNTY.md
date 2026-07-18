@@ -156,6 +156,7 @@ orthrus submissions --program acme          # earnings roll-up
 | `orthrus copilot "…"` | Ask a copilot grounded in your notes + submissions (never invents findings). |
 | `orthrus cost` | The spend ledger — LLM tokens the copilot used, rolled up by provider/program. |
 | `orthrus audit --verify` | The tamper-evident, hash-chained log of scope/authorization decisions. |
+| `orthrus bounty-report --program NAME --platform …` | Re-render a program's last campaign in a different platform format — **no re-scanning** (reuses stored findings). |
 | `orthrus bounty-status` | One-view cockpit: programs, earnings, assets, mute rules, spend, audit integrity. |
 
 ## Notes

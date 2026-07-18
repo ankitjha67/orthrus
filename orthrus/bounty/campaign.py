@@ -81,23 +81,43 @@ async def run_campaign(
         finally:
             await orch.teardown(status)
 
-    # Aggregate findings across every campaign scan, carrying confirmation techniques.
+    result.report = await report_from_scans(
+        result.scan_ids, program, min_confidence=min_confidence, suppressions=suppressions,
+    )
+    return result
+
+
+async def report_from_scans(
+    scan_ids: list[str],
+    program: ProgramScope,
+    *,
+    min_confidence: str = "firm",
+    suppressions: list[dict] | None = None,
+) -> CampaignReport:
+    """Aggregate findings from stored scans into a deduped, ranked campaign report.
+
+    Shared by ``run_campaign`` (fresh scans) and ``orthrus bounty-report`` (re-render
+    a past program's campaign in a different platform format without re-scanning).
+    """
+    settings = get_settings()
     store = Store(settings.db_url, encryption_key=settings.encryption_key)
     findings = []
     techniques: dict[str, str] = {}
-    for sid in result.scan_ids:
-        for db_id, finding in await store.get_findings_with_ids(sid):
-            findings.append(finding)
-            for ex in await store.get_exploitations(db_id):
-                if ex.success:
-                    techniques[finding.id] = ex.technique
-                    break
-
-    result.report = select_and_group(
+    try:
+        await store.init()
+        for sid in scan_ids:
+            for db_id, finding in await store.get_findings_with_ids(sid):
+                findings.append(finding)
+                for ex in await store.get_exploitations(db_id):
+                    if ex.success:
+                        techniques[finding.id] = ex.technique
+                        break
+    finally:
+        await store.close()
+    return select_and_group(
         findings, program, min_confidence=min_confidence, techniques=techniques,
         suppressions=suppressions,
     )
-    return result
 
 
 def _slug(text: str, cap: int = 40) -> str:
@@ -135,4 +155,4 @@ def write_reports(report: CampaignReport, outdir: str | Path, *, program_name: s
     return written
 
 
-__all__ = ["CampaignResult", "run_campaign", "write_reports"]
+__all__ = ["CampaignResult", "run_campaign", "report_from_scans", "write_reports"]
