@@ -45,7 +45,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 3. ✅ **Platform-native report templates** — `bounty/platforms.py` + `--platform`: per-bug reports shaped for HackerOne / Bugcrowd (P1–P5) / Intigriti / YesWeHack / Immunefi (gist reminder).
 4. ✅ **Program store** — `bounty/store.py` + `--program NAME` + `orthrus programs`: persist a program's authorization + scope + campaign history (JSON at `$ORTHRUS_HOME/programs.json`); re-run by name.
 5. ✅ **Triage priority scoring** — `bounty/triage.py`: a 0–100 composite (severity × confidence + CVSS) ranks the bug queue so a confirmed medium outranks a tentative high; shown + sorted-on in the report index. (Cross-program dedup + history recall still to come.)
-6. **Vuln-class ontology** module (versioned).
+6. ✅ **Vuln-class ontology** — `bounty/ontology.py` (versioned): per-class `confidence_ceiling` + `is_destructive` governance metadata; destructive classes get a manual-verification caution in the report.
 7. **Audit log** (hash-chained) + **cost ledger.**
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
 9. **Continuous monitoring** (per-program schedule + notifications + new-asset → auto-scan).

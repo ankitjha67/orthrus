@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from orthrus.bounty.ontology import is_destructive
 from orthrus.bounty.triage import priority_score
 from orthrus.core.schemas import Finding
 from orthrus.reporting.reproduce import build_snippets
@@ -142,6 +143,13 @@ def render_submission(group: BugGroup, program_name: str = "") -> str:
         f"**Weakness:** {f.cwe or 'n/a'}",
         f"**Confidence:** {conf}{proof}",
         f"**Reward guidance:** {_BOUNTY_HINT.get(sev, 'varies')} *(indicative only — the program decides)*",
+    ]
+    if is_destructive(f.vuln_type):
+        parts.append(
+            "\n> ⚠️ **Destructive class** — confirming or exploiting this can write state or affect "
+            "other users. Verify manually and follow the program's rules before active testing."
+        )
+    parts += [
         "",
         "## Summary",
         f.description or f"A {f.vuln_type} issue was identified on the affected asset.",
