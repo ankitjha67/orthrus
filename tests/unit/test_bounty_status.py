@@ -42,3 +42,13 @@ def test_gather_status_empty(tmp_path, monkeypatch):
     assert st["programs"] == [] and st["history_signatures"] == 0
     assert st["submissions"]["total"] == 0 and st["audit"]["intact"] is True
     assert st["mute_rules"] == 0 and st["tracked_assets"] == 0 and st["cost"]["entries"] == 0
+
+
+def test_status_is_json_serializable(tmp_path, monkeypatch):
+    import json
+
+    monkeypatch.setenv("ORTHRUS_HOME", str(tmp_path))
+    ProgramStore().save(ProgramRecord(name="acme", in_scope=["*.acme.com"], max_rps=5.0))
+    # the whole cockpit must round-trip through JSON (used by `bounty-status --json`)
+    round_tripped = json.loads(json.dumps(gather_status()))
+    assert round_tripped["programs"][0]["name"] == "acme"

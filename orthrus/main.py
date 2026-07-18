@@ -1377,12 +1377,16 @@ def notes(program, tag, query):
 
 
 @cli.command(name="bounty-status")
-def bounty_status() -> None:
+@click.option("--json", "as_json", is_flag=True, help="Emit the full status as JSON (for scripting).")
+def bounty_status(as_json: bool) -> None:
     """One-view operator dashboard: programs, submissions, earnings, audit integrity."""
     _ensure_utf8_output()
     from orthrus.bounty.status import gather_status
 
     st = gather_status()
+    if as_json:
+        click.echo(json.dumps(st, indent=2))
+        return
     section(console, "BUG BOUNTY · STATUS")
     progs = st["programs"]
     console.print(f"[bold]Programs[/] — {len(progs)}")
