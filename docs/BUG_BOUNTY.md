@@ -15,17 +15,50 @@ Intigriti.
 > resolved scope before it sends a single packet. Read the program's scope and
 > rules first, and keep to them.
 
+## Authorization (required for public scopes)
+
+Every engagement must declare **where your authorization comes from** — ORTHRUS
+will not scan public hosts without it:
+
+```bash
+orthrus bounty --in-scope '*.example.com' \
+  --authorization https://hackerone.com/example
+```
+
+`--authorization` accepts a **program URL** (HackerOne / Bugcrowd / Intigriti /
+YesWeHack / Immunefi), `signed:<file-or-hash>` (a private engagement letter),
+`direct:<note>` (direct written permission / a link to the program's policy), or
+`self-owned-lab`. A scope made up **entirely of loopback / RFC1918 hosts** is
+treated as a self-owned lab automatically, so local practice needs no flag.
+
+**High-sensitivity hosts are refused.** Anything that looks like government,
+military, education, healthcare, or a sanctioned-jurisdiction TLD is blocked by
+default. If you genuinely hold written authorization for one, attest it per host:
+
+```bash
+orthrus bounty --in-scope security.university.edu \
+  --authorization 'signed:letter.pdf' --i-am-authorized security.university.edu
+```
+
+This is a conservative safety brake (TLD/keyword based, not a legal ruling) — it
+errs toward refusing. Read the program's rules; you are responsible for staying in
+scope and in the law.
+
 ## Quick start
 
 ```bash
-# from a program scope file
-orthrus bounty --scope-file program.txt -o bounty-report/
+# from a program scope file (authorization can live in the file's context; pass it explicitly)
+orthrus bounty --scope-file program.txt --authorization https://hackerone.com/acme -o bounty-report/
 
-# or inline
-orthrus bounty --in-scope '*.example.com' --out-scope 'admin.example.com' -o bounty-report/
+# inline
+orthrus bounty --in-scope '*.example.com' --out-scope 'admin.example.com' \
+  --authorization https://bugcrowd.com/acme -o bounty-report/
+
+# local practice target — no authorization flag needed (implied self-owned lab)
+orthrus bounty --in-scope http://127.0.0.1:8791 -o bounty-report/
 
 # see exactly what would be scanned, send nothing:
-orthrus bounty --scope-file program.txt --dry-run
+orthrus bounty --scope-file program.txt --authorization … --dry-run
 ```
 
 ## The scope file
@@ -67,6 +100,8 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 
 | Flag | Purpose |
 |---|---|
+| `--authorization SOURCE` | Program URL / `signed:<file>` / `direct:<note>` / `self-owned-lab`. Required for public scopes. |
+| `--i-am-authorized HOST` | Attest written authorization for a refused high-sensitivity host (gov/mil/edu/health). Repeatable. |
 | `--min-confidence confirmed\|firm\|tentative` | Report floor. `confirmed` = only re-proven bugs (lowest noise); `firm` (default) adds strong observational findings; `tentative` includes everything. |
 | `--aggressive` | Enable aggressive scanning. |
 | `--browser` | Drive a headless browser (DOM / stored XSS). |
@@ -81,6 +116,9 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 - **Respect the rules:** set `--rate-limit` to the program's ceiling; never point
   it at anything you haven't been authorized to test.
 - **Coming next:** active subdomain enumeration to expand a `*.wildcard` into all
-  live in-scope hosts before scanning, per-program dedupe against already-reported
-  bugs, and a one-click "submit" export per platform. Today, list the specific
-  in-scope hosts (or the apex) you want scanned.
+  live in-scope hosts before scanning, platform-native report templates
+  (HackerOne / Bugcrowd / Intigriti / YesWeHack / Immunefi), per-program dedupe,
+  and continuous monitoring. The full plan — mapping the ORTHRUS v2.0 operator-platform
+  PRD onto what's built, buildable, or a separate product bet — is in
+  [BOUNTY_V2_ROADMAP.md](BOUNTY_V2_ROADMAP.md). Today, list the specific in-scope
+  hosts (or the apex) you want scanned.

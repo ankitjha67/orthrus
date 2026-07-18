@@ -778,12 +778,14 @@ def _print_batch_summary(results: list[tuple[str, dict[str, int]]]) -> None:
     console.print(table)
 
 
-def _print_bounty_scope(program, seeds: list[str]) -> None:
+def _print_bounty_scope(program, seeds: list[str], auth=None) -> None:
     section(console, "BUG BOUNTY · AUTHORIZED SCOPE ONLY")
     console.print(
         "[bold red]Only scan assets you are explicitly authorized to test[/] under the "
         "program's rules. Out-of-scope hosts are enforced and never touched."
     )
+    if auth is not None:
+        console.print(f"[bold]Authorization[/] — {auth.kind.value}: {auth.reference}")
     console.print(f"\n[bold]In scope[/] — {len(program.domains)} domain(s), "
                   f"{len(program.ip_ranges)} range(s):")
     for d in program.domains:
@@ -820,6 +822,12 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
               help="Add an in-scope asset (domain / *.wildcard / URL / CIDR). Repeatable.")
 @click.option("--out-scope", "out_scope", multiple=True, metavar="ASSET",
               help="Add an out-of-scope exclusion. Repeatable.")
+@click.option("--authorization", "authorization", default=None, metavar="SOURCE",
+              help="Proof you're authorized: a program URL (hackerone.com/…, bugcrowd.com/…), "
+                   "'signed:<file>', 'direct:<note>', or 'self-owned-lab'. Required for public scopes.")
+@click.option("--i-am-authorized", "i_am_authorized", multiple=True, metavar="HOST",
+              help="Attest written authorization for a high-sensitivity host (gov/mil/edu/health) "
+                   "so it isn't refused. Repeatable; name the exact host.")
 @click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
               default="firm", show_default=True,
               help="Only report bugs at/above this confidence (keeps triager noise down).")
@@ -839,9 +847,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
               help="Directory for the submission-ready reports.")
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
-def bounty(scope_file, in_scope, out_scope, min_confidence, aggressive, browser, no_exploit,
-           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads,
-           outdir, dry_run):
+def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, min_confidence,
+           aggressive, browser, no_exploit, callback, interactsh, rate_limit, timeout,
+           crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -850,8 +858,11 @@ def bounty(scope_file, in_scope, out_scope, min_confidence, aggressive, browser,
     enforced and never touched. Authorized programs only.
     """
     _ensure_utf8_output()
+    from urllib.parse import urlsplit
     from uuid import uuid4
 
+    from orthrus.bounty import killlist
+    from orthrus.bounty.authorization import AuthorizationError, resolve_authorization
     from orthrus.bounty.campaign import run_campaign, write_reports
     from orthrus.bounty.scope_intake import parse_program_scope
 
@@ -869,7 +880,27 @@ def bounty(scope_file, in_scope, out_scope, min_confidence, aggressive, browser,
             "ORTHRUS is deny-by-default and will not scan without an explicit in-scope target."
         )
     seeds = program.in_scope_seeds()
-    _print_bounty_scope(program, seeds)
+
+    # The hosts we're about to touch: in-scope domains + the host of every seed.
+    in_scope_hosts = list(program.domains) + [
+        h for s in seeds if (h := (urlsplit(s).hostname or ""))
+    ]
+    # 1) Every engagement needs a source of authorization (public scope) — or be a local lab.
+    try:
+        auth = resolve_authorization(authorization, in_scope_hosts)
+    except AuthorizationError as exc:
+        raise click.UsageError(str(exc)) from exc
+    # 2) High-sensitivity hosts (gov/mil/edu/health/sanctioned) are refused unless attested.
+    blocked = killlist.screen(in_scope_hosts, acknowledged=set(i_am_authorized))
+    if blocked:
+        lines = "\n".join(f"  - {d.host}: {d.reason}" for d in blocked)
+        raise click.UsageError(
+            "refusing high-sensitivity target(s):\n" + lines + "\n\n"
+            "If you hold WRITTEN authorization to test one, re-run with "
+            "--i-am-authorized <host> for each (naming the exact host), or remove it from scope."
+        )
+
+    _print_bounty_scope(program, seeds, auth)
     if dry_run:
         console.print("[orthrus.muted]dry-run — resolved scope shown above; no requests sent.[/]")
         return
