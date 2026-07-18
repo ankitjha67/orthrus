@@ -963,6 +963,26 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         seeds = program.in_scope_seeds()
         console.print(f"  discovered [bold]{len(added)}[/] new in-scope host(s); "
                       f"{len(seeds)} seed(s) to scan")
+        # Cross-run: for a saved program, flag assets that are NEW since last time —
+        # fresh, untested surface is the highest-signal bounty event.
+        if program_name:
+            from orthrus.bounty.asset_monitor import AssetMonitor
+            hosts = sorted({urlsplit(s).hostname or "" for s in seeds} - {""})
+            adiff = AssetMonitor().record(program_name, hosts)
+            if adiff.is_first:
+                console.print(f"[orthrus.muted]asset baseline recorded for '{program_name}' "
+                              f"({adiff.total} host(s)).[/]")
+            elif adiff.added:
+                listing = ", ".join(adiff.added[:8]) + (" …" if len(adiff.added) > 8 else "")
+                console.print(f"[bold]✚ {len(adiff.added)} NEW in-scope asset(s)[/] since last run: {listing}")
+                console.print("[orthrus.muted]fresh attack surface — prioritize these.[/]")
+                AuditLog().append("asset-drift", "new-assets",
+                                  {"program": program_name, "added": adiff.added})
+            else:
+                console.print(f"[orthrus.muted]no new in-scope assets since last run "
+                              f"({adiff.total} known).[/]")
+            if adiff.removed:
+                console.print(f"[orthrus.muted]−{len(adiff.removed)} asset(s) no longer resolving in scope.[/]")
 
     if not seeds:
         raise click.UsageError("no in-scope seeds to scan (every seed was excluded).")
@@ -1052,6 +1072,32 @@ def programs() -> None:
         console.print(f"[bold]{r.name}[/]  ({len(r.in_scope)} in / {len(r.out_scope)} out"
                       f" · auth: {r.authorization or 'unset'})")
         console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
+
+
+@cli.command(name="bounty-assets")
+@click.option("--program", "program_name", required=True, help="Program name (as saved).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the asset inventory as JSON.")
+def bounty_assets(program_name: str, as_json: bool) -> None:
+    """Show the live in-scope asset inventory recorded for a program.
+
+    Populated by `orthrus bounty --program NAME --enumerate`, which snapshots the
+    live in-scope hosts each run and reports which are NEW since the last one.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.asset_monitor import AssetMonitor
+
+    assets = AssetMonitor().latest(program_name)
+    if as_json:
+        click.echo(json.dumps({"program": program_name, "assets": assets, "count": len(assets)},
+                              indent=2))
+        return
+    if not assets:
+        console.print(f"[orthrus.muted]no assets recorded for '{program_name}'. Run "
+                      f"`orthrus bounty --program {program_name} --enumerate` to build the inventory.[/]")
+        return
+    section(console, f"BUG BOUNTY · ASSETS · {program_name} ({len(assets)})")
+    for host in assets:
+        console.print(f"  {host}")
 
 
 @cli.command(name="submission")
