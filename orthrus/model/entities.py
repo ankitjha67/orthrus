@@ -48,6 +48,19 @@ ASSET_KINDS = (
     "apk", "ipa", "contract", "graphql_op", "api_route", "llm_endpoint",
 )
 SCAN_RUN_STATUSES = ("running", "completed", "failed", "cancelled", "paused")
+# finding lifecycle + confidence + attack-chain vocabularies (PRD §6.1)
+FINDING_STATUSES = (
+    "new", "triaging", "confirmed", "duplicate", "not_reproducible", "filed",
+    "accepted", "rewarded", "closed", "verified_fixed", "regressed", "out_of_scope",
+)
+FINDING_CONFIDENCES = (
+    "tentative", "firm", "confirmed", "flappy", "waf_blocked", "pending_confirmation",
+)
+CHAIN_RELATIONSHIPS = ("enables", "amplifies", "persists", "escalates_via", "exfiltrates_via")
+EVIDENCE_KINDS = (
+    "request", "response", "screenshot", "dom_snapshot", "har", "video", "log",
+    "network_trace", "replay_bundle", "oast_callback",
+)
 
 
 def _utcnow() -> datetime:
@@ -219,16 +232,169 @@ class ScanRun(Base):
     error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class ProgramFinding(Base):
+    """A program-anchored, deduped finding (PRD §6.1) — the triage/report unit.
+
+    Distinct from v0.1's scan-scoped ``Finding``: this is the persistent operator
+    finding a scan promotes into, carrying dedup ``signature``, cross-tool
+    ``duplicate_of``, full enrichment (both CVSS versions, EPSS/KEV, CWE/OWASP/
+    ATT&CK), a composite ``priority_score``, and the full status lifecycle.
+    """
+
+    __tablename__ = "program_findings"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(
+        ForeignKey("programs.id", ondelete="CASCADE"), index=True
+    )
+    asset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("program_assets.id", ondelete="SET NULL"), nullable=True
+    )
+    endpoint_id: Mapped[str | None] = mapped_column(
+        ForeignKey("program_endpoints.id", ondelete="SET NULL"), nullable=True
+    )
+    scan_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("scan_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    parent_finding_id: Mapped[str | None] = mapped_column(String(32), nullable=True)  # rollup
+    duplicate_of: Mapped[str | None] = mapped_column(String(32), nullable=True)        # cross-tool
+    vuln_class: Mapped[str] = mapped_column(String(64), index=True)   # ontology key (Appendix B)
+    title: Mapped[str] = mapped_column(Text)
+    description_md: Mapped[str] = mapped_column(Text, default="")
+    severity: Mapped[str] = mapped_column(String(16), index=True)
+    confidence: Mapped[str] = mapped_column(String(24), default="tentative")
+    signature: Mapped[str] = mapped_column(String(255), index=True)   # normalized dedup key
+    cvss_v3_vector: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    cvss_v3_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cvss_v4_vector: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    cvss_v4_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    epss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    kev_flag: Mapped[bool] = mapped_column(Boolean, default=False)
+    cwe_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    owasp_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    capec_ids: Mapped[list] = mapped_column(JSON, default=list)
+    mitre_attack_ids: Mapped[list] = mapped_column(JSON, default=list)
+    mitre_d3fend_ids: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(24), default="new", index=True)
+    priority_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    llm_fp_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    filed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rewarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    found_by_tool: Mapped[str] = mapped_column(String(64), default="unknown")
+    bounty_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    currency: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    hunter_notes_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    assigned_to: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    evidence: Mapped[list[Evidence]] = relationship(
+        back_populates="finding", cascade="all, delete-orphan"
+    )
+
+
+class Evidence(Base):
+    """Content-addressable evidence blob (PRD §6.1).
+
+    ``content_hash`` (SHA-256) makes evidence deduplicatable and integrity-checkable
+    — the same blob referenced by two findings stores once.
+    """
+
+    __tablename__ = "evidence"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    finding_id: Mapped[str] = mapped_column(
+        ForeignKey("program_findings.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(String(24))
+    content_ref: Mapped[str] = mapped_column(Text)          # S3 key or local path
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    is_redacted: Mapped[bool] = mapped_column(Boolean, default=False)
+    redaction_map: Mapped[dict] = mapped_column(JSON, default=dict)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+    finding: Mapped[ProgramFinding] = relationship(back_populates="evidence")
+
+
+class FindingChain(Base):
+    """A directed edge in the attack graph (PRD §6.1/§7.8)."""
+
+    __tablename__ = "finding_chains"
+    __table_args__ = (
+        UniqueConstraint("from_finding_id", "to_finding_id", "relationship",
+                         name="uq_chain_edge"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    from_finding_id: Mapped[str] = mapped_column(
+        ForeignKey("program_findings.id", ondelete="CASCADE"), index=True
+    )
+    to_finding_id: Mapped[str] = mapped_column(
+        ForeignKey("program_findings.id", ondelete="CASCADE"), index=True
+    )
+    relationship: Mapped[str] = mapped_column(String(24))
+    narrative_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    proposed_by: Mapped[str] = mapped_column(String(16), default="rules")  # rules|llm|user
+    accepted_by_user: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class AuditLogRow(Base):
+    """Append-only, hash-chained audit row (PRD §6.1/§8.5). Tamper-evident."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column(String(64))
+    subject_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    subject_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    actor: Mapped[str] = mapped_column(String(128), default="system")
+    action: Mapped[str] = mapped_column(String(64))
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    prev_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    row_hash: Mapped[str] = mapped_column(String(64))
+
+
+class CostLedgerRow(Base):
+    """One spend line — LLM/STT/OAST/compute/API (PRD §6.1/§10)."""
+
+    __tablename__ = "cost_ledger"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    program_id: Mapped[str | None] = mapped_column(
+        ForeignKey("programs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    scan_run_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    category: Mapped[str] = mapped_column(String(24))     # llm|stt|oast|compute|api
+    provider: Mapped[str] = mapped_column(String(64))
+    quantity: Mapped[float] = mapped_column(Float, default=0.0)
+    unit: Mapped[str] = mapped_column(String(16), default="tokens")
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    ts: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+
 __all__ = [
     "Program",
     "ScopeEntry",
     "ProgramAsset",
     "ProgramEndpoint",
     "ScanRun",
+    "ProgramFinding",
+    "Evidence",
+    "FindingChain",
+    "AuditLogRow",
+    "CostLedgerRow",
     "PLATFORMS",
     "SCOPE_ENTRY_TYPES",
     "SCOPE_KINDS",
     "ASSET_KINDS",
     "SCAN_RUN_STATUSES",
+    "FINDING_STATUSES",
+    "FINDING_CONFIDENCES",
+    "CHAIN_RELATIONSHIPS",
+    "EVIDENCE_KINDS",
     "new_id",
 ]

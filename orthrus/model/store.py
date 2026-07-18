@@ -12,7 +12,9 @@ scope enforcer.
 
 from __future__ import annotations
 
-from datetime import datetime
+import hashlib
+import json
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -20,16 +22,34 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from orthrus.db.models import Base
 from orthrus.model.entities import (
     ASSET_KINDS,
+    FINDING_CONFIDENCES,
+    FINDING_STATUSES,
     PLATFORMS,
     SCAN_RUN_STATUSES,
     SCOPE_ENTRY_TYPES,
     SCOPE_KINDS,
+    AuditLogRow,
+    CostLedgerRow,
+    Evidence,
     Program,
     ProgramAsset,
+    ProgramFinding,
     ScanRun,
     ScopeEntry,
     _utcnow,
 )
+
+
+def _iso(dt: datetime) -> str:
+    """UTC, second-resolution ISO — stable across DB round-trips for hashing."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC).isoformat(timespec="seconds")
+
+
+def _audit_row_hash(prev_hash: str | None, payload: dict) -> str:
+    blob = json.dumps({"prev": prev_hash or "", **payload}, sort_keys=True, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 class ProgramGraph:
@@ -319,6 +339,185 @@ class ProgramGraph:
             await session.commit()
             await session.refresh(run)
         return run
+
+    # -------------------------------------------------------------- findings
+    async def record_finding(
+        self,
+        program_id: str,
+        vuln_class: str,
+        title: str,
+        severity: str,
+        signature: str,
+        *,
+        confidence: str = "tentative",
+        found_by_tool: str = "unknown",
+        scan_run_id: str | None = None,
+        asset_id: str | None = None,
+        endpoint_id: str | None = None,
+        cwe_id: str | None = None,
+        cvss_v3_vector: str | None = None,
+        cvss_v3_score: float | None = None,
+        priority_score: float | None = None,
+    ) -> tuple[ProgramFinding, bool]:
+        """Create or dedup a finding by (program, signature); return (finding, is_new).
+
+        Cross-tool dedup (PRD §7.5): two tools reporting the same bug collapse to
+        one finding by ``signature``; the first tool keeps the credit.
+        """
+        if confidence not in FINDING_CONFIDENCES:
+            raise ValueError(f"confidence must be one of {FINDING_CONFIDENCES}")
+        if not (signature or "").strip():
+            raise ValueError("signature is required for dedup")
+        async with self._session() as session:
+            existing = (await session.execute(
+                select(ProgramFinding).where(
+                    ProgramFinding.program_id == program_id,
+                    ProgramFinding.signature == signature,
+                ).limit(1)
+            )).scalar_one_or_none()
+            if existing is not None:
+                return existing, False
+            finding = ProgramFinding(
+                program_id=program_id, vuln_class=vuln_class, title=title,
+                severity=severity, signature=signature, confidence=confidence,
+                found_by_tool=found_by_tool, scan_run_id=scan_run_id, asset_id=asset_id,
+                endpoint_id=endpoint_id, cwe_id=cwe_id, cvss_v3_vector=cvss_v3_vector,
+                cvss_v3_score=cvss_v3_score, priority_score=priority_score, status="new",
+            )
+            session.add(finding)
+            await session.commit()
+            await session.refresh(finding)
+            return finding, True
+
+    async def list_findings(
+        self, program_id: str, *, status: str | None = None,
+    ) -> list[ProgramFinding]:
+        stmt = select(ProgramFinding).where(ProgramFinding.program_id == program_id)
+        if status:
+            stmt = stmt.where(ProgramFinding.status == status)
+        async with self._session() as session:
+            result = await session.execute(
+                stmt.order_by(ProgramFinding.priority_score.desc().nullslast())
+            )
+            return list(result.scalars().all())
+
+    async def set_finding_status(self, finding_id: str, status: str) -> ProgramFinding | None:
+        if status not in FINDING_STATUSES:
+            raise ValueError(f"status must be one of {FINDING_STATUSES}")
+        stamp = {
+            "confirmed": "confirmed_at", "filed": "filed_at", "rewarded": "rewarded_at",
+        }.get(status)
+        async with self._session() as session:
+            finding = await session.get(ProgramFinding, finding_id)
+            if finding is None:
+                return None
+            finding.status = status
+            if stamp and getattr(finding, stamp) is None:
+                setattr(finding, stamp, _utcnow())
+            await session.commit()
+            await session.refresh(finding)
+        return finding
+
+    # -------------------------------------------------------------- evidence
+    async def add_evidence(
+        self, finding_id: str, kind: str, content_ref: str, *,
+        content: bytes | None = None, content_hash: str | None = None,
+        is_redacted: bool = False, redaction_map: dict | None = None,
+        mime_type: str | None = None,
+    ) -> Evidence:
+        """Attach content-addressable evidence; hash is computed from ``content`` if given."""
+        if content is not None:
+            content_hash = hashlib.sha256(content).hexdigest()
+        if not content_hash:
+            raise ValueError("provide content= (to hash) or an explicit content_hash=")
+        ev = Evidence(
+            finding_id=finding_id, kind=kind, content_ref=content_ref,
+            content_hash=content_hash, is_redacted=is_redacted,
+            redaction_map=redaction_map or {}, mime_type=mime_type,
+            size_bytes=(len(content) if content is not None else None),
+        )
+        async with self._session() as session:
+            session.add(ev)
+            await session.commit()
+            await session.refresh(ev)
+        return ev
+
+    # ------------------------------------------------------ audit (hash-chained)
+    async def append_audit(
+        self, event_type: str, action: str, *,
+        subject_type: str | None = None, subject_id: str | None = None,
+        actor: str = "system", details: dict | None = None,
+    ) -> AuditLogRow:
+        details = details or {}
+        ts = _utcnow()
+        async with self._session() as session:
+            last = (await session.execute(
+                select(AuditLogRow).order_by(AuditLogRow.id.desc()).limit(1)
+            )).scalar_one_or_none()
+            prev = last.row_hash if last else None
+            payload = {
+                "event_type": event_type, "subject_type": subject_type,
+                "subject_id": subject_id, "actor": actor, "action": action,
+                "details": details, "ts": _iso(ts),
+            }
+            row = AuditLogRow(
+                event_type=event_type, subject_type=subject_type, subject_id=subject_id,
+                actor=actor, action=action, details=details, ts=ts, prev_hash=prev,
+                row_hash=_audit_row_hash(prev, payload),
+            )
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+        return row
+
+    async def verify_audit(self) -> tuple[bool, int]:
+        """Walk the hash chain; return (intact, first_bad_id) — first_bad_id -1 if OK."""
+        async with self._session() as session:
+            rows = list((await session.execute(
+                select(AuditLogRow).order_by(AuditLogRow.id)
+            )).scalars().all())
+        prev = None
+        for r in rows:
+            payload = {
+                "event_type": r.event_type, "subject_type": r.subject_type,
+                "subject_id": r.subject_id, "actor": r.actor, "action": r.action,
+                "details": r.details, "ts": _iso(r.ts),
+            }
+            if _audit_row_hash(prev, payload) != r.row_hash or (r.prev_hash or None) != prev:
+                return False, r.id
+            prev = r.row_hash
+        return True, -1
+
+    # ------------------------------------------------------------------ cost
+    async def record_cost(
+        self, category: str, provider: str, quantity: float, unit: str, cost_usd: float,
+        *, program_id: str | None = None, scan_run_id: str | None = None,
+    ) -> CostLedgerRow:
+        row = CostLedgerRow(
+            category=category, provider=provider, quantity=quantity, unit=unit,
+            cost_usd=cost_usd, program_id=program_id, scan_run_id=scan_run_id,
+        )
+        async with self._session() as session:
+            session.add(row)
+            await session.commit()
+            await session.refresh(row)
+        return row
+
+    async def cost_summary(self, program_id: str | None = None) -> dict:
+        stmt = select(CostLedgerRow)
+        if program_id:
+            stmt = stmt.where(CostLedgerRow.program_id == program_id)
+        async with self._session() as session:
+            rows = list((await session.execute(stmt)).scalars().all())
+        by_category: dict[str, float] = {}
+        by_provider: dict[str, float] = {}
+        total = 0.0
+        for r in rows:
+            total += r.cost_usd
+            by_category[r.category] = round(by_category.get(r.category, 0.0) + r.cost_usd, 6)
+            by_provider[r.provider] = round(by_provider.get(r.provider, 0.0) + r.cost_usd, 6)
+        return {"entries": len(rows), "total_usd": round(total, 4),
+                "by_category": by_category, "by_provider": by_provider}
 
 
 __all__ = ["ProgramGraph"]
