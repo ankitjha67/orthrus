@@ -38,3 +38,18 @@ def test_retrieve_over_real_notes(tmp_path, monkeypatch):
     hits = retrieve("jku jwt header", k=5)
     assert hits and hits[0].title == "JWT jku attack"
     assert retrieve("nonexistent-term-xyzzy") == []   # nothing relevant -> empty
+
+
+def test_corpus_includes_finding_history(tmp_path, monkeypatch):
+    monkeypatch.setenv("ORTHRUS_HOME", str(tmp_path))
+    from orthrus.bounty.history import HistoryStore
+    from orthrus.core.schemas import Confidence, Finding, Severity
+
+    HistoryStore().record(
+        [Finding(vuln_type="ssrf", title="SSRF to metadata", severity=Severity.HIGH,
+                 confidence=Confidence.FIRM, url="https://api.acme.com/fetch")],
+        "acme",
+    )
+    hits = retrieve("ssrf acme metadata", k=5)
+    assert hits and hits[0].source.startswith("finding:ssrf@")
+    assert "acme.com" in hits[0].title

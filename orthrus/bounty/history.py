@@ -59,6 +59,28 @@ class HistoryStore:
     def seen_before(self, finding) -> dict | None:
         return self._read().get(signature(finding))
 
+    def records(self) -> list[dict]:
+        """Every archived bug, signature split back into readable fields.
+
+        Signature is ``vuln_type|title|host`` (vuln_type/host never contain '|',
+        so the title is whatever is between). Powers the copilot's corpus.
+        """
+        out: list[dict] = []
+        for sig, meta in self._read().items():
+            parts = sig.split("|")
+            if len(parts) < 3:
+                continue
+            out.append({
+                "signature": sig,
+                "vuln_type": parts[0],
+                "title": "|".join(parts[1:-1]),
+                "host": parts[-1],
+                "count": int(meta.get("count", 1)),
+                "programs": list(meta.get("programs", [])),
+                "last_seen": meta.get("last_seen", ""),
+            })
+        return out
+
     def seen_counts(self, findings) -> dict[int, int]:
         """Non-mutating: map ``id(finding)`` → how many earlier runs saw it (omit unseen).
 

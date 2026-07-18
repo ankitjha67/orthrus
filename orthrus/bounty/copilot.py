@@ -6,9 +6,10 @@ score (no embedding model to download); an optional LLM turns the retrieved
 snippets into prose, but is held to the context — if nothing relevant is found it
 says so rather than inventing a finding.
 
-Corpus = your [[notes]] + tracked [[submissions]]. (Scan findings can be layered
-in later.) The LLM step reuses ``orthrus.ai.providers`` and only runs when you
-pass ``--llm``; otherwise you get the raw retrieved snippets, which never lie.
+Corpus = your [[notes]] + tracked [[submissions]] + your cross-run finding
+[[history]] (so "have I found SSRF on acme before?" is answerable from real data).
+The LLM step reuses ``orthrus.ai.providers`` and only runs when you pass
+``--llm``; otherwise you get the raw retrieved snippets, which never lie.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ import math
 import re
 from dataclasses import dataclass
 
+from orthrus.bounty.history import HistoryStore
 from orthrus.bounty.notes import NotesStore
 from orthrus.bounty.submissions import SubmissionStore
 
@@ -54,6 +56,12 @@ def gather_corpus() -> list[Doc]:
     for s in SubmissionStore().list():
         docs.append(Doc(f"submission:{s.id}", s.title,
                         f"{s.title} [{s.status}] {s.program} {s.notes}"))
+    for r in HistoryStore().records():
+        progs = " ".join(r["programs"])
+        docs.append(Doc(f"finding:{r['vuln_type']}@{r['host']}",
+                        f"{r['title']} on {r['host']}",
+                        f"{r['vuln_type']} {r['title']} on {r['host']} {progs} "
+                        f"(seen in {r['count']} run(s), last {r['last_seen']})"))
     return docs
 
 
