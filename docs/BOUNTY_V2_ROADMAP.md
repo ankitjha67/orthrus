@@ -33,7 +33,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 | Monitoring & notifications (§7.9) | 🟡→🛠 | `notify` (Slack/Jira) exists. Next: per-program schedule + digest wired to bounty campaigns. |
 | Vuln-class ontology (Appendix B) | 🟡→🛠 | Have attack-map + CVSS defaults. Formalize a versioned ontology module (severity/CVSS/CWE/OWASP/ATT&CK + `default_confidence_ceiling` + `is_destructive`). |
 | Audit log (§6/§8.5) + cost ledger (§10) | 🛠 | Hash-chained append-only audit of scope decisions/requests; per-program cost tracking. |
-| Payments/bounty tracking (§7.12) | ✅ | `bounty/submissions.py` + `orthrus submission`/`submissions`: track status + payouts, roll up earnings. Notes (§7.13) still to come. |
+| Payments/bounty tracking (§7.12) | ✅ | `bounty/submissions.py` + `orthrus submission`/`submissions`: track status + payouts, roll up earnings. Notes (§7.13): ✅ `bounty/notes.py` + `orthrus note`/`notes` (tagged, searchable knowledge base). |
 | Multi-domain: mobile/web3/LLM/cloud (Phase 5) | 🛠/🔑 | Adapter wrappers (MobSF/slither/garak/prowler) are build-now; several need the external binary installed. |
 | Burp/Caido bridge (§7.10) | 🔑/🏗 | ORTHRUS side is buildable; the Burp/Caido extensions are separate Java/TS projects. |
 | Team mode, OIDC/SCIM (§7.11) · Rust core + Tauri (§5) · Managed SaaS + Stripe + SOC2 (Phase 7) | 🏗 | Separate product bet. **Not** part of expanding the Python bounty module; revisit as a deliberate, resourced effort. |

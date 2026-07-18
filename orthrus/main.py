@@ -1100,6 +1100,51 @@ def submissions(program) -> None:
         console.print(f"  {s.id}  [{s.status}] {s.title[:60]}  ({s.program}/{s.platform}){amt}")
 
 
+@cli.command(name="note")
+@click.option("--title", required=True, help="Note title.")
+@click.option("--body", default=None, help="Note body (markdown). Or use --body-file.")
+@click.option("--body-file", type=click.Path(exists=True, dir_okay=False), default=None,
+              help="Read the note body from a markdown file.")
+@click.option("--program", default=None, help="Attach the note to a program.")
+@click.option("--tags", default=None, help="Comma-separated tags.")
+def note(title, body, body_file, program, tags):
+    """Save an operator note (methodology, per-program tips, recon summaries)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.notes import Note, NotesStore
+
+    text = body or ""
+    if body_file:
+        with open(body_file, encoding="utf-8") as fh:
+            text = fh.read()
+    tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    saved = NotesStore().add(Note(title=title, body=text, program=program or "", tags=tag_list))
+    console.print(f"[bold]saved note[/] {saved.id} — '{title}'"
+                  + (f" · #{'/#'.join(tag_list)}" if tag_list else ""))
+
+
+@cli.command(name="notes")
+@click.option("--program", default=None, help="Filter to one program.")
+@click.option("--tag", default=None, help="Filter to one tag.")
+@click.option("--search", "query", default=None, help="Full-text search over title/body/tags.")
+def notes(program, tag, query):
+    """List or search operator notes."""
+    _ensure_utf8_output()
+    from orthrus.bounty.notes import NotesStore
+
+    store = NotesStore()
+    results = store.search(query, program=program) if query else store.list(program=program, tag=tag)
+    if not results:
+        console.print("[orthrus.muted]no matching notes. Add one with `orthrus note --title '…' --body '…'`.[/]")
+        return
+    section(console, f"BUG BOUNTY · NOTES ({len(results)})")
+    for n in results:
+        meta = " · ".join(filter(None, [n.program, "#" + " #".join(n.tags) if n.tags else ""]))
+        console.print(f"  {n.id}  [bold]{n.title}[/]" + (f"  ({meta})" if meta else ""))
+        first = next((ln for ln in n.body.splitlines() if ln.strip()), "")
+        if first:
+            console.print(f"     {first[:100]}")
+
+
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
     """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from orthrus.core.orchestrator import Orchestrator
