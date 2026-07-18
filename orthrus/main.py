@@ -872,6 +872,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     from uuid import uuid4
 
     from orthrus.bounty import killlist
+    from orthrus.bounty.audit import AuditLog
     from orthrus.bounty.authorization import AuthorizationError, resolve_authorization
     from orthrus.bounty.campaign import run_campaign, write_reports
     from orthrus.bounty.scope_intake import parse_program_scope
@@ -916,6 +917,8 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     # 2) High-sensitivity hosts (gov/mil/edu/health/sanctioned) are refused unless attested.
     blocked = killlist.screen(in_scope_hosts, acknowledged=set(i_am_authorized))
     if blocked:
+        AuditLog().append("bounty-refused", "kill-list-block",
+                          {"program": program_name, "hosts": [d.host for d in blocked]})
         lines = "\n".join(f"  - {d.host}: {d.reason}" for d in blocked)
         raise click.UsageError(
             "refusing high-sensitivity target(s):\n" + lines + "\n\n"
@@ -976,7 +979,40 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     files = write_reports(result.report, outdir, platform=platform)
     if program_name:
         pstore.record_run(program_name, result.scan_ids)
+    AuditLog().append("bounty-campaign", "completed", {
+        "program": program_name, "authorization": f"{auth.kind.value}:{auth.reference}"[:200],
+        "seeds": len(seeds), "scan_ids": result.scan_ids,
+        "reportable": result.report.reportable, "output": outdir,
+    })
     _print_bounty_summary(result, outdir, files)
+
+
+@cli.command(name="audit")
+@click.option("--verify", is_flag=True, help="Check the hash-chain for tampering and exit.")
+@click.option("-n", "--limit", type=int, default=20, show_default=True, help="How many recent entries to show.")
+def audit(verify: bool, limit: int) -> None:
+    """Show or verify the tamper-evident bug-bounty audit log."""
+    _ensure_utf8_output()
+    from orthrus.bounty.audit import AuditLog
+
+    log = AuditLog()
+    ok, bad = log.verify()
+    if verify:
+        if ok:
+            console.print(f"[bold]audit chain intact[/] — {len(log.entries())} entr(y/ies), no tampering.")
+        else:
+            console.print(f"[bold red]audit chain BROKEN[/] at entry #{bad} — tampering or corruption.")
+            raise SystemExit(3)
+        return
+    entries = log.entries()
+    if not entries:
+        console.print("[orthrus.muted]no audit entries yet.[/]")
+        return
+    status = "intact" if ok else f"[red]BROKEN at #{bad}[/]"
+    section(console, f"BUG BOUNTY · AUDIT LOG ({len(entries)} entries · chain {status})")
+    for e in entries[-limit:]:
+        console.print(f"[bold]{e.get('ts', '?')}[/] {e.get('event', '?')}/{e.get('action', '?')} "
+                      f"— {json.dumps(e.get('details', {}))[:160]}")
 
 
 @cli.command(name="programs")
