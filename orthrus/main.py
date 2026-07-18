@@ -1154,6 +1154,29 @@ def notes(program, tag, query):
             console.print(f"     {first[:100]}")
 
 
+@cli.command(name="bounty-status")
+def bounty_status() -> None:
+    """One-view operator dashboard: programs, submissions, earnings, audit integrity."""
+    _ensure_utf8_output()
+    from orthrus.bounty.status import gather_status
+
+    st = gather_status()
+    section(console, "BUG BOUNTY · STATUS")
+    progs = st["programs"]
+    console.print(f"[bold]Programs[/] — {len(progs)}")
+    for p in progs:
+        console.print(f"  {p['name']} ({p['in_scope']} in / {p['out_scope']} out) · "
+                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}")
+    sub = st["submissions"]
+    earn = " · ".join(f"{amt} {cur}" for cur, amt in sub["earnings"].items()) or "none"
+    console.print(f"[bold]Submissions[/] — {sub['total']} tracked · {sub['rewarded']} rewarded · "
+                  f"earnings: {earn}")
+    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued")
+    a = st["audit"]
+    chain = "intact" if a["intact"] else f"[red]BROKEN at #{a['first_bad']}[/]"
+    console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
+
+
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
     """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from orthrus.core.orchestrator import Orchestrator

@@ -52,6 +52,10 @@ class HistoryStore:
         tmp.write_text(json.dumps(data, indent=2, sort_keys=True), encoding="utf-8")
         tmp.replace(self.path)
 
+    def count(self) -> int:
+        """Number of distinct bug signatures archived."""
+        return len(self._read())
+
     def seen_before(self, finding) -> dict | None:
         return self._read().get(signature(finding))
 
