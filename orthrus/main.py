@@ -1033,6 +1033,67 @@ def programs() -> None:
         console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
 
 
+@cli.command(name="submission")
+@click.option("--id", "sub_id", default=None, help="Existing submission id to UPDATE (else a new one is added).")
+@click.option("--program", default=None, help="Program name (required when adding).")
+@click.option("--title", default=None, help="Bug title (required when adding).")
+@click.option("--platform", default=None, help="hackerone/bugcrowd/intigriti/yeswehack/immunefi/generic.")
+@click.option("--severity", default=None)
+@click.option("--status", type=click.Choice(
+                  ["draft", "filed", "triaged", "accepted", "duplicate",
+                   "informative", "resolved", "rewarded", "closed", "n-a"]),
+              default=None, help="Submission lifecycle state.")
+@click.option("--bounty", "bounty_amount", type=float, default=None, help="Payout amount.")
+@click.option("--currency", default=None)
+@click.option("--url", default=None, help="Link to the report on the platform.")
+@click.option("--notes", default=None)
+def submission(sub_id, program, title, platform, severity, status, bounty_amount, currency, url, notes):
+    """Record or update a bug-bounty submission (status, payout, link)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.submissions import Submission, SubmissionStore
+
+    store = SubmissionStore()
+    if sub_id:
+        updated = store.update(sub_id, program=program, title=title, platform=platform,
+                               severity=severity, status=status, bounty_amount=bounty_amount,
+                               currency=currency, url=url, notes=notes)
+        if updated is None:
+            raise click.UsageError(f"no submission with id '{sub_id}'.")
+        console.print(f"[bold]updated[/] {updated.id} — {updated.status}"
+                      + (f" · {updated.bounty_amount} {updated.currency}" if updated.bounty_amount else ""))
+        return
+    if not program or not title:
+        raise click.UsageError("adding a submission needs --program and --title (or --id to update).")
+    sub = store.add(Submission(program=program, title=title, platform=platform or "generic",
+                               severity=severity or "", status=status or "draft",
+                               bounty_amount=bounty_amount or 0.0, currency=currency or "USD",
+                               url=url or "", notes=notes or ""))
+    console.print(f"[bold]added[/] submission {sub.id} for '{program}' — {sub.status}")
+
+
+@cli.command(name="submissions")
+@click.option("--program", default=None, help="Filter to one program.")
+def submissions(program) -> None:
+    """List tracked submissions and roll up earnings."""
+    _ensure_utf8_output()
+    from orthrus.bounty.submissions import SubmissionStore
+
+    store = SubmissionStore()
+    subs = store.list(program)
+    if not subs:
+        console.print("[orthrus.muted]no submissions tracked. Add one with "
+                      "`orthrus submission --program NAME --title '…'`.[/]")
+        return
+    summ = store.summary(program)
+    earn = " · ".join(f"{amt} {cur}" for cur, amt in summ["earnings"].items()) or "none"
+    section(console, f"BUG BOUNTY · SUBMISSIONS ({summ['total']})")
+    console.print(f"rewarded: [bold]{summ['rewarded']}[/] · earnings: [bold]{earn}[/] · "
+                  f"by status: {json.dumps(summ['by_status'])}")
+    for s in subs:
+        amt = f" · [bold]{s.bounty_amount} {s.currency}[/]" if s.bounty_amount else ""
+        console.print(f"  {s.id}  [{s.status}] {s.title[:60]}  ({s.program}/{s.platform}){amt}")
+
+
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
     """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from orthrus.core.orchestrator import Orchestrator
