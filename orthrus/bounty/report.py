@@ -77,6 +77,7 @@ class CampaignReport:
     considered: int = 0
     out_of_scope: int = 0
     below_confidence: int = 0
+    suppressed: int = 0
 
     @property
     def reportable(self) -> int:
@@ -89,8 +90,15 @@ def select_and_group(
     *,
     min_confidence: str = "firm",
     techniques: dict[str, str] | None = None,
+    suppressions: list[dict] | None = None,
 ) -> CampaignReport:
-    """Filter to in-scope findings at/above the confidence floor, then dedupe."""
+    """Filter to in-scope findings at/above the confidence floor, then dedupe.
+
+    ``suppressions`` are per-program mute rules; a matching finding is counted
+    (``report.suppressed``) but kept out of the reportable queue.
+    """
+    from orthrus.bounty.suppress import matching_rule
+
     floor = _CONF_RANK.get(min_confidence.lower(), 1)
     techniques = techniques or {}
     report = CampaignReport(considered=len(findings))
@@ -100,6 +108,9 @@ def select_and_group(
         host = _host(f.url)
         if not program.is_in_scope(host):
             report.out_of_scope += 1
+            continue
+        if suppressions and matching_rule(suppressions, f) is not None:
+            report.suppressed += 1
             continue
         if _CONF_RANK.get(_conf(f.confidence), 0) < floor:
             report.below_confidence += 1

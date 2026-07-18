@@ -1001,10 +1001,19 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         cfg.rate_limit.requests_per_second = rate_limit
         return cfg
 
+    # Per-program mute rules: known-noise findings kept out of the queue (counted, not hidden).
+    supps: list[dict] = []
+    if program_name:
+        from orthrus.bounty.suppress import SuppressionStore
+        supps = SuppressionStore().rules(program_name)
+
     result = asyncio.run(run_campaign(
         program, make_config, campaign_id=f"bounty-{uuid4().hex[:8]}",
-        min_confidence=min_confidence,
+        min_confidence=min_confidence, suppressions=supps,
     ))
+    if result.report.suppressed:
+        console.print(f"[orthrus.muted]muted {result.report.suppressed} finding(s) via "
+                      f"{len(supps)} program mute rule(s).[/]")
     files = write_reports(result.report, outdir, platform=platform)
     if program_name:
         pstore.record_run(program_name, result.scan_ids)
@@ -1098,6 +1107,60 @@ def bounty_assets(program_name: str, as_json: bool) -> None:
     section(console, f"BUG BOUNTY · ASSETS · {program_name} ({len(assets)})")
     for host in assets:
         console.print(f"  {host}")
+
+
+@cli.command(name="suppress")
+@click.option("--program", "program_name", required=True, help="Program the rule applies to.")
+@click.option("--vuln-type", default="", help="Mute this vuln_type (e.g. security-headers).")
+@click.option("--host", default="", help="Mute this host (matches the host and its subdomains).")
+@click.option("--title-contains", default="", help="Mute findings whose title contains this text.")
+@click.option("--reason", default="", help="Why it's muted (kept for the audit trail).")
+def suppress(program_name: str, vuln_type: str, host: str, title_contains: str, reason: str) -> None:
+    """Add a mute rule so known-noise findings stay out of a program's report queue.
+
+    At least one of --vuln-type / --host / --title-contains is required (an empty
+    rule would mute everything, so it's refused). Muted findings are still counted
+    in the campaign summary — nothing silently disappears.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.suppress import SuppressionStore, make_rule
+
+    try:
+        rule = make_rule(vuln_type=vuln_type, host=host, title_contains=title_contains, reason=reason)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+    SuppressionStore().add(program_name, rule)
+    crit = ", ".join(f"{k}={v}" for k, v in rule.items() if k in ("vuln_type", "host", "title_contains") and v)
+    console.print(f"[bold]Muted[/] for '{program_name}': {crit}"
+                  + (f"  ({reason})" if reason else ""))
+
+
+@cli.command(name="suppressions")
+@click.option("--program", "program_name", required=True, help="Program to list/edit rules for.")
+@click.option("--remove", type=int, default=None, help="Remove the rule at this index (from the list).")
+def suppressions(program_name: str, remove: int | None) -> None:
+    """List (or --remove) a program's mute rules."""
+    _ensure_utf8_output()
+    from orthrus.bounty.suppress import SuppressionStore
+
+    store = SuppressionStore()
+    if remove is not None:
+        ok = store.remove(program_name, remove)
+        console.print(f"[bold]Removed[/] rule #{remove}." if ok
+                      else f"[red]No rule #{remove}[/] for '{program_name}'.")
+        return
+    rules = store.rules(program_name)
+    if not rules:
+        console.print(f"[orthrus.muted]no mute rules for '{program_name}'. Add one with "
+                      f"`orthrus suppress --program {program_name} --vuln-type … --reason …`.[/]")
+        return
+    section(console, f"BUG BOUNTY · MUTE RULES · {program_name} ({len(rules)})")
+    for i, r in enumerate(rules):
+        crit = " ".join(f"{k}={v}" for k, v in r.items()
+                        if k in ("vuln_type", "host", "title_contains") and v)
+        console.print(f"  [bold]#{i}[/] {crit}"
+                      + (f"  — {r['reason']}" if r.get("reason") else "")
+                      + f"  [orthrus.muted]({r.get('added', '?')})[/]")
 
 
 @cli.command(name="submission")

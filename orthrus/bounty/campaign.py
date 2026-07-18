@@ -47,6 +47,7 @@ async def run_campaign(
     *,
     campaign_id: str,
     min_confidence: str = "firm",
+    suppressions: list[dict] | None = None,
 ) -> CampaignResult:
     """Scan each in-scope seed with the full pipeline, then dedupe + filter the bugs."""
     settings = get_settings()
@@ -91,7 +92,8 @@ async def run_campaign(
                     break
 
     result.report = select_and_group(
-        findings, program, min_confidence=min_confidence, techniques=techniques
+        findings, program, min_confidence=min_confidence, techniques=techniques,
+        suppressions=suppressions,
     )
     return result
 
