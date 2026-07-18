@@ -34,7 +34,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ planned.
 |---|---|---|---|
 | T11 | Deserialization OOB confirmation via safe-marker gadgets (Java URLDNS, .NET, pickle `__reduce__`→callback) | ⬜ | Converts a big class tentative → confirmed **without RCE**. |
 | T12 | Race-condition confirmation via single-packet attack (last-byte sync) | ⬜ | Reliable race exploitation. |
-| T13 | XXE OOB confirmation with parametric-entity DTD chaining | ⬜ | Standard blind-XXE technique; raises confirmation rate. |
+| T13 | XXE OOB confirmation with parametric-entity DTD chaining | ✅ | `xxe_confirm.py` now re-proves blind XXE via a fresh parametric-entity callback (reuses `oob_xxe_payloads` + the SSRF OOB pattern). |
 
 ### Architecture / performance
 | # | Item | Status | Notes |

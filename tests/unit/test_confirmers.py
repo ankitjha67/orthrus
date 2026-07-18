@@ -33,6 +33,7 @@ from orthrus.exploits.mass_assignment_confirm import MassAssignmentConfirm
 from orthrus.exploits.nosql_confirm import NoSqlConfirm
 from orthrus.exploits.prototype_pollution_confirm import PrototypePollutionConfirm
 from orthrus.exploits.registry import EXPLOIT_REGISTRY, exploits_for
+from orthrus.exploits.xxe_confirm import XxeConfirm
 from orthrus.scanners.graphql import ALIAS_PROBE_COUNT
 
 
@@ -371,4 +372,73 @@ async def test_graphql_dos_confirm_fail_when_not_amplified():
     ctx = SimpleNamespace(http=_GqlHttp(ok=False))
     f = _finding("graphql-dos", title="GraphQL query batching enabled", url="http://h/graphql")
     res = await GraphqlDosConfirm().confirm(ctx, f)
+    assert res.success is False
+
+
+# --------------------------------------------------- xxe-confirm (OOB parametric-entity)
+from orthrus.core.callback import Interaction  # noqa: E402
+from orthrus.exploits import xxe_confirm as _xxe_mod  # noqa: E402
+
+
+class _XxeHttp:
+    """Blind XXE: the response never reflects a file, so the in-band re-proof
+    fails and the out-of-band parametric-entity path must carry the confirmation."""
+
+    def __init__(self) -> None:
+        self.posts = 0
+
+    async def post(self, url: str, **kw: object) -> _Resp:
+        self.posts += 1
+        return _Resp(text="<r>x</r>")  # no /etc/passwd or win.ini marker -> detect_lfi is falsy
+
+
+class _XxeCallback:
+    def __init__(self, interactions: list) -> None:
+        self._interactions = interactions
+
+    def new_token(self) -> tuple[str, str]:
+        return ("xxetok", "http://cb.local/xxetok")
+
+    async def poll(self, token: str) -> list:
+        return list(self._interactions)
+
+
+class _XxeStore:
+    def __init__(self) -> None:
+        self.callbacks: list = []
+
+    async def add_callback(self, token, protocol, source_ip, meta) -> None:
+        self.callbacks.append((token, protocol, source_ip, meta))
+
+
+def _xxe_ctx(interactions: list, *, callback: bool = True) -> SimpleNamespace:
+    return SimpleNamespace(
+        http=_XxeHttp(),
+        callback=_XxeCallback(interactions) if callback else None,
+        store=_XxeStore(),
+        endpoints=[],
+    )
+
+
+async def test_xxe_confirm_oob_parametric_entity_success(monkeypatch):
+    monkeypatch.setattr(_xxe_mod, "OOB_POLL_DELAY", 0.0)
+    hit = Interaction(token="xxetok", protocol="http", source_ip="10.0.0.9", method="GET", path="/xxetok")
+    ctx = _xxe_ctx([hit])
+    res = await XxeConfirm().confirm(ctx, _finding("xxe", url="http://h/xml"))
+    assert res.success is True
+    assert res.technique == "oob parametric-entity"
+    assert res.callback_id == "xxetok"
+    assert ctx.store.callbacks  # the interaction was recorded
+
+
+async def test_xxe_confirm_oob_fail_when_parser_does_not_fetch(monkeypatch):
+    monkeypatch.setattr(_xxe_mod, "OOB_POLL_DELAY", 0.0)
+    ctx = _xxe_ctx([])  # no callback interaction -> not confirmed
+    res = await XxeConfirm().confirm(ctx, _finding("xxe", url="http://h/xml"))
+    assert res.success is False
+
+
+async def test_xxe_confirm_no_oob_without_callback_client():
+    ctx = _xxe_ctx([], callback=False)  # OOB path unavailable
+    res = await XxeConfirm().confirm(ctx, _finding("xxe", url="http://h/xml"))
     assert res.success is False
