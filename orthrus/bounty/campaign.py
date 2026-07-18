@@ -19,7 +19,6 @@ from urllib.parse import urlsplit
 from orthrus.bounty.report import (
     CampaignReport,
     render_index,
-    render_submission,
     select_and_group,
 )
 from orthrus.bounty.scope_intake import ProgramScope
@@ -102,15 +101,24 @@ def _slug(text: str, cap: int = 40) -> str:
     return (s[:cap].rstrip("-")) or "bug"
 
 
-def write_reports(report: CampaignReport, outdir: str | Path, *, program_name: str = "") -> list[str]:
-    """Write the index + one Markdown file per bug; return the filenames written."""
+def write_reports(report: CampaignReport, outdir: str | Path, *, program_name: str = "",
+                  platform: str = "generic") -> list[str]:
+    """Write the index + one Markdown file per bug; return the filenames written.
+
+    ``platform`` selects the report shape (generic, or hackerone/bugcrowd/intigriti/
+    yeswehack/immunefi) so each bug pastes straight into that program's form.
+    """
+    from orthrus.bounty import platforms
+
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
     (out / "README.md").write_text(render_index(report, program_name), encoding="utf-8")
     written = ["README.md"]
     for i, group in enumerate(report.groups, 1):
-        name = f"bug-{i:02d}-{group.lead.severity.value if hasattr(group.lead.severity, 'value') else group.lead.severity}-{_slug(group.lead.title)}.md"
-        (out / name).write_text(render_submission(group, program_name), encoding="utf-8")
+        sev = group.lead.severity.value if hasattr(group.lead.severity, "value") else group.lead.severity
+        name = f"bug-{i:02d}-{sev}-{_slug(group.lead.title)}.md"
+        content = platforms.render(group, platform=platform, program_name=program_name)
+        (out / name).write_text(content, encoding="utf-8")
         written.append(name)
     return written
 
