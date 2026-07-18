@@ -473,6 +473,32 @@ orthrus exploit --scan-id scan-abcd1234
 > Note: confirmation runs automatically during `orthrus scan`. Standalone
 > replay-from-DB is not yet implemented — re-run the scan to (re-)confirm.
 
+### `orthrus bounty` — authorized bug-bounty engagements
+
+Runs a whole engagement from a program's **authorized scope**: enumerate in-scope
+subdomains, scan every asset, confirm what it can, and write submission-ready
+reports shaped for the target platform. It is deny-by-default and refuses a public
+scope with no authorization, or a high-sensitivity host (gov/mil/edu/health)
+without explicit attestation.
+
+```bash
+# save a program, record its rules, then run it (re-run later by name)
+orthrus bounty --program acme --in-scope '*.acme.com' \
+  --authorization https://hackerone.com/acme --dry-run
+orthrus program-policy --program acme --max-rps 5 --identify 'X-Bug-Bounty: you'
+orthrus bounty --program acme --platform hackerone --enumerate -o acme-report/
+```
+
+Program-anchored, so it carries cross-run intelligence: **new in-scope assets**
+since the last run are flagged, bugs you reported before are marked as likely
+**duplicates**, and per-program **mute rules** drop known noise. Companion
+commands cover the rest of the workflow — `program-policy`, `bounty-assets`,
+`suppress`/`suppressions`, `submission`/`submissions`, `note`/`notes`, `copilot`
+(RAG over your own data), `cost`, `audit`, `bounty-report` (re-render without
+re-scanning), and `bounty-status` (one-view cockpit). Optional external tools
+(nuclei / dalfox / testssl / ffuf / nikto / wpscan) fold in via `--tools`. Full
+guide: **[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md)**.
+
 ## ⚙️ Configuration
 
 Runtime settings are read from environment variables (prefix `ORTHRUS_`) or a
