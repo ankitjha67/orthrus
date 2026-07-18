@@ -991,14 +991,28 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
 
     tool_list = [t.strip() for t in (tools or "").split(",") if t.strip()]
 
+    # Honor a saved program's traffic policy (courtesy + ban-avoidance): the stated
+    # rate is a ceiling (never exceeded, even if --rate-limit is higher), and the
+    # identifying header is attached to every request so the program can see it's you.
+    policy_rps = saved.max_rps if saved else None
+    policy_header = saved.identify_header() if saved else {}
+    effective_rps = min(rate_limit, policy_rps) if policy_rps else rate_limit
+    if policy_header:
+        console.print(f"[orthrus.muted]identifying traffic via '{next(iter(policy_header))}' header "
+                      "(program policy).[/]")
+    if policy_rps and effective_rps < rate_limit:
+        console.print(f"[orthrus.muted]rate capped at {effective_rps:g} req/s by program policy "
+                      f"(you asked for {rate_limit:g}).[/]")
+
     def make_config(seed: str, scope: ScopeConfig, scan_id: str) -> ScanConfig:
         cfg = ScanConfig(
             scan_id=scan_id, target=seed, scope=scope, modules=["all"], tools=tool_list,
             aggressiveness=aggr, crawl_depth=crawl_depth, max_pages=max_pages,
             timeout=timeout, concurrency=threads, callback=callback,
             interactsh=interactsh, no_exploit=no_exploit, use_browser=browser,
+            extra_headers=dict(policy_header),
         )
-        cfg.rate_limit.requests_per_second = rate_limit
+        cfg.rate_limit.requests_per_second = effective_rps
         return cfg
 
     # Per-program mute rules: known-noise findings kept out of the queue (counted, not hidden).
@@ -1081,6 +1095,51 @@ def programs() -> None:
         console.print(f"[bold]{r.name}[/]  ({len(r.in_scope)} in / {len(r.out_scope)} out"
                       f" · auth: {r.authorization or 'unset'})")
         console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
+        if r.max_rps or r.identify:
+            pol = []
+            if r.max_rps:
+                pol.append(f"≤{r.max_rps:g} req/s")
+            if r.identify:
+                pol.append(f"identify '{r.identify}'")
+            console.print(f"  [orthrus.muted]policy: {' · '.join(pol)}[/]")
+
+
+@cli.command(name="program-policy")
+@click.option("--program", "program_name", required=True, help="Saved program to set policy on.")
+@click.option("--max-rps", type=float, default=None, help="Rate ceiling (req/s) — honored as a cap on every run.")
+@click.option("--identify", default=None, help="Identifying header to send, e.g. \"X-Bug-Bounty: yourname\".")
+@click.option("--clear", is_flag=True, help="Clear both policy fields.")
+def program_policy(program_name: str, max_rps: float | None, identify: str | None, clear: bool) -> None:
+    """Set a program's traffic policy: a rate ceiling and an identifying header.
+
+    Most programs state a max request rate and ask you to identify your traffic.
+    Saved here, both are applied automatically on every `orthrus bounty --program
+    NAME` run — the rate is a hard cap (never exceeded), the header is attached to
+    every request.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.store import ProgramStore
+
+    store = ProgramStore()
+    rec = store.get(program_name)
+    if rec is None:
+        raise click.UsageError(
+            f"no saved program '{program_name}'. Create it first with "
+            f"`orthrus bounty --program {program_name} --authorization … --in-scope …`."
+        )
+    if clear:
+        rec.max_rps = None
+        rec.identify = ""
+    if max_rps is not None:
+        rec.max_rps = max_rps
+    if identify is not None:
+        rec.identify = identify.strip()
+    if rec.identify and not rec.identify_header():
+        raise click.UsageError('--identify must look like "Header-Name: value".')
+    store.save(rec)
+    console.print(f"[bold]Policy for '{program_name}'[/] — "
+                  f"rate: {f'≤{rec.max_rps:g} req/s' if rec.max_rps else 'unset'} · "
+                  f"identify: {rec.identify or 'unset'}")
 
 
 @cli.command(name="bounty-assets")

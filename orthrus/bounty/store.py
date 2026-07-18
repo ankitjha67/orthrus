@@ -42,6 +42,16 @@ class ProgramRecord:
     last_run_at: str | None = None
     scan_ids: list[str] = field(default_factory=list)
     notes: str = ""
+    max_rps: float | None = None          # program's stated rate ceiling (req/s), honored as a cap
+    identify: str = ""                     # identifying header to send, e.g. "X-Bug-Bounty: user"
+
+    def identify_header(self) -> dict[str, str]:
+        """Parse ``identify`` ('Name: value') into a one-entry header dict (or empty)."""
+        if ":" not in self.identify:
+            return {}
+        name, _, value = self.identify.partition(":")
+        name, value = name.strip(), value.strip()
+        return {name: value} if name and value else {}
 
     def scope_text(self) -> str:
         return "\n".join([*self.in_scope, *(f"!{o}" for o in self.out_scope)])
