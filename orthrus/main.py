@@ -815,6 +815,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 
 
 @cli.command()
+@click.option("--program", "program_name", default=None, metavar="NAME",
+              help="Save/load this engagement under a name: persists scope + authorization and "
+                   "the campaign history, so you can re-run a program by name (see 'orthrus programs').")
 @click.option("--scope-file", type=click.Path(exists=True, dir_okay=False),
               help="Program scope file: in-scope assets, one per line; a '!' prefix marks "
                    "an out-of-scope exclusion; '#' comments.")
@@ -854,9 +857,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
               help="Directory for the submission-ready reports.")
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
-def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enumerate_subs,
-           min_confidence, platform, aggressive, browser, no_exploit, callback, interactsh,
-           rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_authorized,
+           enumerate_subs, min_confidence, platform, aggressive, browser, no_exploit, callback,
+           interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -872,6 +875,7 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
     from orthrus.bounty.authorization import AuthorizationError, resolve_authorization
     from orthrus.bounty.campaign import run_campaign, write_reports
     from orthrus.bounty.scope_intake import parse_program_scope
+    from orthrus.bounty.store import ProgramRecord, ProgramStore
 
     text_parts: list[str] = []
     if scope_file:
@@ -879,12 +883,24 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
             text_parts.append(fh.read())
     text_parts += list(in_scope)
     text_parts += [f"!{s}" for s in out_scope]
-    program = parse_program_scope("\n".join(text_parts))
+
+    # A saved program can supply the scope + authorization when none is given inline.
+    pstore = ProgramStore()
+    saved = pstore.get(program_name) if program_name else None
+    has_new_scope = bool(scope_file or in_scope or out_scope)
+    if saved and not has_new_scope:
+        program = saved.to_scope()
+        authorization = authorization or (saved.authorization or None)
+        console.print(f"[bold]Loaded program[/] '{program_name}' — {len(program.domains)} "
+                      f"domain(s), {len(program.ip_ranges)} range(s)")
+    else:
+        program = parse_program_scope("\n".join(text_parts))
 
     if not program.domains and not program.ip_ranges:
         raise click.UsageError(
-            "bug bounty requires an authorized scope: pass --scope-file or --in-scope. "
-            "ORTHRUS is deny-by-default and will not scan without an explicit in-scope target."
+            "bug bounty requires an authorized scope: pass --scope-file or --in-scope "
+            "(or --program NAME for a saved one). ORTHRUS is deny-by-default and will not "
+            "scan without an explicit in-scope target."
         )
     seeds = program.in_scope_seeds()
 
@@ -906,6 +922,18 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
             "If you hold WRITTEN authorization to test one, re-run with "
             "--i-am-authorized <host> for each (naming the exact host), or remove it from scope."
         )
+
+    # Persist the program (scope + attested authorization) for re-runs by name.
+    if program_name and has_new_scope:
+        raw = [ln.strip() for part in text_parts for ln in part.splitlines()]
+        raw = [ln for ln in raw if ln and not ln.startswith("#")]
+        pstore.save(ProgramRecord(
+            name=program_name,
+            authorization=authorization or auth.reference,
+            in_scope=[ln for ln in raw if not ln.startswith("!")],
+            out_scope=[ln[1:].strip() for ln in raw if ln.startswith("!")],
+        ))
+        console.print(f"[bold]Saved program[/] '{program_name}' (re-run later with --program {program_name})")
 
     _print_bounty_scope(program, seeds, auth)
     if dry_run:
@@ -946,7 +974,27 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
         min_confidence=min_confidence,
     ))
     files = write_reports(result.report, outdir, platform=platform)
+    if program_name:
+        pstore.record_run(program_name, result.scan_ids)
     _print_bounty_summary(result, outdir, files)
+
+
+@cli.command(name="programs")
+def programs() -> None:
+    """List saved bug-bounty programs (scope, authorization, last run)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.store import ProgramStore
+
+    records = ProgramStore().list()
+    if not records:
+        console.print("[orthrus.muted]no saved programs. Save one with "
+                      "`orthrus bounty --program NAME --authorization … --in-scope …`.[/]")
+        return
+    section(console, f"BUG BOUNTY · PROGRAMS ({len(records)})")
+    for r in records:
+        console.print(f"[bold]{r.name}[/]  ({len(r.in_scope)} in / {len(r.out_scope)} out"
+                      f" · auth: {r.authorization or 'unset'})")
+        console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
