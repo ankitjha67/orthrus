@@ -232,6 +232,48 @@ def render_submission(group: BugGroup, program_name: str = "", *, prior_seen: in
     return "\n".join(parts) + "\n"
 
 
+def campaign_summary(report: CampaignReport, program_name: str = "", *,
+                     prior_seen: dict[int, int] | None = None) -> dict:
+    """A machine-readable view of the ranked bug queue (for automation/dashboards).
+
+    Pure: the same deduped, priority-ranked queue the Markdown index shows, plus
+    the filter counts and per-bug metadata — including ``prior_seen`` so a
+    consumer can skip likely duplicates.
+    """
+    prior_seen = prior_seen or {}
+    sev_counts: dict[str, int] = {}
+    bugs = []
+    for i, g in enumerate(report.groups, 1):
+        f = g.lead
+        s = _sev(f.severity)
+        sev_counts[s] = sev_counts.get(s, 0) + 1
+        bugs.append({
+            "rank": i,
+            "priority": priority_score(f),
+            "severity": s,
+            "confidence": _conf(f.confidence),
+            "vuln_type": f.vuln_type,
+            "title": _norm_title(f.title),
+            "host": _host(f.url),
+            "url": f.url,
+            "cwe": f.cwe or None,
+            "cvss": f.cvss_score,
+            "instances": len(g.instances),
+            "technique": g.technique,
+            "prior_seen": prior_seen.get(id(f), 0),
+        })
+    return {
+        "program": program_name or None,
+        "reportable": report.reportable,
+        "considered": report.considered,
+        "out_of_scope": report.out_of_scope,
+        "below_confidence": report.below_confidence,
+        "suppressed": report.suppressed,
+        "severity_counts": sev_counts,
+        "bugs": bugs,
+    }
+
+
 def render_index(report: CampaignReport, program_name: str = "", *,
                  prior_seen: dict[int, int] | None = None) -> str:
     prior_seen = prior_seen or {}
@@ -269,4 +311,5 @@ def render_index(report: CampaignReport, program_name: str = "", *,
     )
 
 
-__all__ = ["BugGroup", "CampaignReport", "select_and_group", "render_submission", "render_index"]
+__all__ = ["BugGroup", "CampaignReport", "select_and_group", "render_submission", "render_index",
+           "campaign_summary"]

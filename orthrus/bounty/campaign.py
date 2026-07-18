@@ -10,6 +10,7 @@ authorized boundary, campaign or not.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ from urllib.parse import urlsplit
 
 from orthrus.bounty.report import (
     CampaignReport,
+    campaign_summary,
     render_index,
     select_and_group,
 )
@@ -119,7 +121,10 @@ def write_reports(report: CampaignReport, outdir: str | Path, *, program_name: s
     out.mkdir(parents=True, exist_ok=True)
     (out / "README.md").write_text(render_index(report, program_name, prior_seen=prior_seen),
                                    encoding="utf-8")
-    written = ["README.md"]
+    # Machine-readable sibling: the ranked queue + counts, for automation/diffing.
+    summary = campaign_summary(report, program_name, prior_seen=prior_seen)
+    (out / "findings.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    written = ["README.md", "findings.json"]
     for i, group in enumerate(report.groups, 1):
         sev = group.lead.severity.value if hasattr(group.lead.severity, "value") else group.lead.severity
         name = f"bug-{i:02d}-{sev}-{_slug(group.lead.title)}.md"
