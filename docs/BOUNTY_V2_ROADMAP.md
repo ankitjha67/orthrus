@@ -49,7 +49,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 7. 🚧 **Audit log** — `bounty/audit.py` + `orthrus audit [--verify]`: hash-chained, append-only JSONL of authorization / kill-list refusals / campaigns; `verify()` pinpoints tampering. (Cost ledger still to come.)
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
 9. 🚧 **Notifications** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary via the existing notify integration. (Per-program scheduling + new-asset→auto-scan still to come.)
-10. **RAG copilot** over your findings/notes + vendored knowledge.
+10. ✅ **Data-grounded copilot** — `bounty/copilot.py` + `orthrus copilot "…"`: BM25-lite retrieval over your notes + submissions (no embedding deps), optional `--llm` grounding held to the context (never invents). Embeddings + vendored corpora (HackTricks/PayloadsAllTheThings) are a follow-up.
 11. **External-tool adapter layer** + multi-domain (mobile/web3/LLM/cloud) adapters.
 
 ## Needs you (the 🔑 items)

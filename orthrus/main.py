@@ -1177,6 +1177,39 @@ def bounty_status() -> None:
     console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
 
 
+@cli.command(name="copilot")
+@click.argument("query", nargs=-1, required=True)
+@click.option("--llm", "llm_spec", default=None, metavar="PROVIDER:MODEL",
+              help="Ground the answer with a model (e.g. ollama:llama3.1). Omit for raw snippets.")
+@click.option("-k", "--top", "top_k", type=int, default=5, show_default=True, help="Snippets to retrieve.")
+def copilot(query, llm_spec, top_k):
+    """Ask a copilot grounded in YOUR notes + submissions (never invents findings)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.copilot import SYSTEM_PROMPT, build_prompt, retrieve
+
+    q = " ".join(query).strip()
+    hits = retrieve(q, k=top_k)
+    if not hits:
+        console.print("[orthrus.muted]I don't see anything about that in your notes or submissions. "
+                      "Add context with `orthrus note …`.[/]")
+        return
+    if llm_spec:
+        from orthrus.ai.providers import LLMClient, LLMError, resolve_config
+        try:
+            cfg = resolve_config(llm_spec)
+            answer = asyncio.run(LLMClient(cfg).complete(SYSTEM_PROMPT, build_prompt(q, hits)))
+            console.print(answer.strip() or "[orthrus.muted](empty answer)[/]")
+        except LLMError as exc:
+            console.print(f"[red]LLM unavailable[/] ({exc}); showing retrieved snippets instead.")
+            llm_spec = None
+    if not llm_spec:
+        section(console, "COPILOT · FROM YOUR DATA")
+        for h in hits:
+            console.print(f"[bold]{h.title}[/]  [orthrus.muted]([{h.source}] score {h.score})[/]")
+            console.print(f"  {h.snippet.splitlines()[0][:120] if h.snippet else ''}")
+    console.print(f"\n[orthrus.muted]sources: {', '.join(h.source for h in hits)}[/]")
+
+
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
     """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from orthrus.core.orchestrator import Orchestrator
