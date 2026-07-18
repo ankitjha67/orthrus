@@ -82,8 +82,11 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 
 ## What it does
 
-1. **Intake & enforce scope** — builds the deny-by-default engagement boundary
-   and the seed list; an excluded host can never be a seed or get scanned.
+1. **Intake, authorize & enforce scope** — builds the deny-by-default engagement
+   boundary and the seed list; refuses a public scope with no authorization and
+   any high-sensitivity host without attestation. With `--enumerate` (default), a
+   `*.wildcard` scope is expanded into its **live in-scope subdomains** (crt.sh +
+   DNS), so you scan discovered hosts, not just the ones you typed.
 2. **Scan every in-scope seed** — the full `recon → scan → confirm` pipeline per
    asset (all scanners; `--aggressive`, `--browser`, `--callback`/`--interactsh`
    for out-of-band confirmation of SSRF / XXE / deserialization all apply).
@@ -102,6 +105,7 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 |---|---|
 | `--authorization SOURCE` | Program URL / `signed:<file>` / `direct:<note>` / `self-owned-lab`. Required for public scopes. |
 | `--i-am-authorized HOST` | Attest written authorization for a refused high-sensitivity host (gov/mil/edu/health). Repeatable. |
+| `--enumerate / --no-enumerate` | Discover live in-scope subdomains (crt.sh + DNS) and scan them too, not just the seeds you listed. On by default; in-scope, non-excluded, non-sensitive hosts only. |
 | `--min-confidence confirmed\|firm\|tentative` | Report floor. `confirmed` = only re-proven bugs (lowest noise); `firm` (default) adds strong observational findings; `tentative` includes everything. |
 | `--aggressive` | Enable aggressive scanning. |
 | `--browser` | Drive a headless browser (DOM / stored XSS). |

@@ -828,6 +828,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--i-am-authorized", "i_am_authorized", multiple=True, metavar="HOST",
               help="Attest written authorization for a high-sensitivity host (gov/mil/edu/health) "
                    "so it isn't refused. Repeatable; name the exact host.")
+@click.option("--enumerate/--no-enumerate", "enumerate_subs", default=True, show_default=True,
+              help="Discover live in-scope subdomains (crt.sh + DNS) and scan them too, not just "
+                   "the seeds you listed. In-scope, non-excluded, non-sensitive hosts only.")
 @click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
               default="firm", show_default=True,
               help="Only report bugs at/above this confidence (keeps triager noise down).")
@@ -847,9 +850,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
               help="Directory for the submission-ready reports.")
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
-def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, min_confidence,
-           aggressive, browser, no_exploit, callback, interactsh, rate_limit, timeout,
-           crawl_depth, max_pages, threads, outdir, dry_run):
+def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enumerate_subs,
+           min_confidence, aggressive, browser, no_exploit, callback, interactsh, rate_limit,
+           timeout, crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -902,8 +905,23 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, min_
 
     _print_bounty_scope(program, seeds, auth)
     if dry_run:
-        console.print("[orthrus.muted]dry-run — resolved scope shown above; no requests sent.[/]")
+        note = " (--enumerate would discover more at scan time)" if enumerate_subs and program.domains else ""
+        console.print(f"[orthrus.muted]dry-run — resolved scope shown above; no requests sent.{note}[/]")
         return
+
+    # Turn a *.wildcard scope into the live in-scope hosts to actually scan.
+    if enumerate_subs and program.domains:
+        from orthrus.bounty.assets import expand_program
+        console.print(f"[bold]Enumerating[/] live in-scope subdomains for "
+                      f"{len(program.domains)} domain(s) (crt.sh + DNS)…")
+        discovered = asyncio.run(expand_program(program))
+        existing = set(program.seeds)
+        added = [s for s in discovered if s not in existing]
+        program.seeds.extend(added)
+        seeds = program.in_scope_seeds()
+        console.print(f"  discovered [bold]{len(added)}[/] new in-scope host(s); "
+                      f"{len(seeds)} seed(s) to scan")
+
     if not seeds:
         raise click.UsageError("no in-scope seeds to scan (every seed was excluded).")
 

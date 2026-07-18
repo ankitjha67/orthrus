@@ -41,7 +41,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Build-now queue (Python, in-reach, one PR each)
 
 1. ✅ **Authorization + kill-list** — *this PR.*
-2. **Subdomain expansion recon** — turn a `*.wildcard` scope into the live in-scope hosts, filtered against exclusions + kill-list, before scanning. (The single biggest bounty-coverage gap today.)
+2. ✅ **Subdomain expansion recon** — `bounty/assets.py`: a `*.wildcard` scope is expanded into its live in-scope subdomains (crt.sh + DNS), filtered against exclusions + kill-list, via `--enumerate`.
 3. **Platform-native report templates** — one command → an H1 / Bugcrowd / Intigriti / YesWeHack / Immunefi-shaped report.
 4. **Program store** — persist programs (authorization, scope, jurisdiction, pause, campaign history); make `orthrus bounty` program-anchored and resumable.
 5. **Triage priority scoring + cross-program dedup + history recall.**
