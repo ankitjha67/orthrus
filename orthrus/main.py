@@ -1344,13 +1344,25 @@ def bounty_status() -> None:
     progs = st["programs"]
     console.print(f"[bold]Programs[/] — {len(progs)}")
     for p in progs:
+        extra = []
+        if p.get("assets"):
+            extra.append(f"{p['assets']} asset(s)")
+        if p.get("mute_rules"):
+            extra.append(f"{p['mute_rules']} mute rule(s)")
+        if p.get("max_rps"):
+            extra.append(f"≤{p['max_rps']:g} rps")
+        tail = ("  [orthrus.muted]" + " · ".join(extra) + "[/]") if extra else ""
         console.print(f"  {p['name']} ({p['in_scope']} in / {p['out_scope']} out) · "
-                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}")
+                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}" + tail)
     sub = st["submissions"]
     earn = " · ".join(f"{amt} {cur}" for cur, amt in sub["earnings"].items()) or "none"
     console.print(f"[bold]Submissions[/] — {sub['total']} tracked · {sub['rewarded']} rewarded · "
                   f"earnings: {earn}")
-    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued")
+    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued"
+                  f" · {st['tracked_assets']} asset(s) · {st['mute_rules']} mute rule(s)")
+    cost = st["cost"]
+    if cost["entries"]:
+        console.print(f"[bold]Spend[/] — ${cost['total_usd']:.4f} across {cost['entries']} ledger entr(y/ies)")
     a = st["audit"]
     chain = "intact" if a["intact"] else f"[red]BROKEN at #{a['first_bad']}[/]"
     console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
