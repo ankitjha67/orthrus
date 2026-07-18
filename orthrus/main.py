@@ -844,6 +844,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--notify-slack", "notify_slack", envvar="ORTHRUS_SLACK_WEBHOOK", default=None,
               metavar="WEBHOOK", help="Post a campaign summary to this Slack incoming webhook "
                                       "(or set ORTHRUS_SLACK_WEBHOOK).")
+@click.option("--tools", default=None, metavar="NAMES",
+              help="Also run external-tool adapters per asset (comma-separated, or 'all'): "
+                   "nuclei, dalfox, testssl, ffuf. Needs the binaries on PATH.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
 @click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
@@ -861,8 +864,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
 def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_authorized,
-           enumerate_subs, min_confidence, platform, notify_slack, aggressive, browser, no_exploit,
-           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+           enumerate_subs, min_confidence, platform, notify_slack, tools, aggressive, browser,
+           no_exploit, callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads,
+           outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -965,9 +969,11 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
 
     aggr = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
 
+    tool_list = [t.strip() for t in (tools or "").split(",") if t.strip()]
+
     def make_config(seed: str, scope: ScopeConfig, scan_id: str) -> ScanConfig:
         cfg = ScanConfig(
-            scan_id=scan_id, target=seed, scope=scope, modules=["all"],
+            scan_id=scan_id, target=seed, scope=scope, modules=["all"], tools=tool_list,
             aggressiveness=aggr, crawl_depth=crawl_depth, max_pages=max_pages,
             timeout=timeout, concurrency=threads, callback=callback,
             interactsh=interactsh, no_exploit=no_exploit, use_browser=browser,

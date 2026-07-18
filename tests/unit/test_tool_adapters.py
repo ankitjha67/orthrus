@@ -6,11 +6,12 @@ import orthrus.integrations  # noqa: F401  (registers the built-in adapters)
 from orthrus.core.schemas import Confidence, Severity
 from orthrus.integrations.base import TOOL_REGISTRY
 from orthrus.integrations.dalfox import parse_dalfox_json
+from orthrus.integrations.ffuf import parse_ffuf_json
 from orthrus.integrations.testssl import parse_testssl_json
 
 
 def test_adapters_registered():
-    for name in ("nuclei", "dalfox", "testssl"):
+    for name in ("nuclei", "dalfox", "testssl", "ffuf"):
         assert name in TOOL_REGISTRY
 
 
@@ -52,3 +53,19 @@ def test_testssl_keeps_only_real_severities():
     crit = next(f for f in findings if "heartbleed" in f.title)
     assert crit.severity == Severity.CRITICAL and crit.vuln_type == "tls"
     assert crit.url == "https://example.com"
+
+
+FFUF = ('{"results":[{"url":"http://x.test/admin","status":200,"length":1234},'
+        '{"url":"http://x.test/old","status":301,"length":0},'
+        '{"url":"http://x.test/secret","status":403,"length":9}]}')
+
+
+def test_ffuf_parses_and_rates_paths():
+    findings = parse_ffuf_json(FFUF, "http://x.test")
+    assert len(findings) == 3
+    by_url = {f.url: f for f in findings}
+    assert by_url["http://x.test/admin"].severity == Severity.LOW    # 200 -> low
+    assert by_url["http://x.test/secret"].severity == Severity.LOW   # 403 -> low
+    assert by_url["http://x.test/old"].severity == Severity.INFO     # 301 -> info
+    assert all(f.vuln_type == "content-discovery" for f in findings)
+    assert parse_ffuf_json("not json", "http://x") == []
