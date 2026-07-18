@@ -86,18 +86,26 @@ def _proof_note(f) -> str:
     return f" (re-proven / {conf})" if conf == "confirmed" else f" ({conf})"
 
 
-def render(group: BugGroup, *, platform: str = "generic", program_name: str = "") -> str:
-    """Render one bug for the given platform; falls back to the generic report."""
+def render(group: BugGroup, *, platform: str = "generic", program_name: str = "",
+           prior_seen: int = 0) -> str:
+    """Render one bug for the given platform; falls back to the generic report.
+
+    ``prior_seen`` > 0 adds a duplicate-warning note (bug matched earlier runs).
+    """
     platform = (platform or "generic").lower()
     if platform not in PLATFORMS or platform == "generic":
         from orthrus.bounty.report import render_submission
-        return render_submission(group, program_name)
+        return render_submission(group, program_name, prior_seen=prior_seen)
 
     f = group.lead
     sev = _sev(f.severity)
     title = _norm_title(f.title)
     prog = f"**Program:** {program_name}  \n" if program_name else ""
     body = [f"# {title}", ""]
+    if prior_seen > 0:
+        runs = "run" if prior_seen == 1 else "runs"
+        body += [f"> ♻ **Seen before** — matches a finding from {prior_seen} earlier {runs}; "
+                 "verify it isn't already reported before filing.", ""]
 
     if platform == "hackerone":
         body += [

@@ -59,6 +59,20 @@ class HistoryStore:
     def seen_before(self, finding) -> dict | None:
         return self._read().get(signature(finding))
 
+    def seen_counts(self, findings) -> dict[int, int]:
+        """Non-mutating: map ``id(finding)`` → how many earlier runs saw it (omit unseen).
+
+        Keyed by object id (not signature) so report renderers can look a finding
+        up without importing this module — avoids a circular import with report.py.
+        """
+        data = self._read()
+        out: dict[int, int] = {}
+        for f in findings:
+            entry = data.get(signature(f))
+            if entry:
+                out[id(f)] = int(entry.get("count", 1))
+        return out
+
     def record(self, findings: list, program: str = "") -> int:
         """Archive each finding's signature; return how many were **already known**
         before this call (i.e. previously reported)."""

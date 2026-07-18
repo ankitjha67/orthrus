@@ -30,8 +30,21 @@ def test_record_reports_prior_seen(tmp_path):
     assert store.record(second, "acme") == 1           # exactly the SQLi was known
 
     entry = store.seen_before(_f("sqli", "SQL injection", "https://a.example.com/1"))
-    assert entry is not None and entry["count"] == 2
+    assert entry is not None and entry["count"] == 2   # SQLi archived in both runs
     assert store.seen_before(_f("ssrf", "SSRF", "https://z.example.com/")) is None
+
+
+def test_seen_counts_is_non_mutating_and_id_keyed(tmp_path):
+    store = HistoryStore(tmp_path / "h.json")
+    known = _f("sqli", "SQL injection", "https://a.example.com/1")
+    store.record([known], "acme")                       # archive once
+
+    again = _f("sqli", "SQL injection", "https://a.example.com/1")  # same signature, new object
+    fresh = _f("xss", "Reflected XSS", "https://a.example.com/9")
+    counts = store.seen_counts([again, fresh])
+    assert counts == {id(again): 1}                     # keyed by object id; fresh omitted
+    # non-mutating: querying didn't bump the archive
+    assert store.seen_counts([again]) == {id(again): 1}
 
 
 def test_history_tracks_programs(tmp_path):

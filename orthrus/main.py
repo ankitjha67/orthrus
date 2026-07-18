@@ -1028,7 +1028,13 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     if result.report.suppressed:
         console.print(f"[orthrus.muted]muted {result.report.suppressed} finding(s) via "
                       f"{len(supps)} program mute rule(s).[/]")
-    files = write_reports(result.report, outdir, platform=platform)
+    # Flag likely cross-run duplicates in the reports (queried before we archive below,
+    # so the counts reflect *earlier* runs only).
+    from orthrus.bounty.history import HistoryStore
+    hist = HistoryStore()
+    seen_map = hist.seen_counts([g.lead for g in result.report.groups])
+    files = write_reports(result.report, outdir, platform=platform,
+                          program_name=program_name or "", prior_seen=seen_map)
     if program_name:
         pstore.record_run(program_name, result.scan_ids)
     AuditLog().append("bounty-campaign", "completed", {
@@ -1036,9 +1042,8 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         "seeds": len(seeds), "scan_ids": result.scan_ids,
         "reportable": result.report.reportable, "output": outdir,
     })
-    # Flag bugs already reported in earlier runs (possible known/duplicate) and archive these.
-    from orthrus.bounty.history import HistoryStore
-    prior = HistoryStore().record([g.lead for g in result.report.groups], program_name or "")
+    # Archive this run's bugs (the reports above already flagged any that predate it).
+    prior = hist.record([g.lead for g in result.report.groups], program_name or "")
     if prior:
         console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
                       "earlier runs (possible known/duplicate — check before filing).")
