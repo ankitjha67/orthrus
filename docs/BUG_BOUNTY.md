@@ -97,7 +97,11 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 4. **Write submission-ready reports** — one Markdown file per bug (title,
    severity + CVSS, weakness/CWE, affected asset, **copy-paste steps to
    reproduce** — curl / Python / raw request for Burp — impact, and remediation),
-   plus a severity-sorted `README.md` index.
+   shaped for your `--platform`; a priority-ranked `README.md` index; and a
+   machine-readable `findings.json` (the ranked queue + counts) for automation.
+   Bugs you've reported in earlier runs are flagged **♻ Seen before** so you don't
+   re-file a duplicate, and any per-program **mute rules** drop known noise
+   (counted, never silently hidden).
 
 ## Useful flags
 
@@ -108,22 +112,61 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 | `--enumerate / --no-enumerate` | Discover live in-scope subdomains (crt.sh + DNS) and scan them too, not just the seeds you listed. On by default; in-scope, non-excluded, non-sensitive hosts only. |
 | `--min-confidence confirmed\|firm\|tentative` | Report floor. `confirmed` = only re-proven bugs (lowest noise); `firm` (default) adds strong observational findings; `tentative` includes everything. |
 | `--platform generic\|hackerone\|bugcrowd\|intigriti\|yeswehack\|immunefi` | Shape each per-bug report for that platform's submission form (fields, severity language, Bugcrowd P1–P5, Immunefi gist reminder). |
+| `--program NAME` | Save (or re-run) a **named program**: its scope, authorization, campaign history, mute rules, traffic policy, and asset inventory are persisted so you re-run by name and get cross-run intelligence (new assets, duplicate flags). |
+| `--tools nuclei,dalfox,…` | Also run external tools (nuclei / dalfox / testssl / ffuf / nikto / wpscan), normalized into the same findings pipeline. Tools whose binary isn't on `PATH` are skipped. |
+| `--notify-slack URL` | Post a campaign summary to Slack (or set `ORTHRUS_SLACK_WEBHOOK`). |
 | `--aggressive` | Enable aggressive scanning. |
 | `--browser` | Drive a headless browser (DOM / stored XSS). |
 | `--callback HOST` / `--interactsh` | Out-of-band collaborator for blind SSRF / XXE / deserialization confirmation. |
-| `--rate-limit`, `--timeout`, `--threads`, `--crawl-depth`, `--max-pages` | Politeness / performance — respect the program's rate rules. |
+| `--rate-limit`, `--timeout`, `--threads`, `--crawl-depth`, `--max-pages` | Politeness / performance — respect the program's rate rules. A saved program's `program-policy` rate ceiling is honored as a hard cap regardless. |
 | `--dry-run` | Resolve and print scope + seeds, then stop. |
 
-## Notes & roadmap
+## A program-anchored workflow
+
+Save a program once, then let ORTHRUS carry the cross-run intelligence:
+
+```bash
+# 1. Save the program (scope + authorization persist under the name)
+orthrus bounty --program acme --in-scope '*.acme.com' \
+  --authorization https://hackerone.com/acme --dry-run
+
+# 2. Record the program's rules so every run honors them automatically
+orthrus program-policy --program acme --max-rps 5 --identify 'X-Bug-Bounty: yourname'
+
+# 3. Mute a class the program won't pay for (kept out of the queue, still counted)
+orthrus suppress --program acme --vuln-type security-headers --reason 'out of policy'
+
+# 4. Run it — enumerates subdomains, flags NEW assets since last time, dedupes vs history
+orthrus bounty --program acme --platform hackerone --enumerate -o acme-report/
+
+# 5. Track what you filed and what paid out
+orthrus submission --program acme --title 'SQLi in /search' --status filed --severity high
+orthrus submissions --program acme          # earnings roll-up
+```
+
+### Companion commands
+
+| Command | What it's for |
+|---|---|
+| `orthrus programs` / `program-policy` | List saved programs; set a rate ceiling + identifying header. |
+| `orthrus bounty-assets --program NAME` | The live in-scope asset inventory (new hosts are flagged during `--enumerate`). |
+| `orthrus suppress` / `suppressions` | Add / list per-program mute rules for known-noise findings. |
+| `orthrus submission` / `submissions` | Record a submission (status, payout, link); roll up earnings. |
+| `orthrus note` / `notes` | A tagged, searchable knowledge base of your own tradecraft. |
+| `orthrus copilot "…"` | Ask a copilot grounded in your notes + submissions (never invents findings). |
+| `orthrus cost` | The spend ledger — LLM tokens the copilot used, rolled up by provider/program. |
+| `orthrus audit --verify` | The tamper-evident, hash-chained log of scope/authorization decisions. |
+| `orthrus bounty-status` | One-view cockpit: programs, earnings, assets, mute rules, spend, audit integrity. |
+
+## Notes
 
 - **Reduce triager noise:** submit `--min-confidence confirmed` first — those come
   with a re-proof and a reproduction snippet, which is what gets bounties paid.
-- **Respect the rules:** set `--rate-limit` to the program's ceiling; never point
-  it at anything you haven't been authorized to test.
-- **Coming next:** active subdomain enumeration to expand a `*.wildcard` into all
-  live in-scope hosts before scanning, platform-native report templates
-  (HackerOne / Bugcrowd / Intigriti / YesWeHack / Immunefi), per-program dedupe,
-  and continuous monitoring. The full plan — mapping the ORTHRUS v2.0 operator-platform
-  PRD onto what's built, buildable, or a separate product bet — is in
-  [BOUNTY_V2_ROADMAP.md](BOUNTY_V2_ROADMAP.md). Today, list the specific in-scope
-  hosts (or the apex) you want scanned.
+- **Respect the rules:** save a `program-policy` rate ceiling; never point it at
+  anything you haven't been authorized to test.
+- **Automation:** consume `findings.json` (the ranked queue, with `prior_seen`
+  duplicate flags) from a script or dashboard rather than parsing the Markdown.
+
+The full plan — mapping the ORTHRUS v2.0 operator-platform PRD onto what's built,
+buildable, or a separate product bet — is in
+[BOUNTY_V2_ROADMAP.md](BOUNTY_V2_ROADMAP.md).
