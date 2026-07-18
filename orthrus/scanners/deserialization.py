@@ -48,7 +48,8 @@ class DeserializationScanner(BaseScanner):
     name = SCANNER_NAME
     vuln_type = "deserialization"
 
-    def _finding(self, url: str, where: str, value: str, fmt: str) -> Finding:
+    def _finding(self, url: str, where: str, value: str, fmt: str, *,
+                 param_name: str, location: str) -> Finding:
         preview = value[:48] + ("..." if len(value) > 48 else "")
         return Finding(
             vuln_type="deserialization",
@@ -67,7 +68,13 @@ class DeserializationScanner(BaseScanner):
             ),
             cwe="CWE-502",
             scanner=SCANNER_NAME,
-            evidence=Evidence(matched_at=preview, notes=f"{fmt} signature"),
+            # `extra` carries the structured hooks the OOB confirmer needs to re-inject a
+            # safe-marker gadget: the format, and exactly where the value came from.
+            evidence=Evidence(
+                matched_at=preview,
+                notes=f"{fmt} signature",
+                extra={"format": fmt, "param": param_name, "location": location},
+            ),
         )
 
     async def scan(self, ctx: ScanContext) -> AsyncIterator[Finding]:
@@ -82,7 +89,8 @@ class DeserializationScanner(BaseScanner):
                     key = (host, f"param:{param.name}")
                     if key not in seen:
                         seen.add(key)
-                        yield self._finding(endpoint.url, f"parameter '{param.name}'", param.value, fmt)
+                        yield self._finding(endpoint.url, f"parameter '{param.name}'", param.value,
+                                            fmt, param_name=param.name, location="query")
             for line in endpoint.set_cookies:
                 if "=" not in line:
                     continue
@@ -92,7 +100,8 @@ class DeserializationScanner(BaseScanner):
                     key = (host, f"cookie:{name.strip()}")
                     if key not in seen:
                         seen.add(key)
-                        yield self._finding(endpoint.url, f"cookie '{name.strip()}'", rest, fmt)
+                        yield self._finding(endpoint.url, f"cookie '{name.strip()}'", rest,
+                                            fmt, param_name=name.strip(), location="cookie")
 
 
 __all__ = ["DeserializationScanner", "detect_serialized"]

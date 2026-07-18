@@ -15,7 +15,7 @@
 | Status | Living document — describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 59 scanners · 18 confirmation modules · 18 recon modules · 1065 passing tests · `ruff` clean |
+| Verified snapshot | 59 scanners · 19 confirmation modules · 18 recon modules · 1065 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1–4 are product framing. Sections 5–18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 18 mods  │   │ 59 scan  │   │ 18 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 59 scan  │   │ 19 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -571,7 +571,7 @@ orthrus/
   utils/       scope (deny-by-default), encoding, logger, crypto, palette (red/white/black tokens)
   recon/       18 modules + spec_parsers + registry
   scanners/    59 scanners + base + registry + _injection + _evasion
-  exploits/    18 confirmation modules + base + registry + _replay
+  exploits/    19 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
   iac/         Dockerfile/compose/Terraform analyzer
