@@ -1,0 +1,22 @@
+# Example bug-bounty program scope for `orthrus bounty --scope-file this-file`.
+#
+# ⚠️  Only ever list assets a program has AUTHORIZED you to test. The example.com
+#     entries below are documentation placeholders (RFC 2606) — replace them with
+#     the program's actual published scope, and read the program's rules first.
+#
+# Format: one entry per line. No '!' = in scope. Leading '!' = out-of-scope
+# exclusion. '#' starts a comment. Entries can be a domain, a *.wildcard, a URL,
+# or a CIDR range.
+
+# --- in scope ---
+*.example.com                 # the apex and any subdomain
+api.example.com               # a specific host
+https://app.example.com/login # a URL to seed the crawl from
+
+# --- out of scope (never touched) ---
+!admin.example.com
+!*.internal.example.com
+!blog.example.com             # e.g. a third-party-hosted marketing site
+
+# --- try it safely: uncomment to scan the bundled practice target instead ---
+# http://127.0.0.1:8791
