@@ -1201,9 +1201,12 @@ def copilot(query, llm_spec, top_k):
         return
     if llm_spec:
         from orthrus.ai.providers import LLMClient, LLMError, resolve_config
+        from orthrus.bounty.cost import CostLedger
         try:
             cfg = resolve_config(llm_spec)
-            answer = asyncio.run(LLMClient(cfg).complete(SYSTEM_PROMPT, build_prompt(q, hits)))
+            prompt = build_prompt(q, hits)
+            answer = asyncio.run(LLMClient(cfg).complete(SYSTEM_PROMPT, prompt))
+            CostLedger().record_llm(cfg.model, SYSTEM_PROMPT + prompt, answer, provider=cfg.provider)
             console.print(answer.strip() or "[orthrus.muted](empty answer)[/]")
         except LLMError as exc:
             console.print(f"[red]LLM unavailable[/] ({exc}); showing retrieved snippets instead.")
@@ -1214,6 +1217,26 @@ def copilot(query, llm_spec, top_k):
             console.print(f"[bold]{h.title}[/]  [orthrus.muted]([{h.source}] score {h.score})[/]")
             console.print(f"  {h.snippet.splitlines()[0][:120] if h.snippet else ''}")
     console.print(f"\n[orthrus.muted]sources: {', '.join(h.source for h in hits)}[/]")
+
+
+@cli.command(name="cost")
+@click.option("--program", default=None, help="Filter to one program.")
+def cost(program) -> None:
+    """Show the cost ledger (LLM spend auto-recorded by the copilot, plus anything you log)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.cost import CostLedger
+
+    summ = CostLedger().summary(program)
+    if not summ["entries"]:
+        console.print("[orthrus.muted]no cost recorded yet (use `orthrus copilot --llm …`, or log spend).[/]")
+        return
+    section(console, "BUG BOUNTY · COST LEDGER")
+    console.print(f"[bold]${summ['total_usd']:.4f}[/] across {summ['entries']} entr(y/ies)"
+                  + (f" for {program}" if program else ""))
+    console.print(f"  by provider: {json.dumps(summ['by_provider'])}")
+    console.print(f"  by category: {json.dumps(summ['by_category'])}")
+    console.print("[orthrus.muted]LLM costs are blended estimates (~chars/4 tokens × per-model rate); "
+                  "override with ORTHRUS_LLM_RATE.[/]")
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
