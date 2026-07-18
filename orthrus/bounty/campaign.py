@@ -10,6 +10,7 @@ authorized boundary, campaign or not.
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -18,6 +19,7 @@ from urllib.parse import urlsplit
 
 from orthrus.bounty.report import (
     CampaignReport,
+    campaign_summary,
     render_index,
     select_and_group,
 )
@@ -47,6 +49,7 @@ async def run_campaign(
     *,
     campaign_id: str,
     min_confidence: str = "firm",
+    suppressions: list[dict] | None = None,
 ) -> CampaignResult:
     """Scan each in-scope seed with the full pipeline, then dedupe + filter the bugs."""
     settings = get_settings()
@@ -78,22 +81,43 @@ async def run_campaign(
         finally:
             await orch.teardown(status)
 
-    # Aggregate findings across every campaign scan, carrying confirmation techniques.
+    result.report = await report_from_scans(
+        result.scan_ids, program, min_confidence=min_confidence, suppressions=suppressions,
+    )
+    return result
+
+
+async def report_from_scans(
+    scan_ids: list[str],
+    program: ProgramScope,
+    *,
+    min_confidence: str = "firm",
+    suppressions: list[dict] | None = None,
+) -> CampaignReport:
+    """Aggregate findings from stored scans into a deduped, ranked campaign report.
+
+    Shared by ``run_campaign`` (fresh scans) and ``orthrus bounty-report`` (re-render
+    a past program's campaign in a different platform format without re-scanning).
+    """
+    settings = get_settings()
     store = Store(settings.db_url, encryption_key=settings.encryption_key)
     findings = []
     techniques: dict[str, str] = {}
-    for sid in result.scan_ids:
-        for db_id, finding in await store.get_findings_with_ids(sid):
-            findings.append(finding)
-            for ex in await store.get_exploitations(db_id):
-                if ex.success:
-                    techniques[finding.id] = ex.technique
-                    break
-
-    result.report = select_and_group(
-        findings, program, min_confidence=min_confidence, techniques=techniques
+    try:
+        await store.init()
+        for sid in scan_ids:
+            for db_id, finding in await store.get_findings_with_ids(sid):
+                findings.append(finding)
+                for ex in await store.get_exploitations(db_id):
+                    if ex.success:
+                        techniques[finding.id] = ex.technique
+                        break
+    finally:
+        await store.close()
+    return select_and_group(
+        findings, program, min_confidence=min_confidence, techniques=techniques,
+        suppressions=suppressions,
     )
-    return result
 
 
 def _slug(text: str, cap: int = 40) -> str:
@@ -102,25 +126,33 @@ def _slug(text: str, cap: int = 40) -> str:
 
 
 def write_reports(report: CampaignReport, outdir: str | Path, *, program_name: str = "",
-                  platform: str = "generic") -> list[str]:
+                  platform: str = "generic", prior_seen: dict[int, int] | None = None) -> list[str]:
     """Write the index + one Markdown file per bug; return the filenames written.
 
     ``platform`` selects the report shape (generic, or hackerone/bugcrowd/intigriti/
     yeswehack/immunefi) so each bug pastes straight into that program's form.
+    ``prior_seen`` maps ``id(group.lead)`` → how many earlier runs saw the bug, so
+    likely duplicates are flagged in the index and each report.
     """
     from orthrus.bounty import platforms
 
+    prior_seen = prior_seen or {}
     out = Path(outdir)
     out.mkdir(parents=True, exist_ok=True)
-    (out / "README.md").write_text(render_index(report, program_name), encoding="utf-8")
-    written = ["README.md"]
+    (out / "README.md").write_text(render_index(report, program_name, prior_seen=prior_seen),
+                                   encoding="utf-8")
+    # Machine-readable sibling: the ranked queue + counts, for automation/diffing.
+    summary = campaign_summary(report, program_name, prior_seen=prior_seen)
+    (out / "findings.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    written = ["README.md", "findings.json"]
     for i, group in enumerate(report.groups, 1):
         sev = group.lead.severity.value if hasattr(group.lead.severity, "value") else group.lead.severity
         name = f"bug-{i:02d}-{sev}-{_slug(group.lead.title)}.md"
-        content = platforms.render(group, platform=platform, program_name=program_name)
+        content = platforms.render(group, platform=platform, program_name=program_name,
+                                   prior_seen=prior_seen.get(id(group.lead), 0))
         (out / name).write_text(content, encoding="utf-8")
         written.append(name)
     return written
 
 
-__all__ = ["CampaignResult", "run_campaign", "write_reports"]
+__all__ = ["CampaignResult", "run_campaign", "report_from_scans", "write_reports"]

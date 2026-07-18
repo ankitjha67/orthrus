@@ -844,6 +844,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--notify-slack", "notify_slack", envvar="ORTHRUS_SLACK_WEBHOOK", default=None,
               metavar="WEBHOOK", help="Post a campaign summary to this Slack incoming webhook "
                                       "(or set ORTHRUS_SLACK_WEBHOOK).")
+@click.option("--tools", default=None, metavar="NAMES",
+              help="Also run external-tool adapters per asset (comma-separated, or 'all'): "
+                   "nuclei, dalfox, testssl, ffuf. Needs the binaries on PATH.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
 @click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
@@ -861,8 +864,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
 def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_authorized,
-           enumerate_subs, min_confidence, platform, notify_slack, aggressive, browser, no_exploit,
-           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+           enumerate_subs, min_confidence, platform, notify_slack, tools, aggressive, browser,
+           no_exploit, callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads,
+           outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -959,27 +963,78 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         seeds = program.in_scope_seeds()
         console.print(f"  discovered [bold]{len(added)}[/] new in-scope host(s); "
                       f"{len(seeds)} seed(s) to scan")
+        # Cross-run: for a saved program, flag assets that are NEW since last time —
+        # fresh, untested surface is the highest-signal bounty event.
+        if program_name:
+            from orthrus.bounty.asset_monitor import AssetMonitor
+            hosts = sorted({urlsplit(s).hostname or "" for s in seeds} - {""})
+            adiff = AssetMonitor().record(program_name, hosts)
+            if adiff.is_first:
+                console.print(f"[orthrus.muted]asset baseline recorded for '{program_name}' "
+                              f"({adiff.total} host(s)).[/]")
+            elif adiff.added:
+                listing = ", ".join(adiff.added[:8]) + (" …" if len(adiff.added) > 8 else "")
+                console.print(f"[bold]✚ {len(adiff.added)} NEW in-scope asset(s)[/] since last run: {listing}")
+                console.print("[orthrus.muted]fresh attack surface — prioritize these.[/]")
+                AuditLog().append("asset-drift", "new-assets",
+                                  {"program": program_name, "added": adiff.added})
+            else:
+                console.print(f"[orthrus.muted]no new in-scope assets since last run "
+                              f"({adiff.total} known).[/]")
+            if adiff.removed:
+                console.print(f"[orthrus.muted]−{len(adiff.removed)} asset(s) no longer resolving in scope.[/]")
 
     if not seeds:
         raise click.UsageError("no in-scope seeds to scan (every seed was excluded).")
 
     aggr = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
 
+    tool_list = [t.strip() for t in (tools or "").split(",") if t.strip()]
+
+    # Honor a saved program's traffic policy (courtesy + ban-avoidance): the stated
+    # rate is a ceiling (never exceeded, even if --rate-limit is higher), and the
+    # identifying header is attached to every request so the program can see it's you.
+    policy_rps = saved.max_rps if saved else None
+    policy_header = saved.identify_header() if saved else {}
+    effective_rps = min(rate_limit, policy_rps) if policy_rps else rate_limit
+    if policy_header:
+        console.print(f"[orthrus.muted]identifying traffic via '{next(iter(policy_header))}' header "
+                      "(program policy).[/]")
+    if policy_rps and effective_rps < rate_limit:
+        console.print(f"[orthrus.muted]rate capped at {effective_rps:g} req/s by program policy "
+                      f"(you asked for {rate_limit:g}).[/]")
+
     def make_config(seed: str, scope: ScopeConfig, scan_id: str) -> ScanConfig:
         cfg = ScanConfig(
-            scan_id=scan_id, target=seed, scope=scope, modules=["all"],
+            scan_id=scan_id, target=seed, scope=scope, modules=["all"], tools=tool_list,
             aggressiveness=aggr, crawl_depth=crawl_depth, max_pages=max_pages,
             timeout=timeout, concurrency=threads, callback=callback,
             interactsh=interactsh, no_exploit=no_exploit, use_browser=browser,
+            extra_headers=dict(policy_header),
         )
-        cfg.rate_limit.requests_per_second = rate_limit
+        cfg.rate_limit.requests_per_second = effective_rps
         return cfg
+
+    # Per-program mute rules: known-noise findings kept out of the queue (counted, not hidden).
+    supps: list[dict] = []
+    if program_name:
+        from orthrus.bounty.suppress import SuppressionStore
+        supps = SuppressionStore().rules(program_name)
 
     result = asyncio.run(run_campaign(
         program, make_config, campaign_id=f"bounty-{uuid4().hex[:8]}",
-        min_confidence=min_confidence,
+        min_confidence=min_confidence, suppressions=supps,
     ))
-    files = write_reports(result.report, outdir, platform=platform)
+    if result.report.suppressed:
+        console.print(f"[orthrus.muted]muted {result.report.suppressed} finding(s) via "
+                      f"{len(supps)} program mute rule(s).[/]")
+    # Flag likely cross-run duplicates in the reports (queried before we archive below,
+    # so the counts reflect *earlier* runs only).
+    from orthrus.bounty.history import HistoryStore
+    hist = HistoryStore()
+    seen_map = hist.seen_counts([g.lead for g in result.report.groups])
+    files = write_reports(result.report, outdir, platform=platform,
+                          program_name=program_name or "", prior_seen=seen_map)
     if program_name:
         pstore.record_run(program_name, result.scan_ids)
     AuditLog().append("bounty-campaign", "completed", {
@@ -987,9 +1042,8 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         "seeds": len(seeds), "scan_ids": result.scan_ids,
         "reportable": result.report.reportable, "output": outdir,
     })
-    # Flag bugs already reported in earlier runs (possible known/duplicate) and archive these.
-    from orthrus.bounty.history import HistoryStore
-    prior = HistoryStore().record([g.lead for g in result.report.groups], program_name or "")
+    # Archive this run's bugs (the reports above already flagged any that predate it).
+    prior = hist.record([g.lead for g in result.report.groups], program_name or "")
     if prior:
         console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
                       "earlier runs (possible known/duplicate — check before filing).")
@@ -1046,6 +1100,174 @@ def programs() -> None:
         console.print(f"[bold]{r.name}[/]  ({len(r.in_scope)} in / {len(r.out_scope)} out"
                       f" · auth: {r.authorization or 'unset'})")
         console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
+        if r.max_rps or r.identify:
+            pol = []
+            if r.max_rps:
+                pol.append(f"≤{r.max_rps:g} req/s")
+            if r.identify:
+                pol.append(f"identify '{r.identify}'")
+            console.print(f"  [orthrus.muted]policy: {' · '.join(pol)}[/]")
+
+
+@cli.command(name="program-policy")
+@click.option("--program", "program_name", required=True, help="Saved program to set policy on.")
+@click.option("--max-rps", type=float, default=None, help="Rate ceiling (req/s) — honored as a cap on every run.")
+@click.option("--identify", default=None, help="Identifying header to send, e.g. \"X-Bug-Bounty: yourname\".")
+@click.option("--clear", is_flag=True, help="Clear both policy fields.")
+def program_policy(program_name: str, max_rps: float | None, identify: str | None, clear: bool) -> None:
+    """Set a program's traffic policy: a rate ceiling and an identifying header.
+
+    Most programs state a max request rate and ask you to identify your traffic.
+    Saved here, both are applied automatically on every `orthrus bounty --program
+    NAME` run — the rate is a hard cap (never exceeded), the header is attached to
+    every request.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.store import ProgramStore
+
+    store = ProgramStore()
+    rec = store.get(program_name)
+    if rec is None:
+        raise click.UsageError(
+            f"no saved program '{program_name}'. Create it first with "
+            f"`orthrus bounty --program {program_name} --authorization … --in-scope …`."
+        )
+    if clear:
+        rec.max_rps = None
+        rec.identify = ""
+    if max_rps is not None:
+        rec.max_rps = max_rps
+    if identify is not None:
+        rec.identify = identify.strip()
+    if rec.identify and not rec.identify_header():
+        raise click.UsageError('--identify must look like "Header-Name: value".')
+    store.save(rec)
+    console.print(f"[bold]Policy for '{program_name}'[/] — "
+                  f"rate: {f'≤{rec.max_rps:g} req/s' if rec.max_rps else 'unset'} · "
+                  f"identify: {rec.identify or 'unset'}")
+
+
+@cli.command(name="bounty-assets")
+@click.option("--program", "program_name", required=True, help="Program name (as saved).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the asset inventory as JSON.")
+def bounty_assets(program_name: str, as_json: bool) -> None:
+    """Show the live in-scope asset inventory recorded for a program.
+
+    Populated by `orthrus bounty --program NAME --enumerate`, which snapshots the
+    live in-scope hosts each run and reports which are NEW since the last one.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.asset_monitor import AssetMonitor
+
+    assets = AssetMonitor().latest(program_name)
+    if as_json:
+        click.echo(json.dumps({"program": program_name, "assets": assets, "count": len(assets)},
+                              indent=2))
+        return
+    if not assets:
+        console.print(f"[orthrus.muted]no assets recorded for '{program_name}'. Run "
+                      f"`orthrus bounty --program {program_name} --enumerate` to build the inventory.[/]")
+        return
+    section(console, f"BUG BOUNTY · ASSETS · {program_name} ({len(assets)})")
+    for host in assets:
+        console.print(f"  {host}")
+
+
+@cli.command(name="suppress")
+@click.option("--program", "program_name", required=True, help="Program the rule applies to.")
+@click.option("--vuln-type", default="", help="Mute this vuln_type (e.g. security-headers).")
+@click.option("--host", default="", help="Mute this host (matches the host and its subdomains).")
+@click.option("--title-contains", default="", help="Mute findings whose title contains this text.")
+@click.option("--reason", default="", help="Why it's muted (kept for the audit trail).")
+def suppress(program_name: str, vuln_type: str, host: str, title_contains: str, reason: str) -> None:
+    """Add a mute rule so known-noise findings stay out of a program's report queue.
+
+    At least one of --vuln-type / --host / --title-contains is required (an empty
+    rule would mute everything, so it's refused). Muted findings are still counted
+    in the campaign summary — nothing silently disappears.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.suppress import SuppressionStore, make_rule
+
+    try:
+        rule = make_rule(vuln_type=vuln_type, host=host, title_contains=title_contains, reason=reason)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+    SuppressionStore().add(program_name, rule)
+    crit = ", ".join(f"{k}={v}" for k, v in rule.items() if k in ("vuln_type", "host", "title_contains") and v)
+    console.print(f"[bold]Muted[/] for '{program_name}': {crit}"
+                  + (f"  ({reason})" if reason else ""))
+
+
+@cli.command(name="suppressions")
+@click.option("--program", "program_name", required=True, help="Program to list/edit rules for.")
+@click.option("--remove", type=int, default=None, help="Remove the rule at this index (from the list).")
+def suppressions(program_name: str, remove: int | None) -> None:
+    """List (or --remove) a program's mute rules."""
+    _ensure_utf8_output()
+    from orthrus.bounty.suppress import SuppressionStore
+
+    store = SuppressionStore()
+    if remove is not None:
+        ok = store.remove(program_name, remove)
+        console.print(f"[bold]Removed[/] rule #{remove}." if ok
+                      else f"[red]No rule #{remove}[/] for '{program_name}'.")
+        return
+    rules = store.rules(program_name)
+    if not rules:
+        console.print(f"[orthrus.muted]no mute rules for '{program_name}'. Add one with "
+                      f"`orthrus suppress --program {program_name} --vuln-type … --reason …`.[/]")
+        return
+    section(console, f"BUG BOUNTY · MUTE RULES · {program_name} ({len(rules)})")
+    for i, r in enumerate(rules):
+        crit = " ".join(f"{k}={v}" for k, v in r.items()
+                        if k in ("vuln_type", "host", "title_contains") and v)
+        console.print(f"  [bold]#{i}[/] {crit}"
+                      + (f"  — {r['reason']}" if r.get("reason") else "")
+                      + f"  [orthrus.muted]({r.get('added', '?')})[/]")
+
+
+@cli.command(name="bounty-report")
+@click.option("--program", "program_name", required=True, help="Saved program to re-render.")
+@click.option("--platform", type=click.Choice(
+                  ["generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi"]),
+              default="generic", help="Shape reports for this platform's submission form.")
+@click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
+              default="firm", help="Report floor.")
+@click.option("-o", "--output", "outdir", default="bounty-report", help="Output directory.")
+def bounty_report(program_name: str, platform: str, min_confidence: str, outdir: str) -> None:
+    """Re-render a saved program's last campaign - no re-scanning.
+
+    Regenerate the submission reports from the findings already stored for a
+    program's past scans, e.g. in a different --platform format, applying the
+    program's current mute rules and flagging cross-run duplicates.
+    """
+    _ensure_utf8_output()
+    from orthrus.bounty.campaign import report_from_scans, write_reports
+    from orthrus.bounty.history import HistoryStore
+    from orthrus.bounty.store import ProgramStore
+    from orthrus.bounty.suppress import SuppressionStore
+
+    rec = ProgramStore().get(program_name)
+    if rec is None:
+        raise click.UsageError(f"no saved program '{program_name}' (see `orthrus programs`).")
+    if not rec.scan_ids:
+        raise click.UsageError(f"'{program_name}' has no recorded scans yet — run "
+                               f"`orthrus bounty --program {program_name} …` first.")
+    supps = SuppressionStore().rules(program_name)
+    report = asyncio.run(report_from_scans(rec.scan_ids, rec.to_scope(),
+                                           min_confidence=min_confidence, suppressions=supps))
+    if not report.groups:
+        console.print(f"[orthrus.muted]no reportable findings at '{min_confidence}'+ across "
+                      f"{len(rec.scan_ids)} stored scan(s).[/]")
+        return
+    seen_map = HistoryStore().seen_counts([g.lead for g in report.groups])
+    files = write_reports(report, outdir, program_name=program_name, platform=platform,
+                          prior_seen=seen_map)
+    section(console, f"BUG BOUNTY · RE-RENDER · {program_name}")
+    console.print(f"[bold]{report.reportable}[/] bug(s) → [bold]{outdir}/[/] as [bold]{platform}[/] "
+                  f"({len(files)} file(s), from {len(rec.scan_ids)} stored scan(s))"
+                  + (f" · {report.suppressed} muted" if report.suppressed else ""))
 
 
 @cli.command(name="submission")
@@ -1155,26 +1377,98 @@ def notes(program, tag, query):
 
 
 @cli.command(name="bounty-status")
-def bounty_status() -> None:
+@click.option("--json", "as_json", is_flag=True, help="Emit the full status as JSON (for scripting).")
+def bounty_status(as_json: bool) -> None:
     """One-view operator dashboard: programs, submissions, earnings, audit integrity."""
     _ensure_utf8_output()
     from orthrus.bounty.status import gather_status
 
     st = gather_status()
+    if as_json:
+        click.echo(json.dumps(st, indent=2))
+        return
     section(console, "BUG BOUNTY · STATUS")
     progs = st["programs"]
     console.print(f"[bold]Programs[/] — {len(progs)}")
     for p in progs:
+        extra = []
+        if p.get("assets"):
+            extra.append(f"{p['assets']} asset(s)")
+        if p.get("mute_rules"):
+            extra.append(f"{p['mute_rules']} mute rule(s)")
+        if p.get("max_rps"):
+            extra.append(f"≤{p['max_rps']:g} rps")
+        tail = ("  [orthrus.muted]" + " · ".join(extra) + "[/]") if extra else ""
         console.print(f"  {p['name']} ({p['in_scope']} in / {p['out_scope']} out) · "
-                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}")
+                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}" + tail)
     sub = st["submissions"]
     earn = " · ".join(f"{amt} {cur}" for cur, amt in sub["earnings"].items()) or "none"
     console.print(f"[bold]Submissions[/] — {sub['total']} tracked · {sub['rewarded']} rewarded · "
                   f"earnings: {earn}")
-    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued")
+    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued"
+                  f" · {st['tracked_assets']} asset(s) · {st['mute_rules']} mute rule(s)")
+    cost = st["cost"]
+    if cost["entries"]:
+        console.print(f"[bold]Spend[/] — ${cost['total_usd']:.4f} across {cost['entries']} ledger entr(y/ies)")
     a = st["audit"]
     chain = "intact" if a["intact"] else f"[red]BROKEN at #{a['first_bad']}[/]"
     console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
+
+
+@cli.command(name="copilot")
+@click.argument("query", nargs=-1, required=True)
+@click.option("--llm", "llm_spec", default=None, metavar="PROVIDER:MODEL",
+              help="Ground the answer with a model (e.g. ollama:llama3.1). Omit for raw snippets.")
+@click.option("-k", "--top", "top_k", type=int, default=5, show_default=True, help="Snippets to retrieve.")
+def copilot(query, llm_spec, top_k):
+    """Ask a copilot grounded in YOUR notes + submissions (never invents findings)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.copilot import SYSTEM_PROMPT, build_prompt, retrieve
+
+    q = " ".join(query).strip()
+    hits = retrieve(q, k=top_k)
+    if not hits:
+        console.print("[orthrus.muted]I don't see anything about that in your notes or submissions. "
+                      "Add context with `orthrus note …`.[/]")
+        return
+    if llm_spec:
+        from orthrus.ai.providers import LLMClient, LLMError, resolve_config
+        from orthrus.bounty.cost import CostLedger
+        try:
+            cfg = resolve_config(llm_spec)
+            prompt = build_prompt(q, hits)
+            answer = asyncio.run(LLMClient(cfg).complete(SYSTEM_PROMPT, prompt))
+            CostLedger().record_llm(cfg.model, SYSTEM_PROMPT + prompt, answer, provider=cfg.provider)
+            console.print(answer.strip() or "[orthrus.muted](empty answer)[/]")
+        except LLMError as exc:
+            console.print(f"[red]LLM unavailable[/] ({exc}); showing retrieved snippets instead.")
+            llm_spec = None
+    if not llm_spec:
+        section(console, "COPILOT · FROM YOUR DATA")
+        for h in hits:
+            console.print(f"[bold]{h.title}[/]  [orthrus.muted]([{h.source}] score {h.score})[/]")
+            console.print(f"  {h.snippet.splitlines()[0][:120] if h.snippet else ''}")
+    console.print(f"\n[orthrus.muted]sources: {', '.join(h.source for h in hits)}[/]")
+
+
+@cli.command(name="cost")
+@click.option("--program", default=None, help="Filter to one program.")
+def cost(program) -> None:
+    """Show the cost ledger (LLM spend auto-recorded by the copilot, plus anything you log)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.cost import CostLedger
+
+    summ = CostLedger().summary(program)
+    if not summ["entries"]:
+        console.print("[orthrus.muted]no cost recorded yet (use `orthrus copilot --llm …`, or log spend).[/]")
+        return
+    section(console, "BUG BOUNTY · COST LEDGER")
+    console.print(f"[bold]${summ['total_usd']:.4f}[/] across {summ['entries']} entr(y/ies)"
+                  + (f" for {program}" if program else ""))
+    console.print(f"  by provider: {json.dumps(summ['by_provider'])}")
+    console.print(f"  by category: {json.dumps(summ['by_category'])}")
+    console.print("[orthrus.muted]LLM costs are blended estimates (~chars/4 tokens × per-model rate); "
+                  "override with ORTHRUS_LLM_RATE.[/]")
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:

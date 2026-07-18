@@ -104,3 +104,21 @@ def test_render_submission_has_repro_and_sections():
     assert "error-based replay" in md                    # confirmation technique surfaced
     idx = render_index(report, "ExampleCorp")
     assert "1 reportable bug" in idx and "api.example.com" in idx
+
+
+def test_prior_seen_flag_renders_in_report_and_index():
+    ps = parse_program_scope("*.example.com\n")
+    f = _f("sqli", Severity.HIGH, Confidence.FIRM, "https://api.example.com/item?id=1",
+           title="SQL injection", parameter="id")
+    report = select_and_group([f], ps, min_confidence="firm")
+    lead = report.groups[0].lead
+
+    # not seen before -> no duplicate callout / marker
+    assert "Seen before" not in render_submission(report.groups[0])
+    assert "♻" not in render_index(report)
+
+    # seen in 2 earlier runs -> callout in the bug report + marker/footnote in the index
+    md = render_submission(report.groups[0], prior_seen=2)
+    assert "Seen before" in md and "2 earlier runs" in md
+    idx = render_index(report, prior_seen={id(lead): 2})
+    assert "♻" in idx and "possible duplicate" in idx

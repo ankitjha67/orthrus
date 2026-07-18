@@ -77,6 +77,7 @@ class CampaignReport:
     considered: int = 0
     out_of_scope: int = 0
     below_confidence: int = 0
+    suppressed: int = 0
 
     @property
     def reportable(self) -> int:
@@ -89,8 +90,15 @@ def select_and_group(
     *,
     min_confidence: str = "firm",
     techniques: dict[str, str] | None = None,
+    suppressions: list[dict] | None = None,
 ) -> CampaignReport:
-    """Filter to in-scope findings at/above the confidence floor, then dedupe."""
+    """Filter to in-scope findings at/above the confidence floor, then dedupe.
+
+    ``suppressions`` are per-program mute rules; a matching finding is counted
+    (``report.suppressed``) but kept out of the reportable queue.
+    """
+    from orthrus.bounty.suppress import matching_rule
+
     floor = _CONF_RANK.get(min_confidence.lower(), 1)
     techniques = techniques or {}
     report = CampaignReport(considered=len(findings))
@@ -100,6 +108,9 @@ def select_and_group(
         host = _host(f.url)
         if not program.is_in_scope(host):
             report.out_of_scope += 1
+            continue
+        if suppressions and matching_rule(suppressions, f) is not None:
+            report.suppressed += 1
             continue
         if _CONF_RANK.get(_conf(f.confidence), 0) < floor:
             report.below_confidence += 1
@@ -125,8 +136,12 @@ def select_and_group(
     return report
 
 
-def render_submission(group: BugGroup, program_name: str = "") -> str:
-    """One triager-ready Markdown report for a single bug group."""
+def render_submission(group: BugGroup, program_name: str = "", *, prior_seen: int = 0) -> str:
+    """One triager-ready Markdown report for a single bug group.
+
+    ``prior_seen`` > 0 adds a duplicate-warning callout: this bug matched a
+    finding from that many earlier runs, so it may already be reported.
+    """
     f = group.lead
     sev = _sev(f.severity)
     cvss = f"{f.cvss_score} ({f.cvss_vector})" if f.cvss_score is not None else "not scored"
@@ -148,6 +163,13 @@ def render_submission(group: BugGroup, program_name: str = "") -> str:
         parts.append(
             "\n> ⚠️ **Destructive class** — confirming or exploiting this can write state or affect "
             "other users. Verify manually and follow the program's rules before active testing."
+        )
+    if prior_seen > 0:
+        runs = "run" if prior_seen == 1 else "runs"
+        parts.append(
+            f"\n> ♻ **Seen before** — this bug matches a finding from {prior_seen} earlier {runs}. "
+            "It may already be reported; check your submission history before filing (duplicates "
+            "hurt your platform reputation)."
         )
     parts += [
         "",
@@ -210,29 +232,84 @@ def render_submission(group: BugGroup, program_name: str = "") -> str:
     return "\n".join(parts) + "\n"
 
 
-def render_index(report: CampaignReport, program_name: str = "") -> str:
+def campaign_summary(report: CampaignReport, program_name: str = "", *,
+                     prior_seen: dict[int, int] | None = None) -> dict:
+    """A machine-readable view of the ranked bug queue (for automation/dashboards).
+
+    Pure: the same deduped, priority-ranked queue the Markdown index shows, plus
+    the filter counts and per-bug metadata — including ``prior_seen`` so a
+    consumer can skip likely duplicates.
+    """
+    prior_seen = prior_seen or {}
+    sev_counts: dict[str, int] = {}
+    bugs = []
+    for i, g in enumerate(report.groups, 1):
+        f = g.lead
+        s = _sev(f.severity)
+        sev_counts[s] = sev_counts.get(s, 0) + 1
+        bugs.append({
+            "rank": i,
+            "priority": priority_score(f),
+            "severity": s,
+            "confidence": _conf(f.confidence),
+            "vuln_type": f.vuln_type,
+            "title": _norm_title(f.title),
+            "host": _host(f.url),
+            "url": f.url,
+            "cwe": f.cwe or None,
+            "cvss": f.cvss_score,
+            "instances": len(g.instances),
+            "technique": g.technique,
+            "prior_seen": prior_seen.get(id(f), 0),
+        })
+    return {
+        "program": program_name or None,
+        "reportable": report.reportable,
+        "considered": report.considered,
+        "out_of_scope": report.out_of_scope,
+        "below_confidence": report.below_confidence,
+        "suppressed": report.suppressed,
+        "severity_counts": sev_counts,
+        "bugs": bugs,
+    }
+
+
+def render_index(report: CampaignReport, program_name: str = "", *,
+                 prior_seen: dict[int, int] | None = None) -> str:
+    prior_seen = prior_seen or {}
+    any_seen = False
     rows = []
     for i, g in enumerate(report.groups, 1):
         f = g.lead
         cvss = f.cvss_score if f.cvss_score is not None else "—"
+        mark = " ♻" if prior_seen.get(id(f)) else ""
+        any_seen = any_seen or bool(mark)
         rows.append(f"| {i} | {priority_score(f):.0f} | {_sev(f.severity).upper()} | "
-                    f"{_norm_title(f.title)} | {cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
+                    f"{_norm_title(f.title)}{mark} | {cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
     body = "\n".join(rows) or "| — | — | — | — | — | — | — |"
     sev_counts: dict[str, int] = {}
     for g in report.groups:
         s = _sev(g.lead.severity)
         sev_counts[s] = sev_counts.get(s, 0) + 1
     dist = " · ".join(f"{sev_counts.get(s, 0)} {s}" for s in ("critical", "high", "medium", "low", "info"))
+    considered_line = (
+        f"_{report.considered} findings considered · {report.out_of_scope} dropped as out-of-scope · "
+        f"{report.below_confidence} below the confidence floor"
+        + (f" · {report.suppressed} muted" if report.suppressed else "") + "._\n\n"
+    )
+    seen_note = ("_♻ = matched a finding from an earlier run (possible duplicate — verify before "
+                 "filing)._\n\n" if any_seen else "")
     return (
         f"# Bug-bounty findings{f' — {program_name}' if program_name else ''}\n\n"
         f"**{report.reportable} reportable bug(s)** — {dist}.  \n"
-        f"_{report.considered} findings considered · {report.out_of_scope} dropped as out-of-scope · "
-        f"{report.below_confidence} below the confidence floor._\n\n"
-        "| # | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
+        + considered_line
+        + "| # | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
         "|---|---|---|---|---|---|---|\n" + body + "\n\n"
-        "Each bug has its own submission-ready report in this folder. Always confirm the target is "
+        + seen_note
+        + "Each bug has its own submission-ready report in this folder. Always confirm the target is "
         "in the program's current scope and follow its disclosure rules before submitting.\n"
     )
 
 
-__all__ = ["BugGroup", "CampaignReport", "select_and_group", "render_submission", "render_index"]
+__all__ = ["BugGroup", "CampaignReport", "select_and_group", "render_submission", "render_index",
+           "campaign_summary"]
