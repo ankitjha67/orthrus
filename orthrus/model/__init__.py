@@ -13,10 +13,15 @@ other. Table names are distinct from the v0.1 scan-scoped ones.
 
 from orthrus.model import entities as _entities  # noqa: F401  (registers tables on Base)
 from orthrus.model.entities import (
+    ASSET_KINDS,
     PLATFORMS,
+    SCAN_RUN_STATUSES,
     SCOPE_ENTRY_TYPES,
     SCOPE_KINDS,
     Program,
+    ProgramAsset,
+    ProgramEndpoint,
+    ScanRun,
     ScopeEntry,
     new_id,
 )
@@ -24,8 +29,13 @@ from orthrus.model.entities import (
 __all__ = [
     "Program",
     "ScopeEntry",
+    "ProgramAsset",
+    "ProgramEndpoint",
+    "ScanRun",
     "PLATFORMS",
     "SCOPE_ENTRY_TYPES",
     "SCOPE_KINDS",
+    "ASSET_KINDS",
+    "SCAN_RUN_STATUSES",
     "new_id",
 ]

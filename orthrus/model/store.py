@@ -2,7 +2,7 @@
 
 A thin async repository over the unified-domain ORM entities, sharing the same
 engine/schema as the v0.1 :class:`orthrus.db.store.Store`. Phase 0 covers Program
-+ ScopeEntry CRUD; the Asset graph, scan_runs, evidence, audit and cost tables
++ ScopeEntry CRUD; the ProgramAsset graph, scan_runs, evidence, audit and cost tables
 land on the same class as they're built.
 
 Deny-by-default is enforced at creation: a Program cannot be persisted without a
@@ -12,16 +12,23 @@ scope enforcer.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from orthrus.db.models import Base
 from orthrus.model.entities import (
+    ASSET_KINDS,
     PLATFORMS,
+    SCAN_RUN_STATUSES,
     SCOPE_ENTRY_TYPES,
     SCOPE_KINDS,
     Program,
+    ProgramAsset,
+    ScanRun,
     ScopeEntry,
+    _utcnow,
 )
 
 
@@ -185,6 +192,133 @@ class ProgramGraph:
             )
             await session.commit()
             return result.rowcount or 0
+
+    # ------------------------------------------------------------------- assets
+    async def record_asset(
+        self,
+        program_id: str,
+        kind: str,
+        canonical_value: str,
+        display_value: str | None = None,
+        *,
+        discovered_by: str | None = None,
+        fingerprint: dict | None = None,
+        metadata: dict | None = None,
+        scope_entry_id: int | None = None,
+        alive: bool = True,
+    ) -> tuple[ProgramAsset, bool]:
+        """Upsert an asset by (program, kind, canonical_value); return (asset, is_new).
+
+        The heart of continuous recon (PRD §7.2): re-seeing an asset bumps
+        ``last_seen_at`` (and merges fresh fingerprint/metadata) rather than
+        duplicating it, so a diff of ``first_seen_at`` surfaces only genuinely
+        new surface. ``is_new`` lets the recon engine fire new-asset cascades.
+        """
+        if kind not in ASSET_KINDS:
+            raise ValueError(f"asset kind must be one of {ASSET_KINDS}, got {kind!r}")
+        if not (canonical_value or "").strip():
+            raise ValueError("canonical_value is required")
+        canonical_value = canonical_value.strip()
+        now = _utcnow()
+        async with self._session() as session:
+            existing = await session.execute(
+                select(ProgramAsset).where(
+                    ProgramAsset.program_id == program_id,
+                    ProgramAsset.kind == kind,
+                    ProgramAsset.canonical_value == canonical_value,
+                ).limit(1)
+            )
+            asset = existing.scalar_one_or_none()
+            if asset is not None:
+                asset.last_seen_at = now
+                asset.is_alive = alive
+                if alive:
+                    asset.last_alive_at = now
+                if fingerprint:
+                    asset.fingerprint = {**(asset.fingerprint or {}), **fingerprint}
+                if metadata:
+                    asset.metadata_json = {**(asset.metadata_json or {}), **metadata}
+                await session.commit()
+                await session.refresh(asset)
+                return asset, False
+
+            asset = ProgramAsset(
+                program_id=program_id, kind=kind, canonical_value=canonical_value,
+                display_value=(display_value or canonical_value), discovered_by=discovered_by,
+                fingerprint=fingerprint or {}, metadata_json=metadata or {},
+                scope_entry_id=scope_entry_id, first_seen_at=now, last_seen_at=now,
+                is_alive=alive, last_alive_at=now if alive else None,
+            )
+            session.add(asset)
+            await session.commit()
+            await session.refresh(asset)
+            return asset, True
+
+    async def get_asset(self, asset_id: str) -> ProgramAsset | None:
+        async with self._session() as session:
+            return await session.get(ProgramAsset, asset_id)
+
+    async def list_assets(
+        self, program_id: str, *, kind: str | None = None,
+        alive_only: bool = False, include_noise: bool = False,
+    ) -> list[ProgramAsset]:
+        stmt = select(ProgramAsset).where(ProgramAsset.program_id == program_id)
+        if kind:
+            stmt = stmt.where(ProgramAsset.kind == kind)
+        if alive_only:
+            stmt = stmt.where(ProgramAsset.is_alive.is_(True))
+        if not include_noise:
+            stmt = stmt.where(ProgramAsset.is_wildcard_noise.is_(False))
+        async with self._session() as session:
+            result = await session.execute(stmt.order_by(ProgramAsset.canonical_value))
+            return list(result.scalars().all())
+
+    async def new_assets_since(self, program_id: str, since: datetime) -> list[ProgramAsset]:
+        """Assets first seen at/after ``since`` — the continuous-recon diff (PRD §7.2)."""
+        async with self._session() as session:
+            result = await session.execute(
+                select(ProgramAsset).where(
+                    ProgramAsset.program_id == program_id,
+                    ProgramAsset.first_seen_at >= since,
+                    ProgramAsset.is_wildcard_noise.is_(False),
+                ).order_by(ProgramAsset.first_seen_at)
+            )
+            return list(result.scalars().all())
+
+    # --------------------------------------------------------------- scan runs
+    async def start_scan_run(
+        self, program_id: str, *, triggered_by: str = "manual",
+        config: dict | None = None, workflow_id: str | None = None,
+    ) -> ScanRun:
+        run = ScanRun(
+            program_id=program_id, triggered_by=triggered_by,
+            config_snapshot=config or {}, workflow_id=workflow_id, status="running",
+        )
+        async with self._session() as session:
+            session.add(run)
+            await session.commit()
+            await session.refresh(run)
+        return run
+
+    async def finish_scan_run(
+        self, run_id: str, *, status: str = "completed",
+        stats: dict | None = None, error: str | None = None,
+    ) -> ScanRun | None:
+        if status not in SCAN_RUN_STATUSES:
+            raise ValueError(f"status must be one of {SCAN_RUN_STATUSES}")
+        async with self._session() as session:
+            run = await session.get(ScanRun, run_id)
+            if run is None:
+                return None
+            run.status = status
+            run.ended_at = _utcnow()
+            if stats:
+                run.stats = {**(run.stats or {}), **stats}
+            if error:
+                run.error_summary = error
+            await session.commit()
+            await session.refresh(run)
+        return run
 
 
 __all__ = ["ProgramGraph"]
