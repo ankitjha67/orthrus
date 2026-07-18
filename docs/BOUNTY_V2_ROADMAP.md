@@ -50,7 +50,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
 9. 🚧 **Notifications** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary via the existing notify integration. (Per-program scheduling + new-asset→auto-scan still to come.)
 10. ✅ **Data-grounded copilot** — `bounty/copilot.py` + `orthrus copilot "…"`: BM25-lite retrieval over your notes + submissions (no embedding deps), optional `--llm` grounding held to the context (never invents). Embeddings + vendored corpora (HackTricks/PayloadsAllTheThings) are a follow-up.
-11. 🚧 **External-tool adapters** — expanded the catalog beyond nuclei: `integrations/dalfox.py` (XSS) + `integrations/testssl.py` (TLS), each a tested JSON parser + `@register_tool` class (run via `orthrus scan --tools`). More adapters + multi-domain (mobile/web3/LLM/cloud) still to come.
+11. 🚧 **External-tool adapters** — expanded the catalog beyond nuclei: `dalfox` (XSS), `testssl` (TLS), `ffuf` (content discovery), `nikto` (web-server misconfig, conservatively rated), `wpscan` (WordPress core/plugin/theme CVEs + exposed debug-log/listing). Each is a tested JSON parser + `@register_tool` class that normalizes to ORTHRUS Findings (run via `orthrus scan --tools` / `orthrus bounty --tools`); binaries absent on PATH are skipped cleanly. Multi-domain (mobile/web3/LLM/cloud) still to come.
 
 ## Needs you (the 🔑 items)
 

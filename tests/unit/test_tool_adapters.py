@@ -7,11 +7,13 @@ from orthrus.core.schemas import Confidence, Severity
 from orthrus.integrations.base import TOOL_REGISTRY
 from orthrus.integrations.dalfox import parse_dalfox_json
 from orthrus.integrations.ffuf import parse_ffuf_json
+from orthrus.integrations.nikto import parse_nikto_json
 from orthrus.integrations.testssl import parse_testssl_json
+from orthrus.integrations.wpscan import parse_wpscan_json
 
 
 def test_adapters_registered():
-    for name in ("nuclei", "dalfox", "testssl", "ffuf"):
+    for name in ("nuclei", "dalfox", "testssl", "ffuf", "nikto", "wpscan"):
         assert name in TOOL_REGISTRY
 
 
@@ -69,3 +71,53 @@ def test_ffuf_parses_and_rates_paths():
     assert by_url["http://x.test/old"].severity == Severity.INFO     # 301 -> info
     assert all(f.vuln_type == "content-discovery" for f in findings)
     assert parse_ffuf_json("not json", "http://x") == []
+
+
+NIKTO = """[
+  {"host":"https://x.test","vulnerabilities":[
+    {"id":"1","method":"GET","url":"/admin/","msg":"Directory indexing found."},
+    {"id":"2","method":"GET","url":"/?q=1","msg":"Possible SQL Injection in parameter q."},
+    {"id":"3","method":"GET","url":"/","msg":"The X-Frame-Options header is not present."}
+  ]}
+]"""
+
+
+def test_nikto_classifies_and_rates():
+    findings = parse_nikto_json(NIKTO, "https://x.test")
+    assert len(findings) == 3
+    by_type = {f.vuln_type: f for f in findings}
+    assert by_type["directory-listing"].severity == Severity.LOW
+    assert by_type["sqli"].severity == Severity.MEDIUM         # injection keyword -> promoted
+    assert by_type["security-headers"].severity == Severity.INFO
+    assert by_type["sqli"].url == "https://x.test/?q=1"        # relative path joined to host
+    assert all(f.scanner == "nikto" for f in findings)
+    assert parse_nikto_json("not json", "https://x.test") == []
+
+
+WPSCAN = """{
+  "target_url":"https://wp.test/",
+  "version":{"number":"5.2","vulnerabilities":[
+    {"title":"Core auth bypass","references":{"cve":["2019-1234"]},"fixed_in":"5.2.1"}]},
+  "plugins":{"contact-form-7":{"slug":"contact-form-7",
+    "vulnerabilities":[{"title":"Stored XSS","references":{},"fixed_in":"5.1.4"}]}},
+  "interesting_findings":[
+    {"url":"https://wp.test/wp-content/debug.log","type":"debug_log","to_s":"Debug log found"},
+    {"url":"https://wp.test/","type":"headers","to_s":"Headers"}
+  ]
+}"""
+
+
+def test_wpscan_maps_core_plugins_and_interesting():
+    findings = parse_wpscan_json(WPSCAN, "https://wp.test")
+    titles = [f.title for f in findings]
+    # core vuln (has CVE -> HIGH), plugin vuln (no CVE -> MEDIUM), debug_log + headers interesting
+    assert len(findings) == 4
+    core = next(f for f in findings if "core" in f.title.lower())
+    assert core.severity == Severity.HIGH and core.vuln_type == "vulnerable-component"
+    assert "CVE-2019-1234" in core.description
+    plugin = next(f for f in findings if "contact-form-7" in f.title)
+    assert plugin.severity == Severity.MEDIUM
+    debug = next(f for f in findings if f.vuln_type == "exposed-file")
+    assert debug.severity == Severity.MEDIUM
+    assert any("[wpscan]" in t for t in titles)
+    assert parse_wpscan_json("nope", "https://wp.test") == []
