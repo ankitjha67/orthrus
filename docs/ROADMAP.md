@@ -32,7 +32,7 @@ Status legend: ✅ done · 🚧 in progress · ⬜ planned.
 ### Confirmation
 | # | Item | Status | Notes |
 |---|---|---|---|
-| T11 | Deserialization OOB confirmation via safe-marker gadgets (Java URLDNS, .NET, pickle `__reduce__`→callback) | ⬜ | Converts a big class tentative → confirmed **without RCE**. |
+| T11 | Deserialization OOB confirmation via safe-marker gadgets | 🚧 | **Python pickle** shipped (`deserialization_confirm.py`: `__reduce__`→`urlopen`, a single GET, no shell) — converts that class tentative→confirmed. Java URLDNS / PHP / .NET / Ruby gadgets are a follow-up (need external tooling / a DNS collaborator); unsupported formats fail honestly, never faked. |
 | T12 | Race-condition confirmation via single-packet attack (last-byte sync) | ⬜ | Reliable race exploitation. |
 | T13 | XXE OOB confirmation with parametric-entity DTD chaining | ✅ | `xxe_confirm.py` now re-proves blind XXE via a fresh parametric-entity callback (reuses `oob_xxe_payloads` + the SSRF OOB pattern). |
 

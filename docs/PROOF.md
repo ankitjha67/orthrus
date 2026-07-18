@@ -19,7 +19,7 @@ genuine — not synthetic fixtures — across multiple vulnerability classes.
 | Date of run | 2026-05-30 · 2026-07-05 (full-pipeline smoke) |
 | Environment | Windows 11, Python 3.14, scope-enforced `HttpClient` |
 | Automated gates | **1065 tests pass**, `ruff check orthrus tests` clean |
-| Coverage | **59 vulnerability scanners · 18 confirmation modules · 18 recon modules** |
+| Coverage | **59 vulnerability scanners · 19 confirmation modules · 18 recon modules** |
 | Authorized ranges | `pentest-ground.com` (Pentest-Tools.com) · `ginandjuice.shop` (PortSwigger) + purpose-built localhost targets |
 
 ---

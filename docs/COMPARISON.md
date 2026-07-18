@@ -30,7 +30,7 @@ ORTHRUS's thesis is narrow and specific:
 Everything runs behind a deny-by-default, scope-enforced HTTP client.
 
 *ORTHRUS scale (v0.1.0, verified from the CLI): 18 recon modules, 59 vulnerability
-scanners, 18 exploitation-confirmation modules, ~30 CLI sub-commands.*
+scanners, 19 exploitation-confirmation modules, ~30 CLI sub-commands.*
 
 ---
 

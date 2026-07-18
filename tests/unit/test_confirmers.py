@@ -442,3 +442,88 @@ async def test_xxe_confirm_no_oob_without_callback_client():
     ctx = _xxe_ctx([], callback=False)  # OOB path unavailable
     res = await XxeConfirm().confirm(ctx, _finding("xxe", url="http://h/xml"))
     assert res.success is False
+
+
+# ------------------------------------------------ deserialization-confirm (OOB marker)
+import base64 as _base64  # noqa: E402
+import pickle as _pickle  # noqa: E402
+
+from orthrus.exploits import deserialization_confirm as _deser_mod  # noqa: E402
+from orthrus.exploits.deserialization_confirm import (  # noqa: E402
+    DeserializationConfirm,
+    python_pickle_gadget,
+)
+
+
+class _DeserHttp:
+    def __init__(self) -> None:
+        self.last: tuple | None = None
+
+    async def request(self, method: str, url: str, *, follow_redirects: bool = True,
+                      headers: dict | None = None) -> _Resp:
+        self.last = (method, url, headers)
+        return _Resp(text="ok")
+
+
+def _deser_finding(fmt: str = "Python pickle", *, location: str = "query",
+                   param: str = "data") -> Finding:
+    return _finding(
+        "deserialization",
+        url="http://h/load",
+        evidence=Evidence(notes=f"{fmt} signature",
+                          extra={"format": fmt, "param": param, "location": location}),
+    )
+
+
+def _deser_ctx(interactions: list, *, callback: bool = True) -> SimpleNamespace:
+    return SimpleNamespace(
+        http=_DeserHttp(),
+        callback=_XxeCallback(interactions) if callback else None,
+        store=_XxeStore(),
+        endpoints=[],
+    )
+
+
+def test_deser_confirm_registered():
+    assert "deserialization-confirm" in EXPLOIT_REGISTRY
+    assert any(e.name == "deserialization-confirm" for e in exploits_for(_finding("deserialization")))
+
+
+def test_python_pickle_gadget_targets_callback(monkeypatch):
+    raw = _base64.b64decode(python_pickle_gadget("http://cb/x"))  # build with the real ref
+    rec: dict = {}
+    monkeypatch.setattr("urllib.request.urlopen", lambda u, *a, **k: rec.setdefault("u", u))
+    _pickle.loads(raw)  # safe: urlopen is mocked
+    assert rec["u"] == "http://cb/x"  # a single GET to the fresh callback, no shell
+
+
+async def test_deser_confirm_success_pickle(monkeypatch):
+    monkeypatch.setattr(_deser_mod, "POLL_DELAY", 0.0)
+    hit = Interaction(token="xxetok", protocol="http", source_ip="10.0.0.5", method="GET", path="/x")
+    ctx = _deser_ctx([hit])
+    res = await DeserializationConfirm().confirm(ctx, _deser_finding())
+    assert res.success is True
+    assert res.technique == "oob-marker gadget (Python pickle)"
+    assert ctx.store.callbacks
+    _method, url, _headers = ctx.http.last  # the gadget was injected into the 'data' query param
+    assert "data=" in url
+
+
+async def test_deser_confirm_fail_when_sink_does_not_deserialize(monkeypatch):
+    monkeypatch.setattr(_deser_mod, "POLL_DELAY", 0.0)
+    res = await DeserializationConfirm().confirm(_deser_ctx([]), _deser_finding())
+    assert res.success is False  # no callback -> not confirmed
+
+
+async def test_deser_confirm_unsupported_format_is_not_faked(monkeypatch):
+    monkeypatch.setattr(_deser_mod, "POLL_DELAY", 0.0)
+    hit = Interaction(token="xxetok", protocol="http", source_ip="1.2.3.4", method="GET", path="/x")
+    # even if a callback WOULD fire, a format with no safe generic gadget stays unconfirmed
+    res = await DeserializationConfirm().confirm(_deser_ctx([hit]), _deser_finding(fmt="Ruby Marshal"))
+    assert res.success is False
+
+
+async def test_deser_confirm_no_callback_client():
+    ctx = _deser_ctx([], callback=False)
+    res = await DeserializationConfirm().confirm(ctx, _deser_finding())
+    assert res.success is False

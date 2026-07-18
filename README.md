@@ -47,7 +47,7 @@ attack-graph → runbook → patches → cloud posture → agent) with real outp
 reproducible in one command via [`demo.sh`](demo.sh).
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
-implemented-system PRD: every subsystem (59 scanners, 18 confirmers, 18 recon
+implemented-system PRD: every subsystem (59 scanners, 19 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -597,7 +597,7 @@ orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    59 scanners + base interface + registry
-  exploits/    18 confirmation modules + base interface + registry
+  exploits/    19 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
   iac/         Infrastructure-as-Code misconfig analyzer (Dockerfile/compose/Terraform)
