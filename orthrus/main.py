@@ -834,6 +834,10 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
               default="firm", show_default=True,
               help="Only report bugs at/above this confidence (keeps triager noise down).")
+@click.option("--platform", type=click.Choice(
+                  ["generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi"]),
+              default="generic", show_default=True,
+              help="Shape each per-bug report for this platform's submission form.")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
 @click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
@@ -851,8 +855,8 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
 def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enumerate_subs,
-           min_confidence, aggressive, browser, no_exploit, callback, interactsh, rate_limit,
-           timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+           min_confidence, platform, aggressive, browser, no_exploit, callback, interactsh,
+           rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -941,7 +945,7 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
         program, make_config, campaign_id=f"bounty-{uuid4().hex[:8]}",
         min_confidence=min_confidence,
     ))
-    files = write_reports(result.report, outdir)
+    files = write_reports(result.report, outdir, platform=platform)
     _print_bounty_summary(result, outdir, files)
 
 

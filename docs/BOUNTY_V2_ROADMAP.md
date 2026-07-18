@@ -42,7 +42,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 
 1. ✅ **Authorization + kill-list** — *this PR.*
 2. ✅ **Subdomain expansion recon** — `bounty/assets.py`: a `*.wildcard` scope is expanded into its live in-scope subdomains (crt.sh + DNS), filtered against exclusions + kill-list, via `--enumerate`.
-3. **Platform-native report templates** — one command → an H1 / Bugcrowd / Intigriti / YesWeHack / Immunefi-shaped report.
+3. ✅ **Platform-native report templates** — `bounty/platforms.py` + `--platform`: per-bug reports shaped for HackerOne / Bugcrowd (P1–P5) / Intigriti / YesWeHack / Immunefi (gist reminder).
 4. **Program store** — persist programs (authorization, scope, jurisdiction, pause, campaign history); make `orthrus bounty` program-anchored and resumable.
 5. **Triage priority scoring + cross-program dedup + history recall.**
 6. **Vuln-class ontology** module (versioned).

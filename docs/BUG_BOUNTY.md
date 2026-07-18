@@ -107,6 +107,7 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 | `--i-am-authorized HOST` | Attest written authorization for a refused high-sensitivity host (gov/mil/edu/health). Repeatable. |
 | `--enumerate / --no-enumerate` | Discover live in-scope subdomains (crt.sh + DNS) and scan them too, not just the seeds you listed. On by default; in-scope, non-excluded, non-sensitive hosts only. |
 | `--min-confidence confirmed\|firm\|tentative` | Report floor. `confirmed` = only re-proven bugs (lowest noise); `firm` (default) adds strong observational findings; `tentative` includes everything. |
+| `--platform generic\|hackerone\|bugcrowd\|intigriti\|yeswehack\|immunefi` | Shape each per-bug report for that platform's submission form (fields, severity language, Bugcrowd P1–P5, Immunefi gist reminder). |
 | `--aggressive` | Enable aggressive scanning. |
 | `--browser` | Drive a headless browser (DOM / stored XSS). |
 | `--callback HOST` / `--interactsh` | Out-of-band collaborator for blind SSRF / XXE / deserialization confirmation. |
