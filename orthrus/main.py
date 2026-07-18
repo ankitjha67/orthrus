@@ -984,6 +984,12 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         "seeds": len(seeds), "scan_ids": result.scan_ids,
         "reportable": result.report.reportable, "output": outdir,
     })
+    # Flag bugs already reported in earlier runs (possible known/duplicate) and archive these.
+    from orthrus.bounty.history import HistoryStore
+    prior = HistoryStore().record([g.lead for g in result.report.groups], program_name or "")
+    if prior:
+        console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
+                      "earlier runs (possible known/duplicate — check before filing).")
     _print_bounty_summary(result, outdir, files)
 
 
