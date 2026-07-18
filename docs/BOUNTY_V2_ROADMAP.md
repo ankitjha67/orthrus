@@ -24,7 +24,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 | **Authorization model + kill-list** (§2.3/§6/§11) | ✅ | Shipped: `bounty/authorization.py` (program URL / signed / direct / self-lab; public scope refused without it) + `bounty/killlist.py` (gov/mil/edu/health/sanctioned refused unless attested). |
 | Program record + scope_entries (§6) | 🟡→🛠 | Authorization is captured; a persisted `programs` store (pause, jurisdiction, expiry, history) is next. |
 | Recon engine — continuous / diff / CT-log (§7.2) | 🟡→🛠 | Have subdomain enum + recon modules. Next: **expand `*.wildcard` → live in-scope subdomains before scanning**; then diffing + a per-program scheduler; then external adapters (subfinder/amass/dnsx/httpx). CT-log + cloud workers are heavier. |
-| Scan engine (§7.3) | ✅ + 🛠 | 59 scanners today; `--tools nuclei` exists. Adapters for sqlmap/dalfox/ffuf are build-now. |
+| Scan engine (§7.3) | ✅ + 🛠 | 59 scanners today; `--tools nuclei` exists. **dalfox** (XSS) + **testssl** (TLS) adapters added; sqlmap/ffuf still to come. |
 | Confirm engine (§7.4) | ✅ + 🛠 | 19 confirmers, incl. XXE-OOB and deserialization-OOB (shipped). Next: SSRF→cloud-metadata chain, single-packet race. |
 | Triage engine (§7.5) | 🟡→🛠 | Have dedup + lifecycle. Next: composite **priority scoring**, cross-program dedup, "similar finding in your history", optional LLM FP-judge. |
 | Reporting engine (§7.6) | 🟡→🛠 | Submission-ready per-bug reports + AI report exist. Next: **platform-native templates** (H1/BC/Intigriti/YWH/Immunefi). Live submission APIs are 🔑 (your platform tokens). |
@@ -50,7 +50,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
 9. 🚧 **Notifications** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary via the existing notify integration. (Per-program scheduling + new-asset→auto-scan still to come.)
 10. ✅ **Data-grounded copilot** — `bounty/copilot.py` + `orthrus copilot "…"`: BM25-lite retrieval over your notes + submissions (no embedding deps), optional `--llm` grounding held to the context (never invents). Embeddings + vendored corpora (HackTricks/PayloadsAllTheThings) are a follow-up.
-11. **External-tool adapter layer** + multi-domain (mobile/web3/LLM/cloud) adapters.
+11. 🚧 **External-tool adapters** — expanded the catalog beyond nuclei: `integrations/dalfox.py` (XSS) + `integrations/testssl.py` (TLS), each a tested JSON parser + `@register_tool` class (run via `orthrus scan --tools`). More adapters + multi-domain (mobile/web3/LLM/cloud) still to come.
 
 ## Needs you (the 🔑 items)
 

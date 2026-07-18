@@ -3,7 +3,9 @@ output into ORTHRUS Findings so they flow through the same DB / report / CVSS
 pipeline. Importing this package registers the built-in adapters.
 """
 
+from orthrus.integrations import dalfox as _dalfox  # noqa: F401  (registration side-effect)
 from orthrus.integrations import nuclei as _nuclei  # noqa: F401  (registration side-effect)
+from orthrus.integrations import testssl as _testssl  # noqa: F401  (registration side-effect)
 from orthrus.integrations.base import (
     TOOL_REGISTRY,
     ExternalToolAdapter,
