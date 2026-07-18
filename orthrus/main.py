@@ -778,6 +778,124 @@ def _print_batch_summary(results: list[tuple[str, dict[str, int]]]) -> None:
     console.print(table)
 
 
+def _print_bounty_scope(program, seeds: list[str]) -> None:
+    section(console, "BUG BOUNTY · AUTHORIZED SCOPE ONLY")
+    console.print(
+        "[bold red]Only scan assets you are explicitly authorized to test[/] under the "
+        "program's rules. Out-of-scope hosts are enforced and never touched."
+    )
+    console.print(f"\n[bold]In scope[/] — {len(program.domains)} domain(s), "
+                  f"{len(program.ip_ranges)} range(s):")
+    for d in program.domains:
+        console.print(f"  + {d}")
+    for c in program.ip_ranges:
+        console.print(f"  + {c}")
+    if program.out_of_scope:
+        console.print("[bold]Out of scope[/] — never touched:")
+        for o in program.out_of_scope:
+            console.print(f"  [red]![/] {o}")
+    console.print(f"[bold]Seeds to scan[/] — {len(seeds)}:")
+    for s in seeds:
+        console.print(f"  -> {s}")
+    console.print("")
+
+
+def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
+    section(console, "BUG BOUNTY · RESULTS")
+    r = result.report
+    failed = f", [red]{len(result.failed_seeds)} failed[/]" if result.failed_seeds else ""
+    console.print(f"scanned [bold]{len(result.scan_ids)}[/] asset(s){failed}")
+    console.print(
+        f"[bold]{r.reportable}[/] reportable bug(s) — {r.considered} considered, "
+        f"{r.out_of_scope} out-of-scope, {r.below_confidence} below the confidence floor"
+    )
+    console.print(f"submission-ready reports -> [bold]{outdir}/[/] ({len(files)} file(s))")
+
+
+@cli.command()
+@click.option("--scope-file", type=click.Path(exists=True, dir_okay=False),
+              help="Program scope file: in-scope assets, one per line; a '!' prefix marks "
+                   "an out-of-scope exclusion; '#' comments.")
+@click.option("--in-scope", "in_scope", multiple=True, metavar="ASSET",
+              help="Add an in-scope asset (domain / *.wildcard / URL / CIDR). Repeatable.")
+@click.option("--out-scope", "out_scope", multiple=True, metavar="ASSET",
+              help="Add an out-of-scope exclusion. Repeatable.")
+@click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
+              default="firm", show_default=True,
+              help="Only report bugs at/above this confidence (keeps triager noise down).")
+@click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
+@click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
+@click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
+@click.option("--callback", default=None,
+              help="Advertise host for the local OOB listener (SSRF/XXE/deserialization confirmation).")
+@click.option("--interactsh", is_flag=True,
+              help="Use a real Interactsh OOB collaborator for blind/OOB confirmation.")
+@click.option("--rate-limit", type=float, default=20.0, show_default=True, help="Max requests/sec per host.")
+@click.option("--timeout", type=float, default=30.0, show_default=True, help="HTTP request timeout (s).")
+@click.option("--crawl-depth", type=int, default=10, show_default=True)
+@click.option("--max-pages", type=int, default=2000, show_default=True)
+@click.option("--threads", type=int, default=10, show_default=True)
+@click.option("-o", "--output", "outdir", default="bounty-report", show_default=True,
+              help="Directory for the submission-ready reports.")
+@click.option("--dry-run", is_flag=True,
+              help="Resolve and print the scope + seeds, then stop (no requests sent).")
+def bounty(scope_file, in_scope, out_scope, min_confidence, aggressive, browser, no_exploit,
+           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads,
+           outdir, dry_run):
+    """Run an authorized bug-bounty campaign: scan every in-scope asset with all
+    scanners, confirm the findings, and write submission-ready per-bug reports.
+
+    Requires an explicit program scope (--scope-file or --in-scope) — ORTHRUS is
+    deny-by-default and will not scan without one. Out-of-scope entries are
+    enforced and never touched. Authorized programs only.
+    """
+    _ensure_utf8_output()
+    from uuid import uuid4
+
+    from orthrus.bounty.campaign import run_campaign, write_reports
+    from orthrus.bounty.scope_intake import parse_program_scope
+
+    text_parts: list[str] = []
+    if scope_file:
+        with open(scope_file, encoding="utf-8") as fh:
+            text_parts.append(fh.read())
+    text_parts += list(in_scope)
+    text_parts += [f"!{s}" for s in out_scope]
+    program = parse_program_scope("\n".join(text_parts))
+
+    if not program.domains and not program.ip_ranges:
+        raise click.UsageError(
+            "bug bounty requires an authorized scope: pass --scope-file or --in-scope. "
+            "ORTHRUS is deny-by-default and will not scan without an explicit in-scope target."
+        )
+    seeds = program.in_scope_seeds()
+    _print_bounty_scope(program, seeds)
+    if dry_run:
+        console.print("[orthrus.muted]dry-run — resolved scope shown above; no requests sent.[/]")
+        return
+    if not seeds:
+        raise click.UsageError("no in-scope seeds to scan (every seed was excluded).")
+
+    aggr = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
+
+    def make_config(seed: str, scope: ScopeConfig, scan_id: str) -> ScanConfig:
+        cfg = ScanConfig(
+            scan_id=scan_id, target=seed, scope=scope, modules=["all"],
+            aggressiveness=aggr, crawl_depth=crawl_depth, max_pages=max_pages,
+            timeout=timeout, concurrency=threads, callback=callback,
+            interactsh=interactsh, no_exploit=no_exploit, use_browser=browser,
+        )
+        cfg.rate_limit.requests_per_second = rate_limit
+        return cfg
+
+    result = asyncio.run(run_campaign(
+        program, make_config, campaign_id=f"bounty-{uuid4().hex[:8]}",
+        min_confidence=min_confidence,
+    ))
+    files = write_reports(result.report, outdir)
+    _print_bounty_summary(result, outdir, files)
+
+
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:
     """Run the pipeline and return the final severity-count tally (for --fail-on)."""
     from orthrus.core.orchestrator import Orchestrator

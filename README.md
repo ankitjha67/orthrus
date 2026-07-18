@@ -671,6 +671,7 @@ research only.**
 | Doc | What it covers |
 |---|---|
 | [docs/CLI.md](docs/CLI.md) | Full CLI reference — every command and flag (auto-generated). |
+| [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) | **Bug-bounty mode** (`orthrus bounty`) — scan an authorized program's scope, confirm, and write submission-ready reports. |
 | [docs/COMPARISON.md](docs/COMPARISON.md) | Honest comparison vs ZAP, Nuclei, Burp, w3af, Wapiti, StackHawk — including where ORTHRUS *loses*. |
 | [docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md) | "Your first scanner in 15 minutes" — build a Log4Shell detector from empty file to merged PR. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Sequenced roadmap of upcoming technical + adoption work. |

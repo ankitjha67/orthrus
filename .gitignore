@@ -64,3 +64,8 @@ build_bin/
 
 # Ad-hoc report working dir (published copies live in samples/)
 reports_demo/
+
+# bug-bounty demo/working output
+bounty_demo/
+bounty_run.log
+target.log
