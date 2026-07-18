@@ -20,8 +20,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from orthrus import __version__
+from orthrus.api.programs import router as programs_router
 from orthrus.core.config import ScopeConfig, get_settings
 from orthrus.db.store import Store
+from orthrus.model.store import ProgramGraph
 from orthrus.proxy.replay import RequestSpec
 from orthrus.proxy.replay import replay as _replay
 from orthrus.reporting.surface import render_surface_html
@@ -113,19 +115,23 @@ def create_app(db_url: str | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         store = Store(url, encryption_key=settings.encryption_key)
-        await store.init()
+        await store.init()   # creates v0.1 scan tables + the v2.0 operator-graph tables
+        graph = ProgramGraph(url)
         app.state.store = store
+        app.state.graph = graph
         try:
             yield
         finally:
             await store.close()
+            await graph.close()
 
     app = FastAPI(
         title="ORTHRUS API",
         version=__version__,
-        description="Read access to ORTHRUS scans and findings.",
+        description="Read access to ORTHRUS scans/findings + operator-graph CRUD.",
         lifespan=lifespan,
     )
+    app.include_router(programs_router)
 
     async def _require_scan(scan_id: str) -> Any:
         row = await app.state.store.get_scan(scan_id)
