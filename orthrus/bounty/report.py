@@ -22,6 +22,8 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from orthrus.bounty.ontology import is_destructive
+from orthrus.bounty.triage import priority_score
 from orthrus.core.schemas import Finding
 from orthrus.reporting.reproduce import build_snippets
 
@@ -115,8 +117,11 @@ def select_and_group(
                 g.lead = f
             g.technique = g.technique or techniques.get(f.id)
     report.groups = [groups[k] for k in order]
-    report.groups.sort(key=lambda g: (-_SEV_RANK.get(_sev(g.lead.severity), 0),
-                                       -(g.lead.cvss_score or 0)))
+    # Rank as a work queue by composite priority (a confirmed medium can outrank a
+    # tentative high), tie-broken by severity then CVSS.
+    report.groups.sort(key=lambda g: (-priority_score(g.lead),
+                                      -_SEV_RANK.get(_sev(g.lead.severity), 0),
+                                      -(g.lead.cvss_score or 0)))
     return report
 
 
@@ -138,6 +143,13 @@ def render_submission(group: BugGroup, program_name: str = "") -> str:
         f"**Weakness:** {f.cwe or 'n/a'}",
         f"**Confidence:** {conf}{proof}",
         f"**Reward guidance:** {_BOUNTY_HINT.get(sev, 'varies')} *(indicative only — the program decides)*",
+    ]
+    if is_destructive(f.vuln_type):
+        parts.append(
+            "\n> ⚠️ **Destructive class** — confirming or exploiting this can write state or affect "
+            "other users. Verify manually and follow the program's rules before active testing."
+        )
+    parts += [
         "",
         "## Summary",
         f.description or f"A {f.vuln_type} issue was identified on the affected asset.",
@@ -203,9 +215,9 @@ def render_index(report: CampaignReport, program_name: str = "") -> str:
     for i, g in enumerate(report.groups, 1):
         f = g.lead
         cvss = f.cvss_score if f.cvss_score is not None else "—"
-        rows.append(f"| {i} | {_sev(f.severity).upper()} | {_norm_title(f.title)} | "
-                    f"{cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
-    body = "\n".join(rows) or "| — | — | — | — | — | — |"
+        rows.append(f"| {i} | {priority_score(f):.0f} | {_sev(f.severity).upper()} | "
+                    f"{_norm_title(f.title)} | {cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
+    body = "\n".join(rows) or "| — | — | — | — | — | — | — |"
     sev_counts: dict[str, int] = {}
     for g in report.groups:
         s = _sev(g.lead.severity)
@@ -216,8 +228,8 @@ def render_index(report: CampaignReport, program_name: str = "") -> str:
         f"**{report.reportable} reportable bug(s)** — {dist}.  \n"
         f"_{report.considered} findings considered · {report.out_of_scope} dropped as out-of-scope · "
         f"{report.below_confidence} below the confidence floor._\n\n"
-        "| # | Severity | Bug | CVSS | Confidence | Asset |\n"
-        "|---|---|---|---|---|---|\n" + body + "\n\n"
+        "| # | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
+        "|---|---|---|---|---|---|---|\n" + body + "\n\n"
         "Each bug has its own submission-ready report in this folder. Always confirm the target is "
         "in the program's current scope and follow its disclosure rules before submitting.\n"
     )

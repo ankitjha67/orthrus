@@ -815,6 +815,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
 
 
 @cli.command()
+@click.option("--program", "program_name", default=None, metavar="NAME",
+              help="Save/load this engagement under a name: persists scope + authorization and "
+                   "the campaign history, so you can re-run a program by name (see 'orthrus programs').")
 @click.option("--scope-file", type=click.Path(exists=True, dir_okay=False),
               help="Program scope file: in-scope assets, one per line; a '!' prefix marks "
                    "an out-of-scope exclusion; '#' comments.")
@@ -838,6 +841,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
                   ["generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi"]),
               default="generic", show_default=True,
               help="Shape each per-bug report for this platform's submission form.")
+@click.option("--notify-slack", "notify_slack", envvar="ORTHRUS_SLACK_WEBHOOK", default=None,
+              metavar="WEBHOOK", help="Post a campaign summary to this Slack incoming webhook "
+                                      "(or set ORTHRUS_SLACK_WEBHOOK).")
 @click.option("--aggressive", is_flag=True, help="Enable aggressive scanning.")
 @click.option("--browser/--no-browser", default=False, help="Use a headless browser (DOM/stored XSS).")
 @click.option("--no-exploit", is_flag=True, help="Skip the exploitation-confirmation phase.")
@@ -854,9 +860,9 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
               help="Directory for the submission-ready reports.")
 @click.option("--dry-run", is_flag=True,
               help="Resolve and print the scope + seeds, then stop (no requests sent).")
-def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enumerate_subs,
-           min_confidence, platform, aggressive, browser, no_exploit, callback, interactsh,
-           rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
+def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_authorized,
+           enumerate_subs, min_confidence, platform, notify_slack, aggressive, browser, no_exploit,
+           callback, interactsh, rate_limit, timeout, crawl_depth, max_pages, threads, outdir, dry_run):
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
@@ -869,9 +875,11 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
     from uuid import uuid4
 
     from orthrus.bounty import killlist
+    from orthrus.bounty.audit import AuditLog
     from orthrus.bounty.authorization import AuthorizationError, resolve_authorization
     from orthrus.bounty.campaign import run_campaign, write_reports
     from orthrus.bounty.scope_intake import parse_program_scope
+    from orthrus.bounty.store import ProgramRecord, ProgramStore
 
     text_parts: list[str] = []
     if scope_file:
@@ -879,12 +887,24 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
             text_parts.append(fh.read())
     text_parts += list(in_scope)
     text_parts += [f"!{s}" for s in out_scope]
-    program = parse_program_scope("\n".join(text_parts))
+
+    # A saved program can supply the scope + authorization when none is given inline.
+    pstore = ProgramStore()
+    saved = pstore.get(program_name) if program_name else None
+    has_new_scope = bool(scope_file or in_scope or out_scope)
+    if saved and not has_new_scope:
+        program = saved.to_scope()
+        authorization = authorization or (saved.authorization or None)
+        console.print(f"[bold]Loaded program[/] '{program_name}' — {len(program.domains)} "
+                      f"domain(s), {len(program.ip_ranges)} range(s)")
+    else:
+        program = parse_program_scope("\n".join(text_parts))
 
     if not program.domains and not program.ip_ranges:
         raise click.UsageError(
-            "bug bounty requires an authorized scope: pass --scope-file or --in-scope. "
-            "ORTHRUS is deny-by-default and will not scan without an explicit in-scope target."
+            "bug bounty requires an authorized scope: pass --scope-file or --in-scope "
+            "(or --program NAME for a saved one). ORTHRUS is deny-by-default and will not "
+            "scan without an explicit in-scope target."
         )
     seeds = program.in_scope_seeds()
 
@@ -900,12 +920,26 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
     # 2) High-sensitivity hosts (gov/mil/edu/health/sanctioned) are refused unless attested.
     blocked = killlist.screen(in_scope_hosts, acknowledged=set(i_am_authorized))
     if blocked:
+        AuditLog().append("bounty-refused", "kill-list-block",
+                          {"program": program_name, "hosts": [d.host for d in blocked]})
         lines = "\n".join(f"  - {d.host}: {d.reason}" for d in blocked)
         raise click.UsageError(
             "refusing high-sensitivity target(s):\n" + lines + "\n\n"
             "If you hold WRITTEN authorization to test one, re-run with "
             "--i-am-authorized <host> for each (naming the exact host), or remove it from scope."
         )
+
+    # Persist the program (scope + attested authorization) for re-runs by name.
+    if program_name and has_new_scope:
+        raw = [ln.strip() for part in text_parts for ln in part.splitlines()]
+        raw = [ln for ln in raw if ln and not ln.startswith("#")]
+        pstore.save(ProgramRecord(
+            name=program_name,
+            authorization=authorization or auth.reference,
+            in_scope=[ln for ln in raw if not ln.startswith("!")],
+            out_scope=[ln[1:].strip() for ln in raw if ln.startswith("!")],
+        ))
+        console.print(f"[bold]Saved program[/] '{program_name}' (re-run later with --program {program_name})")
 
     _print_bounty_scope(program, seeds, auth)
     if dry_run:
@@ -946,7 +980,201 @@ def bounty(scope_file, in_scope, out_scope, authorization, i_am_authorized, enum
         min_confidence=min_confidence,
     ))
     files = write_reports(result.report, outdir, platform=platform)
+    if program_name:
+        pstore.record_run(program_name, result.scan_ids)
+    AuditLog().append("bounty-campaign", "completed", {
+        "program": program_name, "authorization": f"{auth.kind.value}:{auth.reference}"[:200],
+        "seeds": len(seeds), "scan_ids": result.scan_ids,
+        "reportable": result.report.reportable, "output": outdir,
+    })
+    # Flag bugs already reported in earlier runs (possible known/duplicate) and archive these.
+    from orthrus.bounty.history import HistoryStore
+    prior = HistoryStore().record([g.lead for g in result.report.groups], program_name or "")
+    if prior:
+        console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
+                      "earlier runs (possible known/duplicate — check before filing).")
+    if notify_slack and result.report.reportable:
+        from orthrus.integrations.notify import send_slack, slack_message
+        payload = slack_message(f"bounty · {program_name or 'campaign'}", program.seeds[0] if seeds else None,
+                                [g.lead for g in result.report.groups], min_severity="high")
+        ok = asyncio.run(send_slack(notify_slack, payload))
+        console.print(f"[bold]Slack[/] campaign summary {'sent' if ok else 'failed'}.")
     _print_bounty_summary(result, outdir, files)
+
+
+@cli.command(name="audit")
+@click.option("--verify", is_flag=True, help="Check the hash-chain for tampering and exit.")
+@click.option("-n", "--limit", type=int, default=20, show_default=True, help="How many recent entries to show.")
+def audit(verify: bool, limit: int) -> None:
+    """Show or verify the tamper-evident bug-bounty audit log."""
+    _ensure_utf8_output()
+    from orthrus.bounty.audit import AuditLog
+
+    log = AuditLog()
+    ok, bad = log.verify()
+    if verify:
+        if ok:
+            console.print(f"[bold]audit chain intact[/] — {len(log.entries())} entr(y/ies), no tampering.")
+        else:
+            console.print(f"[bold red]audit chain BROKEN[/] at entry #{bad} — tampering or corruption.")
+            raise SystemExit(3)
+        return
+    entries = log.entries()
+    if not entries:
+        console.print("[orthrus.muted]no audit entries yet.[/]")
+        return
+    status = "intact" if ok else f"[red]BROKEN at #{bad}[/]"
+    section(console, f"BUG BOUNTY · AUDIT LOG ({len(entries)} entries · chain {status})")
+    for e in entries[-limit:]:
+        console.print(f"[bold]{e.get('ts', '?')}[/] {e.get('event', '?')}/{e.get('action', '?')} "
+                      f"— {json.dumps(e.get('details', {}))[:160]}")
+
+
+@cli.command(name="programs")
+def programs() -> None:
+    """List saved bug-bounty programs (scope, authorization, last run)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.store import ProgramStore
+
+    records = ProgramStore().list()
+    if not records:
+        console.print("[orthrus.muted]no saved programs. Save one with "
+                      "`orthrus bounty --program NAME --authorization … --in-scope …`.[/]")
+        return
+    section(console, f"BUG BOUNTY · PROGRAMS ({len(records)})")
+    for r in records:
+        console.print(f"[bold]{r.name}[/]  ({len(r.in_scope)} in / {len(r.out_scope)} out"
+                      f" · auth: {r.authorization or 'unset'})")
+        console.print(f"  last run: {r.last_run_at or 'never'} · {len(r.scan_ids)} campaign(s)")
+
+
+@cli.command(name="submission")
+@click.option("--id", "sub_id", default=None, help="Existing submission id to UPDATE (else a new one is added).")
+@click.option("--program", default=None, help="Program name (required when adding).")
+@click.option("--title", default=None, help="Bug title (required when adding).")
+@click.option("--platform", default=None, help="hackerone/bugcrowd/intigriti/yeswehack/immunefi/generic.")
+@click.option("--severity", default=None)
+@click.option("--status", type=click.Choice(
+                  ["draft", "filed", "triaged", "accepted", "duplicate",
+                   "informative", "resolved", "rewarded", "closed", "n-a"]),
+              default=None, help="Submission lifecycle state.")
+@click.option("--bounty", "bounty_amount", type=float, default=None, help="Payout amount.")
+@click.option("--currency", default=None)
+@click.option("--url", default=None, help="Link to the report on the platform.")
+@click.option("--notes", default=None)
+def submission(sub_id, program, title, platform, severity, status, bounty_amount, currency, url, notes):
+    """Record or update a bug-bounty submission (status, payout, link)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.submissions import Submission, SubmissionStore
+
+    store = SubmissionStore()
+    if sub_id:
+        updated = store.update(sub_id, program=program, title=title, platform=platform,
+                               severity=severity, status=status, bounty_amount=bounty_amount,
+                               currency=currency, url=url, notes=notes)
+        if updated is None:
+            raise click.UsageError(f"no submission with id '{sub_id}'.")
+        console.print(f"[bold]updated[/] {updated.id} — {updated.status}"
+                      + (f" · {updated.bounty_amount} {updated.currency}" if updated.bounty_amount else ""))
+        return
+    if not program or not title:
+        raise click.UsageError("adding a submission needs --program and --title (or --id to update).")
+    sub = store.add(Submission(program=program, title=title, platform=platform or "generic",
+                               severity=severity or "", status=status or "draft",
+                               bounty_amount=bounty_amount or 0.0, currency=currency or "USD",
+                               url=url or "", notes=notes or ""))
+    console.print(f"[bold]added[/] submission {sub.id} for '{program}' — {sub.status}")
+
+
+@cli.command(name="submissions")
+@click.option("--program", default=None, help="Filter to one program.")
+def submissions(program) -> None:
+    """List tracked submissions and roll up earnings."""
+    _ensure_utf8_output()
+    from orthrus.bounty.submissions import SubmissionStore
+
+    store = SubmissionStore()
+    subs = store.list(program)
+    if not subs:
+        console.print("[orthrus.muted]no submissions tracked. Add one with "
+                      "`orthrus submission --program NAME --title '…'`.[/]")
+        return
+    summ = store.summary(program)
+    earn = " · ".join(f"{amt} {cur}" for cur, amt in summ["earnings"].items()) or "none"
+    section(console, f"BUG BOUNTY · SUBMISSIONS ({summ['total']})")
+    console.print(f"rewarded: [bold]{summ['rewarded']}[/] · earnings: [bold]{earn}[/] · "
+                  f"by status: {json.dumps(summ['by_status'])}")
+    for s in subs:
+        amt = f" · [bold]{s.bounty_amount} {s.currency}[/]" if s.bounty_amount else ""
+        console.print(f"  {s.id}  [{s.status}] {s.title[:60]}  ({s.program}/{s.platform}){amt}")
+
+
+@cli.command(name="note")
+@click.option("--title", required=True, help="Note title.")
+@click.option("--body", default=None, help="Note body (markdown). Or use --body-file.")
+@click.option("--body-file", type=click.Path(exists=True, dir_okay=False), default=None,
+              help="Read the note body from a markdown file.")
+@click.option("--program", default=None, help="Attach the note to a program.")
+@click.option("--tags", default=None, help="Comma-separated tags.")
+def note(title, body, body_file, program, tags):
+    """Save an operator note (methodology, per-program tips, recon summaries)."""
+    _ensure_utf8_output()
+    from orthrus.bounty.notes import Note, NotesStore
+
+    text = body or ""
+    if body_file:
+        with open(body_file, encoding="utf-8") as fh:
+            text = fh.read()
+    tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    saved = NotesStore().add(Note(title=title, body=text, program=program or "", tags=tag_list))
+    console.print(f"[bold]saved note[/] {saved.id} — '{title}'"
+                  + (f" · #{'/#'.join(tag_list)}" if tag_list else ""))
+
+
+@cli.command(name="notes")
+@click.option("--program", default=None, help="Filter to one program.")
+@click.option("--tag", default=None, help="Filter to one tag.")
+@click.option("--search", "query", default=None, help="Full-text search over title/body/tags.")
+def notes(program, tag, query):
+    """List or search operator notes."""
+    _ensure_utf8_output()
+    from orthrus.bounty.notes import NotesStore
+
+    store = NotesStore()
+    results = store.search(query, program=program) if query else store.list(program=program, tag=tag)
+    if not results:
+        console.print("[orthrus.muted]no matching notes. Add one with `orthrus note --title '…' --body '…'`.[/]")
+        return
+    section(console, f"BUG BOUNTY · NOTES ({len(results)})")
+    for n in results:
+        meta = " · ".join(filter(None, [n.program, "#" + " #".join(n.tags) if n.tags else ""]))
+        console.print(f"  {n.id}  [bold]{n.title}[/]" + (f"  ({meta})" if meta else ""))
+        first = next((ln for ln in n.body.splitlines() if ln.strip()), "")
+        if first:
+            console.print(f"     {first[:100]}")
+
+
+@cli.command(name="bounty-status")
+def bounty_status() -> None:
+    """One-view operator dashboard: programs, submissions, earnings, audit integrity."""
+    _ensure_utf8_output()
+    from orthrus.bounty.status import gather_status
+
+    st = gather_status()
+    section(console, "BUG BOUNTY · STATUS")
+    progs = st["programs"]
+    console.print(f"[bold]Programs[/] — {len(progs)}")
+    for p in progs:
+        console.print(f"  {p['name']} ({p['in_scope']} in / {p['out_scope']} out) · "
+                      f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}")
+    sub = st["submissions"]
+    earn = " · ".join(f"{amt} {cur}" for cur, amt in sub["earnings"].items()) or "none"
+    console.print(f"[bold]Submissions[/] — {sub['total']} tracked · {sub['rewarded']} rewarded · "
+                  f"earnings: {earn}")
+    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued")
+    a = st["audit"]
+    chain = "intact" if a["intact"] else f"[red]BROKEN at #{a['first_bad']}[/]"
+    console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
 
 
 async def _run_scan(config: ScanConfig, *, resume: bool = False) -> dict[str, int]:

@@ -33,7 +33,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 | Monitoring & notifications (§7.9) | 🟡→🛠 | `notify` (Slack/Jira) exists. Next: per-program schedule + digest wired to bounty campaigns. |
 | Vuln-class ontology (Appendix B) | 🟡→🛠 | Have attack-map + CVSS defaults. Formalize a versioned ontology module (severity/CVSS/CWE/OWASP/ATT&CK + `default_confidence_ceiling` + `is_destructive`). |
 | Audit log (§6/§8.5) + cost ledger (§10) | 🛠 | Hash-chained append-only audit of scope decisions/requests; per-program cost tracking. |
-| Payments/bounty tracking (§7.12), Notes (§7.13) | 🛠 | Both are self-contained Python additions. |
+| Payments/bounty tracking (§7.12) | ✅ | `bounty/submissions.py` + `orthrus submission`/`submissions`: track status + payouts, roll up earnings. Notes (§7.13): ✅ `bounty/notes.py` + `orthrus note`/`notes` (tagged, searchable knowledge base). |
 | Multi-domain: mobile/web3/LLM/cloud (Phase 5) | 🛠/🔑 | Adapter wrappers (MobSF/slither/garak/prowler) are build-now; several need the external binary installed. |
 | Burp/Caido bridge (§7.10) | 🔑/🏗 | ORTHRUS side is buildable; the Burp/Caido extensions are separate Java/TS projects. |
 | Team mode, OIDC/SCIM (§7.11) · Rust core + Tauri (§5) · Managed SaaS + Stripe + SOC2 (Phase 7) | 🏗 | Separate product bet. **Not** part of expanding the Python bounty module; revisit as a deliberate, resourced effort. |
@@ -43,12 +43,12 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 1. ✅ **Authorization + kill-list** — *this PR.*
 2. ✅ **Subdomain expansion recon** — `bounty/assets.py`: a `*.wildcard` scope is expanded into its live in-scope subdomains (crt.sh + DNS), filtered against exclusions + kill-list, via `--enumerate`.
 3. ✅ **Platform-native report templates** — `bounty/platforms.py` + `--platform`: per-bug reports shaped for HackerOne / Bugcrowd (P1–P5) / Intigriti / YesWeHack / Immunefi (gist reminder).
-4. **Program store** — persist programs (authorization, scope, jurisdiction, pause, campaign history); make `orthrus bounty` program-anchored and resumable.
-5. **Triage priority scoring + cross-program dedup + history recall.**
-6. **Vuln-class ontology** module (versioned).
-7. **Audit log** (hash-chained) + **cost ledger.**
+4. ✅ **Program store** — `bounty/store.py` + `--program NAME` + `orthrus programs`: persist a program's authorization + scope + campaign history (JSON at `$ORTHRUS_HOME/programs.json`); re-run by name.
+5. ✅ **Triage priority scoring** — `bounty/triage.py`: a 0–100 composite (severity × confidence + CVSS) ranks the bug queue so a confirmed medium outranks a tentative high; shown + sorted-on in the report index. History recall (`bounty/history.py`) flags bugs seen in earlier runs.
+6. ✅ **Vuln-class ontology** — `bounty/ontology.py` (versioned): per-class `confidence_ceiling` + `is_destructive` governance metadata; destructive classes get a manual-verification caution in the report.
+7. 🚧 **Audit log** — `bounty/audit.py` + `orthrus audit [--verify]`: hash-chained, append-only JSONL of authorization / kill-list refusals / campaigns; `verify()` pinpoints tampering. (Cost ledger still to come.)
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
-9. **Continuous monitoring** (per-program schedule + notifications + new-asset → auto-scan).
+9. 🚧 **Notifications** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary via the existing notify integration. (Per-program scheduling + new-asset→auto-scan still to come.)
 10. **RAG copilot** over your findings/notes + vendored knowledge.
 11. **External-tool adapter layer** + multi-domain (mobile/web3/LLM/cloud) adapters.
 
