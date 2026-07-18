@@ -82,6 +82,14 @@
     {% if ex.response_raw %}<pre>{{ ex.response_raw }}</pre>{% endif %}
     {% if ex.screenshot %}<img class="shot" src="{{ ex.screenshot }}" alt="exploit screenshot">{% endif %}
   {% endfor %}
+  {% if f.reproduce %}
+    <details class="repro">
+      <summary>Reproduce this request</summary>
+      <strong>curl</strong><pre>{{ f.reproduce.curl }}</pre>
+      <strong>Python (httpx / requests)</strong><pre>{{ f.reproduce.python }}</pre>
+      <strong>Raw request (paste into Burp Repeater)</strong><pre>{{ f.reproduce.raw }}</pre>
+    </details>
+  {% endif %}
   <p><strong>Remediation.</strong> {{ f.remediation }}</p>
 </div>
 {% else %}

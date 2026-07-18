@@ -666,15 +666,41 @@ research only.**
 
 **If in doubt, don't.** Practice on the bundled target or a self-hosted lab.
 
+## 📚 Documentation
+
+| Doc | What it covers |
+|---|---|
+| [docs/CLI.md](docs/CLI.md) | Full CLI reference — every command and flag (auto-generated). |
+| [docs/COMPARISON.md](docs/COMPARISON.md) | Honest comparison vs ZAP, Nuclei, Burp, w3af, Wapiti, StackHawk — including where ORTHRUS *loses*. |
+| [docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md) | "Your first scanner in 15 minutes" — build a Log4Shell detector from empty file to merged PR. |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Sequenced roadmap of upcoming technical + adoption work. |
+| [samples/](samples/) | Real reports from a scan of the bundled target (HTML/PDF/JSON/SARIF). |
+| [docs/PRD.md](docs/PRD.md) · [docs/PROOF.md](docs/PROOF.md) | Product spec and proof-of-work. |
+
 ## 🤝 Contributing
 
 Issues and pull requests are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**
 for dev setup, the quality gates (`ruff check orthrus tests` + `pytest -q`), and
-how to add a scanner. Keep changes scope-safe (all network access goes through the
-scope-enforced `HttpClient`) and add tests for new detectors.
+**[docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md)** for a full walkthrough of
+adding a scanner. Keep changes scope-safe (all network access goes through the
+scope-enforced `HttpClient`) and add tests for new detectors. A one-click dev
+environment is available via the bundled `.devcontainer` (VS Code / GitHub Codespaces).
 
 Found a security issue **in ORTHRUS itself**? Please follow the responsible-disclosure
 process in **[SECURITY.md](SECURITY.md)** rather than opening a public issue.
+
+## 💼 Commercial support
+
+ORTHRUS is MIT-licensed and free to use. Commercial support — priority help,
+custom scanner development, or a managed/hosted deployment — is on the roadmap; the
+paid layer and its terms are still being defined.
+
+> **⚑ your call:** decide the model (hosted scan-as-a-service · managed instance ·
+> priority support/SLA · custom scanner development) and drop a contact link here
+> (email or a Cal.com booking). Stating a commercial path — even before it fully
+> exists — is what lets enterprise users adopt an open-source tool. See
+> [docs/ROADMAP.md](docs/ROADMAP.md) (item A15). The **[TRADEMARKS.md](TRADEMARKS.md)**
+> policy keeps the *name* protected while the code stays MIT.
 
 ## 📄 License
 
