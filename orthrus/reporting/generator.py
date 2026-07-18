@@ -27,6 +27,7 @@ from orthrus.db.store import Store
 from orthrus.intel.cve_intel import epss_for_text
 from orthrus.reporting.attack_map import attack_for, build_navigator_layer, d3fend_for
 from orthrus.reporting.cvss import DEFAULT_VECTORS, base_score, v4_for
+from orthrus.reporting.reproduce import build_snippets
 from orthrus.utils import crypto
 from orthrus.utils.logger import get_logger
 
@@ -239,6 +240,7 @@ def _finding_dict(
         "description": row.description,
         "remediation": row.remediation,
         "evidence": evidence,
+        "reproduce": build_snippets(url=row.url, request_raw=evidence.get("request_raw")),
         "screenshot": _embed_screenshot(evidence.get("screenshot_path")),
         "exploitations": [_exploitation_dict(e, key) for e in exploitations],
         "created_at": row.created_at.isoformat() if row.created_at else None,

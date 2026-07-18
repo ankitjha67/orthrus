@@ -25,6 +25,7 @@ import re
 from collections.abc import Callable
 
 from orthrus.ai.providers import LLMClient, LLMError
+from orthrus.reporting.reproduce import build_snippets
 from orthrus.utils.logger import get_logger
 
 logger = get_logger("ai.report_writer")
@@ -219,6 +220,14 @@ def _evidence_block(f: dict) -> str:
             parts.append("Confirmation request:\n\n```http\n" + _trunc(ex["request_raw"], _EVIDENCE_CAP) + "\n```\n")
     if len(parts) == 1:
         parts.append("_No raw request/response was recorded for this finding (passive detection)._\n")
+    snip = build_snippets(url=f.get("url"), request_raw=ev.get("request_raw"))
+    if snip:
+        parts.append(
+            "#### Reproduce\n\n"
+            "**curl**\n\n```bash\n" + _trunc(snip["curl"], _EVIDENCE_CAP) + "\n```\n\n"
+            "**Python** (`httpx` / `requests`)\n\n```python\n" + _trunc(snip["python"], _EVIDENCE_CAP) + "\n```\n\n"
+            "**Raw request** (paste into Burp Repeater)\n\n```http\n" + _trunc(snip["raw"], _EVIDENCE_CAP) + "\n```\n"
+        )
     return "\n".join(parts)
 
 
