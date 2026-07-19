@@ -3585,11 +3585,13 @@ def update() -> None:
 @cli.command(name="serve")
 @click.option("--host", default="127.0.0.1", help="Bind address for the API server.")
 @click.option("--port", default=8000, type=int, help="Port for the API server.")
-def serve(host: str, port: int) -> None:
-    """Run the ORTHRUS REST API (read access to scans/findings over HTTP).
+@click.option("--cockpit", is_flag=True, help="Also serve the v2.0 operator cockpit at /cockpit.")
+def serve(host: str, port: int, cockpit: bool) -> None:
+    """Run the ORTHRUS REST API (scans/findings + operator-graph CRUD over HTTP).
 
-    Needs the [api] extra (fastapi + uvicorn). Endpoints: /health, /api/scans,
-    /api/scans/{id}, /api/scans/{id}/findings, /api/scans/{id}/report.
+    Needs the [api] extra (fastapi + uvicorn). Endpoints: /health, /api/scans*,
+    /api/programs* (operator graph). With --cockpit, the built React/Tauri cockpit
+    is served at /cockpit (build it first: `npm --prefix cockpit run build`).
     """
     try:
         import uvicorn
@@ -3598,7 +3600,15 @@ def serve(host: str, port: int) -> None:
             "the API server needs the [api] extra: pip install 'orthrus-framework[api]'"
         ) from exc
     from orthrus.api import create_app
+    from orthrus.api.app import cockpit_dist
 
+    if cockpit:
+        if cockpit_dist() is None:
+            raise click.ClickException(
+                "cockpit not built — run `npm --prefix cockpit install && "
+                "npm --prefix cockpit run build`, then re-run `orthrus serve --cockpit`."
+            )
+        click.echo(f"ORTHRUS cockpit on http://{host}:{port}/cockpit/")
     click.echo(f"ORTHRUS API on http://{host}:{port}  (docs at /docs)")
     uvicorn.run(create_app(), host=host, port=port)
 

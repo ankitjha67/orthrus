@@ -12,12 +12,15 @@ network server required.
 from __future__ import annotations
 
 import html
+import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from orthrus import __version__
 from orthrus.api.programs import router as programs_router
@@ -32,6 +35,17 @@ from orthrus.utils.scope import ScopeValidator
 
 def _host_of(url: str) -> str:
     return urlsplit(url).netloc.split("@")[-1].split(":")[0]
+
+
+def cockpit_dist() -> Path | None:
+    """Locate the built Tauri/React cockpit (``cockpit/dist``), if present.
+
+    Override with ``ORTHRUS_COCKPIT_DIST``; else repo-relative to this file.
+    Returns None when the cockpit hasn't been built (``npm --prefix cockpit run build``).
+    """
+    env = os.environ.get("ORTHRUS_COCKPIT_DIST")
+    candidate = Path(env) if env else Path(__file__).resolve().parents[2] / "cockpit" / "dist"
+    return candidate if (candidate / "index.html").is_file() else None
 
 
 _REPEATER_BODY = (
@@ -132,6 +146,12 @@ def create_app(db_url: str | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(programs_router)
+
+    # The v2.0 operator cockpit (built React/Tauri SPA), served same-origin at
+    # /cockpit so its "/api" calls hit this app. Mounted only when built.
+    dist = cockpit_dist()
+    if dist is not None:
+        app.mount("/cockpit", StaticFiles(directory=str(dist), html=True), name="cockpit")
 
     async def _require_scan(scan_id: str) -> Any:
         row = await app.state.store.get_scan(scan_id)
