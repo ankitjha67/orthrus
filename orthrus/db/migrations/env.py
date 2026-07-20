@@ -17,6 +17,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import orthrus.model  # noqa: F401  (registers the v2.0 operator-graph tables on Base)
 from orthrus.core.config import get_settings
 from orthrus.db.models import Base
 

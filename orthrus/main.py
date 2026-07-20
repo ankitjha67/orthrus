@@ -3670,6 +3670,46 @@ async def _abort_running_scans() -> int:
         await store.close()
 
 
+@cli.command(name="migrate")
+@click.option("--dry-run", is_flag=True, help="Report what would migrate; write nothing.")
+def migrate_cmd(dry_run: bool) -> None:
+    """Promote existing v0.1 scans/findings into the v2.0 operator graph (PRD §4.2).
+
+    Additive and idempotent — creates a 'Legacy v0.1 import' program and upserts
+    every scan's assets/findings into the unified graph without touching the v0.1
+    tables, so it's safe to re-run and trivially reversible.
+    """
+    _ensure_utf8_output()
+    from orthrus.model.migrate import migrate_v01
+    from orthrus.model.store import ProgramGraph
+
+    settings = get_settings()
+
+    async def _run() -> dict:
+        store = Store(settings.db_url, encryption_key=settings.encryption_key)
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await store.init()
+            return await migrate_v01(store, graph, dry_run=dry_run)
+        finally:
+            await store.close()
+            await graph.close()
+
+    result = asyncio.run(_run())
+    section(console, "MIGRATE · v0.1 → v2.0 operator graph" + (" (dry-run)" if dry_run else ""))
+    console.print(f"scanned [bold]{result['scans']}[/] v0.1 scan(s)")
+    if dry_run:
+        console.print(f"would promote [bold]{result['assets_seen']}[/] asset(s) and "
+                      f"[bold]{result['findings_seen']}[/] finding(s) into a legacy program.")
+        console.print("[orthrus.muted]re-run without --dry-run to apply.[/]")
+    else:
+        console.print(f"promoted [bold]{result['assets_new']}[/] new asset(s) "
+                      f"(of {result['assets_seen']}) and [bold]{result['findings_new']}[/] "
+                      f"new finding(s) (of {result['findings_seen']}).")
+        console.print(f"[orthrus.muted]legacy program: {result['program_id']} · "
+                      "re-runnable (dedups) · reversible (delete that program).[/]")
+
+
 @cli.command(name="mcp")
 def mcp_cmd() -> None:
     """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
