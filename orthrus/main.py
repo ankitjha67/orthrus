@@ -3383,6 +3383,7 @@ def _collect_diagnostics() -> dict:
     import importlib.util
     import platform
     import shutil
+    from pathlib import Path
 
     from orthrus.core.browser import BrowserManager
 
@@ -3467,11 +3468,25 @@ def _collect_diagnostics() -> dict:
             "alternate PDF backend (default PDF uses Chromium)",
             "pip install 'orthrus-framework[reporting]'",
         ),
+        (
+            "cockpit (built)",
+            (Path(__file__).resolve().parent.parent / "cockpit" / "dist" / "index.html").is_file(),
+            "v2.0 operator cockpit at 'orthrus serve --cockpit'",
+            "npm --prefix cockpit install && npm --prefix cockpit run build",
+        ),
+        (
+            "cockpit desktop toolchain (Node + Rust)",
+            shutil.which("node") is not None and shutil.which("cargo") is not None,
+            "build the Tauri desktop cockpit ('npm --prefix cockpit run tauri build')",
+            "install Node 18+ and the Rust toolchain (rustup)",
+        ),
     ]
+    from orthrus.core import panic
     return {
         "orthrus_version": __version__,
         "python": platform.python_version(),
         "platform": platform.platform(),
+        "panic_engaged": panic.is_engaged(),
         "capabilities": [
             {"name": name, "available": ok, "purpose": purpose, "enable": enable}
             for name, ok, purpose, enable in checks
@@ -3489,6 +3504,9 @@ def _print_diagnostics(diag: dict) -> None:
         f"[orthrus.muted]Python:[/] {diag['python']}    "
         f"[orthrus.muted]Platform:[/] {escape(diag['platform'])}"
     )
+    if diag.get("panic_engaged"):
+        console.print("[red bold]■ PANIC engaged[/] — all outbound requests are halted. "
+                      "Lift with `orthrus panic --clear`.")
 
     caps = diag["capabilities"]
     active = sum(1 for c in caps if c["available"])
@@ -3611,6 +3629,45 @@ def serve(host: str, port: int, cockpit: bool) -> None:
         click.echo(f"ORTHRUS cockpit on http://{host}:{port}/cockpit/")
     click.echo(f"ORTHRUS API on http://{host}:{port}  (docs at /docs)")
     uvicorn.run(create_app(), host=host, port=port)
+
+
+@cli.command(name="panic")
+@click.option("--clear", "do_clear", is_flag=True, help="Lift a previously-engaged panic state.")
+@click.option("--reason", default="", help="Why you're pulling the switch (recorded in the flag).")
+def panic_cmd(do_clear: bool, reason: str) -> None:
+    """Emergency kill switch: halt ALL outbound requests + abort in-flight scans (PRD §8.3).
+
+    Engaging writes a flag the scope-enforced HTTP client checks before every
+    request — deny-by-default becomes deny-everything until you `--clear` it.
+    """
+    _ensure_utf8_output()
+    from orthrus.core import panic
+
+    if do_clear:
+        lifted = panic.clear()
+        console.print("[bold]panic cleared[/] — scanning re-enabled."
+                      if lifted else "[orthrus.muted]no panic state was engaged.[/]")
+        return
+
+    path = panic.engage(reason)
+    aborted = asyncio.run(_abort_running_scans())
+    console.print("[red bold]■ PANIC ENGAGED[/] — all outbound requests are now denied.")
+    console.print(f"  flag: [orthrus.muted]{path}[/]")
+    console.print(f"  aborted [bold]{aborted}[/] in-flight scan(s).")
+    console.print("[orthrus.muted]lift with `orthrus panic --clear`.[/]")
+
+
+async def _abort_running_scans() -> int:
+    settings = get_settings()
+    store = Store(settings.db_url, encryption_key=settings.encryption_key)
+    try:
+        await store.init()
+        rows = await store.list_scans(limit=1000, status="running")
+        for row, _count in rows:
+            await store.set_scan_status(row.id, "aborted")
+        return len(rows)
+    finally:
+        await store.close()
 
 
 @cli.command(name="mcp")
