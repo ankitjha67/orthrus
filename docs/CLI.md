@@ -39,6 +39,7 @@ Commands:
   hosts             Gather and list the host footprint for a TARGET (or a...
   iac               Audit Infrastructure-as-Code for misconfigurations...
   import-traffic    Import a Burp / Caido / HAR proxy history into a...
+  intruder          Fuzz a request's marked §positions§ with payload...
   mcp               Run the ORTHRUS MCP server (stdio) - expose...
   migrate           Promote existing v0.1 scans/findings into the v2.0...
   modules           List scanner and exploit-confirmation modules, or...
@@ -75,7 +76,7 @@ Commands:
   update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`intruder`](#orthrus-intruder) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
 
 ## `orthrus agent`
 
@@ -596,6 +597,41 @@ Options:
   --no-scope-filter               Import every host in the file, even out-of-
                                   scope (default: refuse out-of-scope).
   --json                          Emit the import result as JSON.
+  --help                          Show this message and exit.
+```
+
+## `orthrus intruder`
+
+```text
+Usage: orthrus intruder [OPTIONS]
+
+  Fuzz a request's marked §positions§ with payload lists - the Intruder.
+
+  Mark injection points with `§...§` in a raw request, give one or more
+  payload lists, and ORTHRUS sends the attack set
+  (sniper/batteringram/pitchfork/clusterbomb) scope-enforced and concurrent,
+  then ranks responses so anomalies stand out.
+
+Options:
+  --request-file FILE             Raw HTTP request with §positions§ marked
+                                  (Burp-style paste).  [required]
+  --payloads TEXT                 A payload set: a file (one per line) OR an
+                                  inline 'a,b,c' list. Repeat for
+                                  pitchfork/clusterbomb (one set per
+                                  position).  [required]
+  --mode [sniper|batteringram|pitchfork|clusterbomb]
+                                  Attack mode.  [default: sniper]
+  --scope TEXT                    Scope token(s); defaults to the request
+                                  host. Out-of-scope requests are refused.
+  --match TEXT                    Flag responses whose body contains this
+                                  string (grep).
+  --url-encode                    URL-encode each payload before injecting.
+  --concurrency INTEGER           Requests in flight.  [default: 10]
+  --max-requests INTEGER          Safety cap on total requests generated.
+                                  [default: 5000]
+  --scheme TEXT                   Scheme for origin-form raw requests.
+  --json                          Emit results as JSON.
+  -v, --verbose TEXT              Log level.
   --help                          Show this message and exit.
 ```
 

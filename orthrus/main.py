@@ -2719,6 +2719,106 @@ async def _replay_run(
             console.print(f"[orthrus.muted]{preview}{'…' if len(result.body) > 400 else ''}[/]")
 
 
+def _load_payload_set(value: str) -> list[str]:
+    """A payload set from a file (one per line) or an inline comma-separated list."""
+    from pathlib import Path
+    p = Path(value)
+    if p.is_file():
+        return [ln.rstrip("\n") for ln in p.read_text(encoding="utf-8", errors="replace").splitlines()
+                if ln.strip()]
+    return [v for v in value.split(",") if v]
+
+
+@cli.command(name="intruder")
+@click.option("--request-file", "request_file", required=True,
+              type=click.Path(exists=True, dir_okay=False),
+              help="Raw HTTP request with §positions§ marked (Burp-style paste).")
+@click.option("--payloads", "payloads", multiple=True, required=True,
+              help="A payload set: a file (one per line) OR an inline 'a,b,c' list. "
+                   "Repeat for pitchfork/clusterbomb (one set per position).")
+@click.option("--mode", type=click.Choice(list(("sniper", "batteringram", "pitchfork", "clusterbomb"))),
+              default="sniper", show_default=True, help="Attack mode.")
+@click.option("--scope", "scope_str", default=None,
+              help="Scope token(s); defaults to the request host. Out-of-scope requests are refused.")
+@click.option("--match", "match", default=None,
+              help="Flag responses whose body contains this string (grep).")
+@click.option("--url-encode", is_flag=True, help="URL-encode each payload before injecting.")
+@click.option("--concurrency", default=10, type=int, show_default=True, help="Requests in flight.")
+@click.option("--max-requests", default=5000, type=int, show_default=True,
+              help="Safety cap on total requests generated.")
+@click.option("--scheme", default="https", help="Scheme for origin-form raw requests.")
+@click.option("--json", "as_json", is_flag=True, help="Emit results as JSON.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def intruder(request_file, payloads, mode, scope_str, match, url_encode,
+             concurrency, max_requests, scheme, as_json, verbose) -> None:
+    """Fuzz a request's marked §positions§ with payload lists - the Intruder.
+
+    Mark injection points with `§...§` in a raw request, give one or more payload
+    lists, and ORTHRUS sends the attack set (sniper/batteringram/pitchfork/clusterbomb)
+    scope-enforced and concurrent, then ranks responses so anomalies stand out.
+    """
+    configure_logging(verbose)
+    from pathlib import Path
+    from urllib.parse import urlsplit
+
+    from orthrus.proxy.intruder import extract_positions, run_intruder
+    from orthrus.utils.scope import ScopeValidator
+
+    raw = Path(request_file).read_text(encoding="utf-8", errors="replace")
+    try:
+        literals, _bases = extract_positions(raw)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    payload_sets = [_load_payload_set(p) for p in payloads]
+
+    # derive the scope from the request's Host (origin-form) or absolute URL.
+    from orthrus.proxy.replay import parse_raw_http
+    try:
+        probe = parse_raw_http(raw.replace("§", ""), default_scheme=scheme)
+    except ValueError as exc:
+        raise click.ClickException(f"cannot parse the request: {exc}") from exc
+    host = urlsplit(probe.url).netloc.split("@")[-1].split(":")[0]
+    scope = build_scope(scope_str or host, probe.url, None)
+    validator = ScopeValidator(scope)
+
+    async def _run():
+        return await run_intruder(
+            raw, payload_sets, mode, validator, match=match, url_encode=url_encode,
+            scheme=scheme, concurrency=concurrency, max_requests=max_requests)
+
+    try:
+        report = asyncio.run(_run())
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if as_json:
+        click.echo(json.dumps({
+            "mode": report.mode, "total": report.total,
+            "baseline": report.baseline,
+            "results": [{"payloads": r.payloads, "status": r.status, "length": r.length,
+                         "elapsed_ms": r.elapsed_ms, "matched": r.matched,
+                         "anomaly": r.anomaly, "error": r.error} for r in report.results],
+        }, indent=2))
+        return
+
+    section(console, f"INTRUDER · {mode}")
+    ok = [r for r in report.results if r.error is None]
+    console.print(f"[orthrus.muted]{report.total} request(s) · {len(ok)} ok · "
+                  f"baseline {report.baseline}[/]")
+    interesting = report.interesting()
+    if not interesting:
+        console.print("[orthrus.muted]no anomalies - every response matched the baseline.[/]")
+    for r in interesting[:40]:
+        flags = " ".join(filter(None, ["MATCH" if r.matched else "", "anomaly" if r.anomaly else ""]))
+        console.print(f"  [bold]{r.status}[/]  len={r.length}  {r.elapsed_ms}ms  "
+                      f"[orthrus.accent]{' / '.join(r.payloads)}[/]  {flags}")
+    if len(interesting) > 40:
+        console.print(f"[orthrus.muted]... and {len(interesting) - 40} more (use --json for all).[/]")
+    errs = [r for r in report.results if r.error]
+    if errs:
+        console.print(f"[orthrus.muted]{len(errs)} request(s) errored (e.g. {errs[0].error}).[/]")
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")
