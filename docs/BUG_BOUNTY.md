@@ -113,7 +113,7 @@ can mix a `--scope-file` with extra `--in-scope` / `--out-scope` flags.
 | `--min-confidence confirmed\|firm\|tentative` | Report floor. `confirmed` = only re-proven bugs (lowest noise); `firm` (default) adds strong observational findings; `tentative` includes everything. |
 | `--platform generic\|hackerone\|bugcrowd\|intigriti\|yeswehack\|immunefi` | Shape each per-bug report for that platform's submission form (fields, severity language, Bugcrowd P1–P5, Immunefi gist reminder). |
 | `--program NAME` | Save (or re-run) a **named program**: its scope, authorization, campaign history, mute rules, traffic policy, and asset inventory are persisted so you re-run by name and get cross-run intelligence (new assets, duplicate flags). |
-| `--tools nuclei,dalfox,…` | Also run external tools (nuclei / dalfox / testssl / ffuf / nikto / wpscan), normalized into the same findings pipeline. Tools whose binary isn't on `PATH` are skipped. |
+| `--tools nuclei,dalfox,…` | Also run external tools, normalized into the same findings pipeline — web (nuclei / dalfox / testssl / ffuf / nikto / wpscan), code SAST (semgrep), cloud & IaC (checkov), web3 (slither). Tools whose binary isn't on `PATH` are skipped. |
 | `--notify-slack URL` | Post a campaign summary to Slack (or set `ORTHRUS_SLACK_WEBHOOK`). |
 | `--aggressive` | Enable aggressive scanning. |
 | `--browser` | Drive a headless browser (DOM / stored XSS). |
