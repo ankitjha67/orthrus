@@ -4596,11 +4596,14 @@ def mcp_cmd() -> None:
 @click.option("--export-ca", "export_ca", default=None, metavar="PATH",
               help="Write the interception CA certificate to PATH (to install in your browser) "
                    "and exit.")
+@click.option("--rewrite", "rewrite_file", default=None, metavar="RULES.json",
+              type=click.Path(exists=True, dir_okay=False),
+              help="Match & Replace rules (JSON) applied to in-scope traffic.")
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def proxy_cmd(
     port: int, host: str, scope_str: str | None, scan_id: str | None,
     allow_out_of_scope: bool, exclude_paths: str | None,
-    intercept_tls: bool, export_ca: str | None, verbose: str,
+    intercept_tls: bool, export_ca: str | None, rewrite_file: str | None, verbose: str,
 ) -> None:
     """Run a scope-aware capturing proxy to feed the scanner from a manual browse.
 
@@ -4630,11 +4633,17 @@ def proxy_cmd(
             "--scope is required (deny by default): pass the authorized host(s)/CIDR(s)"
         )
     scope = build_scope(scope_str, "", exclude_paths, block_third_party=not allow_out_of_scope)
+    rewrite = None
+    if rewrite_file:
+        from orthrus.proxy.rewrite import RewriteEngine, load_rules
+        rules = load_rules(Path(rewrite_file).read_text(encoding="utf-8"))
+        rewrite = RewriteEngine(rules)
+        console.print(f"[orthrus.muted]loaded {len(rules)} Match & Replace rule(s).[/]")
     asyncio.run(_proxy_cmd(host, port, scope, scan_id, allow_out_of_scope,
-                           ca if intercept_tls else None))
+                           ca if intercept_tls else None, rewrite))
 
 
-async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope, ca) -> None:
+async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope, ca, rewrite=None) -> None:
     from orthrus.proxy import ProxyServer
 
     settings = get_settings()
@@ -4655,7 +4664,7 @@ async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope, ca) -> None
                 logger.debug("capture persist failed: %s", exc)
 
     server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope,
-                         ca=ca, intercept_tls=ca is not None)
+                         ca=ca, intercept_tls=ca is not None, rewrite=rewrite)
     srv = await server.serve(host, port)
     section(console, f"PROXY · {host}:{port}")
     console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] - set your client's HTTP proxy to it.")

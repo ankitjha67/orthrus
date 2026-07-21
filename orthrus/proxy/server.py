@@ -112,7 +112,7 @@ class ProxyServer:
         self, scope: ScopeConfig, *, on_capture: CaptureFn | None = None,
         allow_out_of_scope: bool = False, timeout: float = 30.0,
         ca: object | None = None, intercept_tls: bool = False,
-        verify_upstream: bool = True,
+        verify_upstream: bool = True, rewrite: object | None = None,
     ) -> None:
         self.validator = ScopeValidator(scope)
         self._on_capture = on_capture
@@ -124,8 +124,22 @@ class ProxyServer:
         self.ca = ca
         self.intercept_tls = intercept_tls and ca is not None
         self.verify_upstream = verify_upstream
+        # optional Match & Replace engine applied to in-scope traffic only.
+        self.rewrite = rewrite
         self.captured = 0
         self.blocked = 0
+
+    def _fwd_headers(self, headers: dict[str, str]) -> dict[str, str]:
+        return self.rewrite.request_headers_dict(headers) if self.rewrite else headers
+
+    def _req_body(self, body: bytes) -> bytes:
+        return self.rewrite.request_body(body) if self.rewrite else body
+
+    def _resp(self, headers: list[tuple[str, str]], body: bytes) -> tuple[list[tuple[str, str]], bytes]:
+        if self.rewrite:
+            headers = self.rewrite.response_headers(headers)
+            body = self.rewrite.response_body(body)
+        return headers, body
 
     async def serve(self, host: str = "127.0.0.1", port: int = 8080) -> asyncio.AbstractServer:
         return await asyncio.start_server(self._handle, host, port)
@@ -164,12 +178,17 @@ class ProxyServer:
                 return
         length = int(req.header("content-length") or 0)
         body = await reader.readexactly(min(length, _MAX_BODY)) if length else b""
+        send_body = self._req_body(body)
+        send_headers = self._fwd_headers(req.forward_headers())
+        if len(send_body) != len(body):
+            send_headers = {k: v for k, v in send_headers.items() if k.lower() != "content-length"}
 
         async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=False) as client:
-            upstream = await client.request(req.method, url, headers=req.forward_headers(), content=body)
+            upstream = await client.request(req.method, url, headers=send_headers, content=send_body)
 
         content = upstream.content[:_MAX_BODY]
         resp_headers = [(k, v) for k, v in upstream.headers.items() if k.lower() not in _RESPONSE_STRIP]
+        resp_headers, content = self._resp(resp_headers, content)
         resp_headers.append(("Content-Length", str(len(content))))
         writer.write(build_response_head(upstream.status_code, upstream.reason_phrase or "OK", resp_headers))
         writer.write(content)
@@ -257,15 +276,21 @@ class ProxyServer:
                 if not decision.allowed and not self.allow_out_of_scope:
                     await self._deny(writer, url, decision.reason)
                     continue
+                send_body = self._req_body(body)
+                send_headers = self._fwd_headers(req.forward_headers())
+                if len(send_body) != len(body):
+                    send_headers = {k: v for k, v in send_headers.items()
+                                    if k.lower() != "content-length"}
                 try:
                     upstream = await client.request(
-                        req.method, url, headers=req.forward_headers(), content=body)
+                        req.method, url, headers=send_headers, content=send_body)
                 except httpx.HTTPError as exc:
                     logger.debug("intercept upstream error for %s: %s", url, exc)
                     break
                 content = upstream.content[:_MAX_BODY]
                 resp_headers = [(k, v) for k, v in upstream.headers.items()
                                 if k.lower() not in _RESPONSE_STRIP]
+                resp_headers, content = self._resp(resp_headers, content)
                 resp_headers.append(("Content-Length", str(len(content))))
                 writer.write(build_response_head(
                     upstream.status_code, upstream.reason_phrase or "OK", resp_headers))

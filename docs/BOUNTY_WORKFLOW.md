@@ -192,6 +192,8 @@ orthrus bounty-status                   # one-view cockpit
 | AI consultant report | `orthrus ai-report --scan-id ID --llm openai-compatible:meta/llama-3.1-8b-instruct -o r.md` |
 | H1 submission reports | `orthrus bounty-report --program 1win --platform hackerone -o h1/` |
 | Fuzz a request (Intruder) | `orthrus intruder --request-file req.txt --payloads words.txt --scope <host> --match SQL` |
+| Intercept HTTPS (MITM) | `orthrus proxy --intercept-tls --scope <host> --scan-id <id>` (export/install the CA first) |
+| Match & Replace | `orthrus proxy --intercept-tls --rewrite rules.json --scope <host>` |
 | Repeater (resend + tweak) | `orthrus replay --request-file req.txt --scope <host>` |
 | The cockpit UI | `orthrus serve --cockpit` -> http://127.0.0.1:8000/cockpit |
 
