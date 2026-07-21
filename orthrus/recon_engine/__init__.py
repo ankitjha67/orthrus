@@ -9,6 +9,7 @@ scan into a program that watches its scope continuously.
 """
 
 from orthrus.recon_engine import sources as _sources  # noqa: F401  (registers built-in sources)
+from orthrus.recon_engine import tools as _tools  # noqa: F401  (registers external-tool adapters)
 from orthrus.recon_engine.base import (
     RECON_REGISTRY,
     DiscoveredAsset,

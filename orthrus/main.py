@@ -3710,6 +3710,90 @@ def migrate_cmd(dry_run: bool) -> None:
                       "re-runnable (dedups) · reversible (delete that program).[/]")
 
 
+def _apex(value: str) -> str:
+    return (value or "").strip().lstrip("*.").lower().rstrip(".")
+
+
+@cli.command(name="recon-run")
+@click.option("--program", "program_name", required=True, help="Operator-graph program to recon.")
+@click.option("--in-scope", "in_scope", multiple=True,
+              help="In-scope domain(s); creates the program if new, else adds to its scope.")
+@click.option("--authorization", default=None,
+              help="Authorization source (required to create a new program).")
+@click.option("--sources", default="all", help="Comma-separated recon adapters, or 'all'.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the recon result as JSON.")
+def recon_run(program_name, in_scope, authorization, sources, as_json) -> None:
+    """Run continuous recon for a program: enumerate its scope into the operator graph.
+
+    Every available source (crt.sh/certspotter/DNS/wayback + subfinder/amass if
+    installed) discovers assets, which are deduped into the graph with first/last-seen
+    so this reports what's NEW since the last run. Populates the cockpit's Assets tab.
+    """
+    _ensure_utf8_output()
+    from orthrus.model.store import ProgramGraph
+    from orthrus.recon_engine import ReconEngine, ReconScope, get_recon_adapters
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                if not authorization:
+                    raise click.UsageError(
+                        f"program '{program_name}' not found — pass --authorization "
+                        "(and --in-scope) to create it.")
+                if not [d for d in in_scope if d.strip()]:
+                    raise click.UsageError("creating a program needs at least one --in-scope domain.")
+                platform = "self" if (authorization or "").strip() == "self-owned-lab" else "direct"
+                program = await graph.create_program(program_name, authorization, platform=platform)
+                await graph.append_audit("program-created", "create", subject_type="program",
+                                         subject_id=program.id,
+                                         details={"name": program_name, "via": "recon-run"})
+            existing = {se.value for se in await graph.scope_entries(program.id)}
+            for d in in_scope:
+                if d.strip() and d.strip() not in existing:
+                    await graph.add_scope_entry(program.id, d.strip(), entry_type="in",
+                                                kind="domain", added_by="recon-run")
+            domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
+                              if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
+            if not domains:
+                raise click.UsageError("program has no in-scope domains — add with --in-scope.")
+            adapters = get_recon_adapters(None if sources == "all" else sources.split(","))
+            result = await ReconEngine(graph, adapters).run(
+                program.id, ReconScope(domains=domains, program_id=program.id))
+            await graph.append_audit("recon-run", "completed", subject_type="program",
+                                     subject_id=program.id,
+                                     details={"new": len(result.new), "discovered": result.discovered,
+                                              "sources": result.sources_run})
+            return program, domains, result
+        finally:
+            await graph.close()
+
+    program, domains, result = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps({
+            "program_id": program.id, "domains": domains,
+            "sources_run": result.sources_run, "discovered": result.discovered,
+            "recorded": result.recorded, "new": result.new,
+            "wildcard_noise": result.wildcard_noise, "failed_sources": result.failed_sources,
+        }, indent=2))
+        return
+    section(console, f"RECON · {program_name}")
+    console.print(f"scope: {', '.join(domains)} · sources: "
+                  f"{', '.join(result.sources_run) or '(none available)'}")
+    console.print(result.summary())
+    if result.new:
+        listing = ", ".join(result.new[:12]) + (" …" if len(result.new) > 12 else "")
+        console.print(f"[bold]✚ {len(result.new)} NEW asset(s):[/] {listing}")
+    else:
+        console.print("[orthrus.muted]no new assets this run.[/]")
+    if result.failed_sources:
+        console.print(f"[orthrus.muted]sources that errored: {', '.join(result.failed_sources)}[/]")
+
+
 @cli.command(name="mcp")
 def mcp_cmd() -> None:
     """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
