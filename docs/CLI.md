@@ -75,9 +75,10 @@ Commands:
   team              Manage team members + per-program roles on the...
   triage            Deduplicate + cluster a scan's findings into distinct...
   update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
+  ws                WebSocket Repeater + fuzzer: connect, send frames,...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-findings`](#orthrus-import-findings) · [`import-traffic`](#orthrus-import-traffic) · [`intruder`](#orthrus-intruder) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-findings`](#orthrus-import-findings) · [`import-traffic`](#orthrus-import-traffic) · [`intruder`](#orthrus-intruder) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update) · [`ws`](#orthrus-ws)
 
 ## `orthrus agent`
 
@@ -1499,5 +1500,37 @@ Usage: orthrus update [OPTIONS]
 
 Options:
   --help  Show this message and exit.
+```
+
+## `orthrus ws`
+
+```text
+Usage: orthrus ws [OPTIONS]
+
+  WebSocket Repeater + fuzzer: connect, send frames, observe replies (scope-
+  enforced).
+
+  Repeater: `orthrus ws --url wss://h/socket --scope h --send '{"a":1}'`.
+  Fuzz: mark the template with § and give a wordlist: `orthrus ws --url
+  wss://h/s --scope h --send '{"id":§}' --payloads ids.txt --match error`. Use
+  --origin to test cross-site WebSocket hijacking (CSWSH).
+
+Options:
+  --url TEXT          WebSocket endpoint (ws:// or wss://).  [required]
+  --scope TEXT        Scope token(s); defaults to the endpoint host. Out-of-
+                      scope is refused.
+  --send TEXT         Message to send (repeatable). In --payloads mode, the
+                      template (use § as the injection marker).
+  --payloads FILE     Fuzz: send the --send template once per payload line in
+                      this file.
+  --origin TEXT       Origin header (test cross-site WS hijacking / CSWSH).
+  --header TEXT       Add a header 'Name: value' (repeatable).
+  --match TEXT        Flag responses containing this string.
+  --recv-wait FLOAT   Seconds to wait for reply frames after each send.
+                      [default: 1.0]
+  --timeout FLOAT     Connect timeout.  [default: 8.0]
+  --json              Emit results as JSON.
+  -v, --verbose TEXT  Log level.
+  --help              Show this message and exit.
 ```
 
