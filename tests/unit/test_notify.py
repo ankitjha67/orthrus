@@ -119,6 +119,25 @@ def test_send_slack_failure_is_swallowed(monkeypatch):
     assert asyncio.run(notify.send_slack("http://hook", {"text": "hi"})) is False
 
 
+def test_send_discord_posts_content(monkeypatch):
+    rec = _Recorder()
+    monkeypatch.setattr(notify.httpx, "AsyncClient", rec.client())
+    ok = asyncio.run(notify.send_discord("http://dhook", "2 NEW assets"))
+    assert ok is True
+    assert rec.posts == [{"url": "http://dhook", "json": {"content": "2 NEW assets"}}]
+
+
+def test_send_discord_caps_length_and_swallows_failure(monkeypatch):
+    rec = _Recorder()
+    monkeypatch.setattr(notify.httpx, "AsyncClient", rec.client())
+    asyncio.run(notify.send_discord("http://dhook", "x" * 5000))
+    assert len(rec.posts[0]["json"]["content"]) == 1900     # Discord 2000-char cap
+
+    rec2 = _Recorder(raise_status=True)
+    monkeypatch.setattr(notify.httpx, "AsyncClient", rec2.client())
+    assert asyncio.run(notify.send_discord("http://dhook", "hi")) is False
+
+
 def test_create_jira_issues_posts_per_finding_with_auth(monkeypatch):
     rec = _Recorder(json_data={"key": "SEC-1"})
     monkeypatch.setattr(notify.httpx, "AsyncClient", rec.client())

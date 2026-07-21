@@ -3721,8 +3721,13 @@ def _apex(value: str) -> str:
 @click.option("--authorization", default=None,
               help="Authorization source (required to create a new program).")
 @click.option("--sources", default="all", help="Comma-separated recon adapters, or 'all'.")
+@click.option("--notify-slack", "notify_slack", default=None, metavar="WEBHOOK",
+              help="POST a summary to this Slack webhook when NEW assets are found.")
+@click.option("--notify-discord", "notify_discord", default=None, metavar="WEBHOOK",
+              help="POST a summary to this Discord webhook when NEW assets are found.")
 @click.option("--json", "as_json", is_flag=True, help="Emit the recon result as JSON.")
-def recon_run(program_name, in_scope, authorization, sources, as_json) -> None:
+def recon_run(program_name, in_scope, authorization, sources,
+              notify_slack, notify_discord, as_json) -> None:
     """Run continuous recon for a program: enumerate its scope into the operator graph.
 
     Every available source (crt.sh/certspotter/DNS/wayback + subfinder/amass if
@@ -3768,11 +3773,20 @@ def recon_run(program_name, in_scope, authorization, sources, as_json) -> None:
                                      subject_id=program.id,
                                      details={"new": len(result.new), "discovered": result.discovered,
                                               "sources": result.sources_run})
-            return program, domains, result
+            notified: dict[str, bool] = {}
+            if result.new and (notify_slack or notify_discord):
+                from orthrus.integrations.notify import send_discord, send_slack
+                from orthrus.recon_engine.alerts import new_asset_message
+                msg = new_asset_message(program_name, result.new)
+                if notify_slack:
+                    notified["slack"] = await send_slack(notify_slack, {"text": msg})
+                if notify_discord:
+                    notified["discord"] = await send_discord(notify_discord, msg)
+            return program, domains, result, notified
         finally:
             await graph.close()
 
-    program, domains, result = asyncio.run(_run())
+    program, domains, result, notified = asyncio.run(_run())
     if as_json:
         click.echo(json.dumps({
             "program_id": program.id, "domains": domains,
@@ -3790,6 +3804,8 @@ def recon_run(program_name, in_scope, authorization, sources, as_json) -> None:
         console.print(f"[bold]✚ {len(result.new)} NEW asset(s):[/] {listing}")
     else:
         console.print("[orthrus.muted]no new assets this run.[/]")
+    for channel, ok in notified.items():
+        console.print(f"[orthrus.muted]{channel} alert {'sent' if ok else 'failed'}.[/]")
     if result.failed_sources:
         console.print(f"[orthrus.muted]sources that errored: {', '.join(result.failed_sources)}[/]")
 

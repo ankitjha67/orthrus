@@ -113,6 +113,18 @@ async def send_slack(webhook_url: str, payload: dict, *, timeout_s: float = 15.0
         return False
 
 
+async def send_discord(webhook_url: str, content: str, *, timeout_s: float = 15.0) -> bool:
+    """POST a plain message to a Discord webhook (2000-char cap). Returns success."""
+    try:
+        async with httpx.AsyncClient(timeout=timeout_s) as client:
+            resp = await client.post(webhook_url, json={"content": content[:1900]})
+            resp.raise_for_status()
+        return True
+    except httpx.HTTPError as exc:
+        logger.error("Discord notify failed: %s", exc)
+        return False
+
+
 async def create_jira_issues(
     base_url: str,
     email: str,
