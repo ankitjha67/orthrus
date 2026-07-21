@@ -6,6 +6,7 @@ should be added here so the orchestrator can discover them.
 """
 
 from orthrus.scanners import (  # noqa: F401  (registration side-effects)
+    account_enum,
     api_misconfig,
     auth,
     authz_matrix,
@@ -43,10 +44,12 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     nosql,
     oauth_flow,
     open_redirect,
+    otp_2fa,
     privilege_escalation,
     product_cve,
     prototype_pollution,
     race_condition,
+    rate_limit,
     request_smuggling,
     saml,
     sca,
