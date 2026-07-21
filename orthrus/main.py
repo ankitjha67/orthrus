@@ -3857,6 +3857,135 @@ def recon_watch(program_name, interval, max_runs, sources, notify_slack, notify_
         console.print("\n[orthrus.muted]stopped.[/]")
 
 
+def _detect_traffic_format(text: str, path: str) -> str:
+    """Sniff a proxy export's format from its extension, then its content."""
+    low = path.lower()
+    if low.endswith((".xml",)):
+        return "burp"
+    if low.endswith((".har",)):
+        return "har"
+    stripped = text.lstrip()
+    if stripped.startswith("<"):
+        return "burp"
+    if '"log"' in stripped[:200] and "entries" in stripped[:400]:
+        return "har"
+    return "caido"  # any other JSON shape
+
+
+@cli.command(name="import-traffic")
+@click.argument("export_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--program", "program_name", required=True, help="Operator-graph program to import into.")
+@click.option("--format", "fmt", type=click.Choice(["auto", "burp", "caido", "har"]),
+              default="auto", show_default=True, help="Proxy-export format.")
+@click.option("--in-scope", "in_scope", multiple=True,
+              help="In-scope domain(s); creates the program if new, else adds to its scope.")
+@click.option("--authorization", default=None,
+              help="Authorization source (required to create a new program).")
+@click.option("--no-scope-filter", is_flag=True,
+              help="Import every host in the file, even out-of-scope (default: refuse out-of-scope).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the import result as JSON.")
+def import_traffic(export_file, program_name, fmt, in_scope, authorization,
+                   no_scope_filter, as_json) -> None:
+    """Import a Burp / Caido / HAR proxy history into a program's operator graph (PRD §7.12).
+
+    Folds the real attack surface you browsed by hand — hosts and their routes,
+    with query/body params and a juicy-score — into the program's assets and
+    endpoints, so manual recon flows into the same scan/triage/report pipeline.
+    Out-of-scope hosts (third-party CDNs, analytics) are refused by default.
+    """
+    _ensure_utf8_output()
+    from pathlib import Path
+
+    from orthrus.bounty.scope_intake import ProgramScope
+    from orthrus.bridges import PARSERS, fold_traffic
+    from orthrus.bridges.burp import UnsafeXmlError
+    from orthrus.model.store import ProgramGraph
+
+    text = Path(export_file).read_text(encoding="utf-8", errors="replace")
+    fmt = _detect_traffic_format(text, export_file) if fmt == "auto" else fmt
+    try:
+        requests = PARSERS[fmt](text)
+    except UnsafeXmlError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not requests:
+        raise click.ClickException(
+            f"no requests parsed from {export_file} as '{fmt}' — check --format.")
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                if not authorization:
+                    raise click.UsageError(
+                        f"program '{program_name}' not found — pass --authorization "
+                        "(and --in-scope) to create it.")
+                platform = "self" if (authorization or "").strip() == "self-owned-lab" else "direct"
+                program = await graph.create_program(program_name, authorization, platform=platform)
+                await graph.append_audit("program-created", "create", subject_type="program",
+                                         subject_id=program.id,
+                                         details={"name": program_name, "via": "import-traffic"})
+            existing = {se.value for se in await graph.scope_entries(program.id)}
+            for d in in_scope:
+                if d.strip() and d.strip() not in existing:
+                    await graph.add_scope_entry(program.id, d.strip(), entry_type="in",
+                                                kind="domain", added_by="import-traffic")
+
+            entries = await graph.scope_entries(program.id)
+            predicate = None
+            if not no_scope_filter:
+                scope = ProgramScope(
+                    domains=[se.value for se in entries
+                             if se.entry_type == "in" and se.kind in ("domain", "wildcard")],
+                    ip_ranges=[se.value for se in entries
+                               if se.entry_type == "in" and se.kind in ("cidr", "ip")],
+                    out_of_scope=[se.value for se in entries if se.entry_type == "out"],
+                )
+                if not (scope.domains or scope.ip_ranges):
+                    raise click.UsageError(
+                        "program has no in-scope entries to filter against — add --in-scope, "
+                        "or pass --no-scope-filter to import everything.")
+                predicate = scope.is_in_scope
+
+            result = await fold_traffic(graph, program.id, requests, source=f"import:{fmt}",
+                                        in_scope=predicate)
+            await graph.append_audit(
+                "traffic-imported", "import", subject_type="program", subject_id=program.id,
+                details={"format": fmt, "file": Path(export_file).name, "total": result.total,
+                         "new_assets": result.new_assets, "new_endpoints": result.new_endpoints,
+                         "skipped_out_of_scope": result.skipped_out_of_scope})
+            return program, result
+        finally:
+            await graph.close()
+
+    program, result = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps({
+            "program_id": program.id, "format": fmt, "total": result.total,
+            "new_assets": result.new_assets, "seen_assets": result.seen_assets,
+            "new_endpoints": result.new_endpoints, "seen_endpoints": result.seen_endpoints,
+            "skipped_out_of_scope": result.skipped_out_of_scope,
+            "skipped_no_host": result.skipped_no_host, "hosts": result.hosts,
+        }, indent=2))
+        return
+    section(console, f"IMPORT · {program_name}")
+    console.print(f"[orthrus.muted]{result.total} request(s) from {Path(export_file).name} "
+                  f"as '{fmt}'[/]")
+    console.print(f"assets: [bold]✚{result.new_assets}[/] new, {result.seen_assets} seen · "
+                  f"endpoints: [bold]✚{result.new_endpoints}[/] new, {result.seen_endpoints} seen")
+    if result.hosts:
+        listing = ", ".join(result.hosts[:12]) + (" …" if len(result.hosts) > 12 else "")
+        console.print(f"hosts: {listing}")
+    if result.skipped_out_of_scope:
+        console.print(f"[orthrus.muted]⊘ {result.skipped_out_of_scope} request(s) refused "
+                      f"(out of scope) — use --no-scope-filter to include them.[/]")
+    if result.skipped_no_host:
+        console.print(f"[orthrus.muted]{result.skipped_no_host} request(s) had no host.[/]")
+
+
 @cli.command(name="program-scan")
 @click.option("--program", "program_name", required=True, help="Operator-graph program to scan.")
 @click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
@@ -3935,6 +4064,100 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
                   f"finding(s) (of {counts['seen']}; {counts['duplicate']} dup) into the graph.")
     console.print(f"[orthrus.muted]scan run {run_row.id} · see the cockpit Findings tab / "
                   "`orthrus bounty-status`.[/]")
+
+
+@cli.command(name="program-findings")
+@click.option("--program", "program_name", required=True, help="Operator-graph program to list.")
+@click.option("--status", "status", default=None,
+              help="Filter by finding status (e.g. new, confirmed, filed).")
+@click.option("--json", "as_json", is_flag=True, help="Emit findings as JSON.")
+def program_findings(program_name, status, as_json) -> None:
+    """List a program's operator-graph findings (the triage queue), priority-ranked.
+
+    The read side of the operator loop: recon → scan promotes findings here, and
+    this surfaces them by name/status so the planner's suggested commands land
+    somewhere real. Sorted by priority score (juiciest first).
+    """
+    _ensure_utf8_output()
+    from orthrus.model.store import ProgramGraph
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(f"no program '{program_name}'.")
+            return program, await graph.list_findings(program.id, status=status)
+        finally:
+            await graph.close()
+
+    program, findings = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps([{
+            "id": f.id, "vuln_class": f.vuln_class, "title": f.title,
+            "severity": f.severity, "confidence": f.confidence, "status": f.status,
+            "priority_score": f.priority_score, "assigned_to": f.assigned_to,
+        } for f in findings], indent=2))
+        return
+    section(console, f"FINDINGS · {program_name}")
+    if not findings:
+        console.print("[orthrus.muted]no findings"
+                      + (f" with status '{status}'" if status else "") + ".[/]")
+        return
+    for f in findings:
+        score = f"{f.priority_score:.1f}" if f.priority_score is not None else "  -"
+        console.print(f"  [bold]{score}[/]  {(f.severity or '?').upper():8} {f.status:14} "
+                      f"{f.title}")
+    console.print(f"[orthrus.muted]{len(findings)} finding(s)"
+                  + (f" · status={status}" if status else "") + ".[/]")
+
+
+@cli.command(name="plan")
+@click.option("--program", "program_name", required=True, help="Operator-graph program to plan for.")
+@click.option("--json", "as_json", is_flag=True, help="Emit the ranked action list as JSON.")
+def plan_cmd(program_name, as_json) -> None:
+    """Suggest the next steps for a program, grounded in its graph state (PRD §7.10).
+
+    A deterministic, no-hallucination planner: it reads the program's assets,
+    endpoints, findings, scan history and scope, then prints a priority-ranked
+    list of the concrete `orthrus` commands to run next — each with the count it's
+    based on. The honest core of the bounded operator agent.
+    """
+    _ensure_utf8_output()
+    from orthrus.model.planner import next_actions
+    from orthrus.model.store import ProgramGraph
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(
+                    f"no program '{program_name}' — create it with "
+                    f"`orthrus recon-run --program {program_name} …` first.")
+            return await next_actions(graph, program.id, program_name=program_name)
+        finally:
+            await graph.close()
+
+    actions = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps([{
+            "key": a.key, "priority": a.priority, "reason": a.reason, "command": a.command,
+        } for a in actions], indent=2))
+        return
+    section(console, f"PLAN · {program_name}")
+    if not actions:
+        console.print("[orthrus.muted]nothing pending — program is in a steady state.[/]")
+        return
+    for i, a in enumerate(actions, 1):
+        console.print(f"  [bold]{i}. {a.key}[/] [orthrus.muted]({a.priority:.2f})[/] — {a.reason}")
+        console.print(f"     [orthrus.accent]{a.command}[/]")
 
 
 @cli.command(name="mcp")

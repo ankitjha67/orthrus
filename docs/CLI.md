@@ -17,39 +17,62 @@ Options:
   --help       Show this message and exit.
 
 Commands:
-  agent       Autonomous orchestrator: an LLM plans which scope-enforced...
-  ai-report   Generate a Big-Four-grade consultant report — deterministic...
-  benchmark   Measure detection accuracy against a known-vulnerability...
-  chains      Correlate a scan's findings into attack paths (kill-chains).
-  cloud       Assess cloud security posture (CSPM/IAM) from a snapshot or...
-  completion  Output a tab-completion script for SHELL (bash, zsh, or fish).
-  diff        Compare two scans: what's NEW, FIXED, or STILL PRESENT.
-  doctor      Check which optional integrations are available in this...
-  exploit     Run exploitation confirmation against a previous scan's...
-  finding     Manage a stored finding's triage lifecycle (status /...
-  findings    Show a stored scan's findings as a triage table (or JSON).
-  graph       Collapse a scan's findings into the few reachable attack...
-  hosts       Gather and list the host footprint for a TARGET (or a...
-  iac         Audit Infrastructure-as-Code for misconfigurations...
-  mcp         Run the ORTHRUS MCP server (stdio) — expose scans/findings...
-  modules     List scanner and exploit-confirmation modules, or detail...
-  monitor     Re-scan a TARGET and report drift vs the previous run.
-  notify      Push a scan's high-severity findings to Slack and/or Jira.
-  patch       Generate concrete remediation patches (config/code) for a...
-  proxy       Run a scope-aware capturing proxy to feed the scanner from...
-  recon       Run reconnaissance only.
-  replay      Resend a recorded request with optional tweaks — the...
-  report      Generate a report from an existing scan.
-  runbook     Consolidated remediation runbook — the few fixes that...
-  scan        Run the full pipeline: recon -> scan -> exploit -> report.
-  scans       List previous scans (id, status, phase, findings) for...
-  serve       Run the ORTHRUS REST API (read access to scans/findings...
-  surface     Render a scan's recon (hosts / ports / technologies /...
-  triage      Deduplicate + cluster a scan's findings into distinct issues.
-  update      Refresh threat-intel feeds (CISA KEV + EPSS) used to enrich...
+  agent             Autonomous orchestrator: an LLM plans which...
+  ai-report         Generate a Big-Four-grade consultant report —...
+  audit             Show or verify the tamper-evident bug-bounty audit log.
+  benchmark         Measure detection accuracy against a...
+  bounty            Run an authorized bug-bounty campaign: scan every...
+  bounty-assets     Show the live in-scope asset inventory recorded for a...
+  bounty-report     Re-render a saved program's last campaign - no...
+  bounty-status     One-view operator dashboard: programs, submissions,...
+  chains            Correlate a scan's findings into attack paths...
+  cloud             Assess cloud security posture (CSPM/IAM) from a...
+  completion        Output a tab-completion script for SHELL (bash, zsh,...
+  copilot           Ask a copilot grounded in YOUR notes + submissions...
+  cost              Show the cost ledger (LLM spend auto-recorded by the...
+  diff              Compare two scans: what's NEW, FIXED, or STILL PRESENT.
+  doctor            Check which optional integrations are available in...
+  exploit           Run exploitation confirmation against a previous...
+  finding           Manage a stored finding's triage lifecycle (status /...
+  findings          Show a stored scan's findings as a triage table (or...
+  graph             Collapse a scan's findings into the few reachable...
+  hosts             Gather and list the host footprint for a TARGET (or a...
+  iac               Audit Infrastructure-as-Code for misconfigurations...
+  import-traffic    Import a Burp / Caido / HAR proxy history into a...
+  mcp               Run the ORTHRUS MCP server (stdio) — expose...
+  migrate           Promote existing v0.1 scans/findings into the v2.0...
+  modules           List scanner and exploit-confirmation modules, or...
+  monitor           Re-scan a TARGET and report drift vs the previous run.
+  note              Save an operator note (methodology, per-program tips,...
+  notes             List or search operator notes.
+  notify            Push a scan's high-severity findings to Slack and/or...
+  panic             Emergency kill switch: halt ALL outbound requests +...
+  patch             Generate concrete remediation patches (config/code)...
+  plan              Suggest the next steps for a program, grounded in its...
+  program-findings  List a program's operator-graph findings (the triage...
+  program-policy    Set a program's traffic policy: a rate ceiling and an...
+  program-scan      Scan a program's live in-scope assets → promote...
+  programs          List saved bug-bounty programs (scope, authorization,...
+  proxy             Run a scope-aware capturing proxy to feed the scanner...
+  recon             Run reconnaissance only.
+  recon-run         Run continuous recon for a program: enumerate its...
+  recon-watch       Continuously re-run recon for a program, alerting on...
+  replay            Resend a recorded request with optional tweaks — the...
+  report            Generate a report from an existing scan.
+  runbook           Consolidated remediation runbook — the few fixes that...
+  scan              Run the full pipeline: recon -> scan -> exploit ->...
+  scans             List previous scans (id, status, phase, findings) for...
+  serve             Run the ORTHRUS REST API (scans/findings +...
+  submission        Record or update a bug-bounty submission (status,...
+  submissions       List tracked submissions and roll up earnings.
+  suppress          Add a mute rule so known-noise findings stay out of a...
+  suppressions      List (or --remove) a program's mute rules.
+  surface           Render a scan's recon (hosts / ports / technologies /...
+  triage            Deduplicate + cluster a scan's findings into distinct...
+  update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`benchmark`](#orthrus-benchmark) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`mcp`](#orthrus-mcp) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`notify`](#orthrus-notify) · [`patch`](#orthrus-patch) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`serve`](#orthrus-serve) · [`surface`](#orthrus-surface) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
 
 ## `orthrus agent`
 
@@ -123,6 +146,19 @@ Options:
   --help                  Show this message and exit.
 ```
 
+## `orthrus audit`
+
+```text
+Usage: orthrus audit [OPTIONS]
+
+  Show or verify the tamper-evident bug-bounty audit log.
+
+Options:
+  --verify             Check the hash-chain for tampering and exit.
+  -n, --limit INTEGER  How many recent entries to show.  [default: 20]
+  --help               Show this message and exit.
+```
+
 ## `orthrus benchmark`
 
 ```text
@@ -150,6 +186,125 @@ Options:
   -o, --output TEXT         Write the benchmark result as JSON to this path.
   -v, --verbose TEXT        Log level.
   --help                    Show this message and exit.
+```
+
+## `orthrus bounty`
+
+```text
+Usage: orthrus bounty [OPTIONS]
+
+  Run an authorized bug-bounty campaign: scan every in-scope asset with all
+  scanners, confirm the findings, and write submission-ready per-bug reports.
+
+  Requires an explicit program scope (--scope-file or --in-scope) — ORTHRUS is
+  deny-by-default and will not scan without one. Out-of-scope entries are
+  enforced and never touched. Authorized programs only.
+
+Options:
+  --program NAME                  Save/load this engagement under a name:
+                                  persists scope + authorization and the
+                                  campaign history, so you can re-run a
+                                  program by name (see 'orthrus programs').
+  --scope-file FILE               Program scope file: in-scope assets, one per
+                                  line; a '!' prefix marks an out-of-scope
+                                  exclusion; '#' comments.
+  --in-scope ASSET                Add an in-scope asset (domain / *.wildcard /
+                                  URL / CIDR). Repeatable.
+  --out-scope ASSET               Add an out-of-scope exclusion. Repeatable.
+  --authorization SOURCE          Proof you're authorized: a program URL
+                                  (hackerone.com/…, bugcrowd.com/…),
+                                  'signed:<file>', 'direct:<note>', or 'self-
+                                  owned-lab'. Required for public scopes.
+  --i-am-authorized HOST          Attest written authorization for a high-
+                                  sensitivity host (gov/mil/edu/health) so it
+                                  isn't refused. Repeatable; name the exact
+                                  host.
+  --enumerate / --no-enumerate    Discover live in-scope subdomains (crt.sh +
+                                  DNS) and scan them too, not just the seeds
+                                  you listed. In-scope, non-excluded, non-
+                                  sensitive hosts only.  [default: enumerate]
+  --min-confidence [confirmed|firm|tentative]
+                                  Only report bugs at/above this confidence
+                                  (keeps triager noise down).  [default: firm]
+  --platform [generic|hackerone|bugcrowd|intigriti|yeswehack|immunefi]
+                                  Shape each per-bug report for this
+                                  platform's submission form.  [default:
+                                  generic]
+  --notify-slack WEBHOOK          Post a campaign summary to this Slack
+                                  incoming webhook (or set
+                                  ORTHRUS_SLACK_WEBHOOK).
+  --tools NAMES                   Also run external-tool adapters per asset
+                                  (comma-separated, or 'all'): nuclei, dalfox,
+                                  testssl, ffuf. Needs the binaries on PATH.
+  --aggressive                    Enable aggressive scanning.
+  --browser / --no-browser        Use a headless browser (DOM/stored XSS).
+  --no-exploit                    Skip the exploitation-confirmation phase.
+  --callback TEXT                 Advertise host for the local OOB listener
+                                  (SSRF/XXE/deserialization confirmation).
+  --interactsh                    Use a real Interactsh OOB collaborator for
+                                  blind/OOB confirmation.
+  --rate-limit FLOAT              Max requests/sec per host.  [default: 20.0]
+  --timeout FLOAT                 HTTP request timeout (s).  [default: 30.0]
+  --crawl-depth INTEGER           [default: 10]
+  --max-pages INTEGER             [default: 2000]
+  --threads INTEGER               [default: 10]
+  -o, --output TEXT               Directory for the submission-ready reports.
+                                  [default: bounty-report]
+  --dry-run                       Resolve and print the scope + seeds, then
+                                  stop (no requests sent).
+  --help                          Show this message and exit.
+```
+
+## `orthrus bounty-assets`
+
+```text
+Usage: orthrus bounty-assets [OPTIONS]
+
+  Show the live in-scope asset inventory recorded for a program.
+
+  Populated by `orthrus bounty --program NAME --enumerate`, which snapshots
+  the live in-scope hosts each run and reports which are NEW since the last
+  one.
+
+Options:
+  --program TEXT  Program name (as saved).  [required]
+  --json          Emit the asset inventory as JSON.
+  --help          Show this message and exit.
+```
+
+## `orthrus bounty-report`
+
+```text
+Usage: orthrus bounty-report [OPTIONS]
+
+  Re-render a saved program's last campaign - no re-scanning.
+
+  Regenerate the submission reports from the findings already stored for a
+  program's past scans, e.g. in a different --platform format, applying the
+  program's current mute rules and flagging cross-run duplicates.
+
+Options:
+  --program TEXT                  Saved program to re-render.  [required]
+  --platform [generic|hackerone|bugcrowd|intigriti|yeswehack|immunefi]
+                                  Shape reports for this platform's submission
+                                  form.
+  --min-confidence [confirmed|firm|tentative]
+                                  Report floor.
+  -o, --output TEXT               Output directory.
+  --help                          Show this message and exit.
+```
+
+## `orthrus bounty-status`
+
+```text
+Usage: orthrus bounty-status [OPTIONS]
+
+  One-view operator dashboard: programs, submissions, earnings, audit
+  integrity.
+
+Options:
+  --json  Emit the full status as JSON (for scripting).
+  --help  Show this message and exit.
 ```
 
 ## `orthrus chains`
@@ -220,6 +375,33 @@ Usage: orthrus completion [OPTIONS] {bash|zsh|fish}
 
 Options:
   --help  Show this message and exit.
+```
+
+## `orthrus copilot`
+
+```text
+Usage: orthrus copilot [OPTIONS] QUERY...
+
+  Ask a copilot grounded in YOUR notes + submissions (never invents findings).
+
+Options:
+  --llm PROVIDER:MODEL  Ground the answer with a model (e.g. ollama:llama3.1).
+                        Omit for raw snippets.
+  -k, --top INTEGER     Snippets to retrieve.  [default: 5]
+  --help                Show this message and exit.
+```
+
+## `orthrus cost`
+
+```text
+Usage: orthrus cost [OPTIONS]
+
+  Show the cost ledger (LLM spend auto-recorded by the copilot, plus anything
+  you log).
+
+Options:
+  --program TEXT  Filter to one program.
+  --help          Show this message and exit.
 ```
 
 ## `orthrus diff`
@@ -387,6 +569,33 @@ Options:
   --help                          Show this message and exit.
 ```
 
+## `orthrus import-traffic`
+
+```text
+Usage: orthrus import-traffic [OPTIONS] EXPORT_FILE
+
+  Import a Burp / Caido / HAR proxy history into a program's operator graph
+  (PRD §7.12).
+
+  Folds the real attack surface you browsed by hand — hosts and their routes,
+  with query/body params and a juicy-score — into the program's assets and
+  endpoints, so manual recon flows into the same scan/triage/report pipeline.
+  Out-of-scope hosts (third-party CDNs, analytics) are refused by default.
+
+Options:
+  --program TEXT                  Operator-graph program to import into.
+                                  [required]
+  --format [auto|burp|caido|har]  Proxy-export format.  [default: auto]
+  --in-scope TEXT                 In-scope domain(s); creates the program if
+                                  new, else adds to its scope.
+  --authorization TEXT            Authorization source (required to create a
+                                  new program).
+  --no-scope-filter               Import every host in the file, even out-of-
+                                  scope (default: refuse out-of-scope).
+  --json                          Emit the import result as JSON.
+  --help                          Show this message and exit.
+```
+
 ## `orthrus mcp`
 
 ```text
@@ -399,6 +608,23 @@ Usage: orthrus mcp [OPTIONS]
 
 Options:
   --help  Show this message and exit.
+```
+
+## `orthrus migrate`
+
+```text
+Usage: orthrus migrate [OPTIONS]
+
+  Promote existing v0.1 scans/findings into the v2.0 operator graph (PRD
+  §4.2).
+
+  Additive and idempotent — creates a 'Legacy v0.1 import' program and upserts
+  every scan's assets/findings into the unified graph without touching the
+  v0.1 tables, so it's safe to re-run and trivially reversible.
+
+Options:
+  --dry-run  Report what would migrate; write nothing.
+  --help     Show this message and exit.
 ```
 
 ## `orthrus modules`
@@ -459,6 +685,36 @@ Options:
   --help                Show this message and exit.
 ```
 
+## `orthrus note`
+
+```text
+Usage: orthrus note [OPTIONS]
+
+  Save an operator note (methodology, per-program tips, recon summaries).
+
+Options:
+  --title TEXT      Note title.  [required]
+  --body TEXT       Note body (markdown). Or use --body-file.
+  --body-file FILE  Read the note body from a markdown file.
+  --program TEXT    Attach the note to a program.
+  --tags TEXT       Comma-separated tags.
+  --help            Show this message and exit.
+```
+
+## `orthrus notes`
+
+```text
+Usage: orthrus notes [OPTIONS]
+
+  List or search operator notes.
+
+Options:
+  --program TEXT  Filter to one program.
+  --tag TEXT      Filter to one tag.
+  --search TEXT   Full-text search over title/body/tags.
+  --help          Show this message and exit.
+```
+
 ## `orthrus notify`
 
 ```text
@@ -485,6 +741,23 @@ Options:
   --dry-run                       Print the payloads instead of sending them.
   -v, --verbose TEXT              Log level.
   --help                          Show this message and exit.
+```
+
+## `orthrus panic`
+
+```text
+Usage: orthrus panic [OPTIONS]
+
+  Emergency kill switch: halt ALL outbound requests + abort in-flight scans
+  (PRD §8.3).
+
+  Engaging writes a flag the scope-enforced HTTP client checks before every
+  request — deny-by-default becomes deny-everything until you `--clear` it.
+
+Options:
+  --clear        Lift a previously-engaged panic state.
+  --reason TEXT  Why you're pulling the switch (recorded in the flag).
+  --help         Show this message and exit.
 ```
 
 ## `orthrus patch`
@@ -516,6 +789,97 @@ Options:
                                   Markdown.
   -v, --verbose TEXT              Log level.
   --help                          Show this message and exit.
+```
+
+## `orthrus plan`
+
+```text
+Usage: orthrus plan [OPTIONS]
+
+  Suggest the next steps for a program, grounded in its graph state (PRD
+  §7.10).
+
+  A deterministic, no-hallucination planner: it reads the program's assets,
+  endpoints, findings, scan history and scope, then prints a priority-ranked
+  list of the concrete `orthrus` commands to run next — each with the count
+  it's based on. The honest core of the bounded operator agent.
+
+Options:
+  --program TEXT  Operator-graph program to plan for.  [required]
+  --json          Emit the ranked action list as JSON.
+  --help          Show this message and exit.
+```
+
+## `orthrus program-findings`
+
+```text
+Usage: orthrus program-findings [OPTIONS]
+
+  List a program's operator-graph findings (the triage queue), priority-
+  ranked.
+
+  The read side of the operator loop: recon → scan promotes findings here, and
+  this surfaces them by name/status so the planner's suggested commands land
+  somewhere real. Sorted by priority score (juiciest first).
+
+Options:
+  --program TEXT  Operator-graph program to list.  [required]
+  --status TEXT   Filter by finding status (e.g. new, confirmed, filed).
+  --json          Emit findings as JSON.
+  --help          Show this message and exit.
+```
+
+## `orthrus program-policy`
+
+```text
+Usage: orthrus program-policy [OPTIONS]
+
+  Set a program's traffic policy: a rate ceiling and an identifying header.
+
+  Most programs state a max request rate and ask you to identify your traffic.
+  Saved here, both are applied automatically on every `orthrus bounty
+  --program NAME` run — the rate is a hard cap (never exceeded), the header is
+  attached to every request.
+
+Options:
+  --program TEXT   Saved program to set policy on.  [required]
+  --max-rps FLOAT  Rate ceiling (req/s) — honored as a cap on every run.
+  --identify TEXT  Identifying header to send, e.g. "X-Bug-Bounty: yourname".
+  --clear          Clear both policy fields.
+  --help           Show this message and exit.
+```
+
+## `orthrus program-scan`
+
+```text
+Usage: orthrus program-scan [OPTIONS]
+
+  Scan a program's live in-scope assets → promote findings into the operator
+  graph (PRD Phase 2).
+
+  Bridges recon → scan → triage queue: takes the live assets the recon engine
+  discovered, runs the full scan+confirm pipeline over them, and folds the
+  bugs into the program's ProgramFinding queue (deduped, priority-scored,
+  ScanRun- linked) — where the cockpit Findings tab and triage see them.
+
+Options:
+  --program TEXT                  Operator-graph program to scan.  [required]
+  --min-confidence [confirmed|firm|tentative]
+                                  Confidence floor for promoted findings.
+  --max-assets INTEGER            Cap live assets scanned this run.
+  --aggressive                    Aggressive scanning.
+  --help                          Show this message and exit.
+```
+
+## `orthrus programs`
+
+```text
+Usage: orthrus programs [OPTIONS]
+
+  List saved bug-bounty programs (scope, authorization, last run).
+
+Options:
+  --help  Show this message and exit.
 ```
 
 ## `orthrus proxy`
@@ -595,6 +959,55 @@ Options:
   -o, --output TEXT               Optional JSON report output path.
   -v, --verbose TEXT              Log level.
   --help                          Show this message and exit.
+```
+
+## `orthrus recon-run`
+
+```text
+Usage: orthrus recon-run [OPTIONS]
+
+  Run continuous recon for a program: enumerate its scope into the operator
+  graph.
+
+  Every available source (crt.sh/certspotter/DNS/wayback + subfinder/amass if
+  installed) discovers assets, which are deduped into the graph with
+  first/last-seen so this reports what's NEW since the last run. Populates the
+  cockpit's Assets tab.
+
+Options:
+  --program TEXT            Operator-graph program to recon.  [required]
+  --in-scope TEXT           In-scope domain(s); creates the program if new,
+                            else adds to its scope.
+  --authorization TEXT      Authorization source (required to create a new
+                            program).
+  --sources TEXT            Comma-separated recon adapters, or 'all'.
+  --notify-slack WEBHOOK    POST a summary to this Slack webhook when NEW
+                            assets are found.
+  --notify-discord WEBHOOK  POST a summary to this Discord webhook when NEW
+                            assets are found.
+  --json                    Emit the recon result as JSON.
+  --help                    Show this message and exit.
+```
+
+## `orthrus recon-watch`
+
+```text
+Usage: orthrus recon-watch [OPTIONS]
+
+  Continuously re-run recon for a program, alerting on NEW assets (PRD §7.2).
+
+  Runs when nobody's watching: each pass folds fresh discoveries into the
+  graph and fires Slack/Discord alerts on new in-scope assets. Interrupt to
+  stop.
+
+Options:
+  --program TEXT            Saved operator-graph program.  [required]
+  --interval INTEGER        Seconds between recon passes.  [default: 3600]
+  --max-runs INTEGER        Stop after N passes (0 = run until interrupted).
+  --sources TEXT            Comma-separated recon adapters, or 'all'.
+  --notify-slack WEBHOOK    Alert this Slack webhook on new assets.
+  --notify-discord WEBHOOK  Alert this Discord webhook on new assets.
+  --help                    Show this message and exit.
 ```
 
 ## `orthrus replay`
@@ -808,15 +1221,88 @@ Options:
 ```text
 Usage: orthrus serve [OPTIONS]
 
-  Run the ORTHRUS REST API (read access to scans/findings over HTTP).
+  Run the ORTHRUS REST API (scans/findings + operator-graph CRUD over HTTP).
 
-  Needs the [api] extra (fastapi + uvicorn). Endpoints: /health, /api/scans,
-  /api/scans/{id}, /api/scans/{id}/findings, /api/scans/{id}/report.
+  Needs the [api] extra (fastapi + uvicorn). Endpoints: /health, /api/scans*,
+  /api/programs* (operator graph). With --cockpit, the built React/Tauri
+  cockpit is served at /cockpit (build it first: `npm --prefix cockpit run
+  build`).
 
 Options:
   --host TEXT     Bind address for the API server.
   --port INTEGER  Port for the API server.
+  --cockpit       Also serve the v2.0 operator cockpit at /cockpit.
   --help          Show this message and exit.
+```
+
+## `orthrus submission`
+
+```text
+Usage: orthrus submission [OPTIONS]
+
+  Record or update a bug-bounty submission (status, payout, link).
+
+Options:
+  --id TEXT                       Existing submission id to UPDATE (else a new
+                                  one is added).
+  --program TEXT                  Program name (required when adding).
+  --title TEXT                    Bug title (required when adding).
+  --platform TEXT                 hackerone/bugcrowd/intigriti/yeswehack/immun
+                                  efi/generic.
+  --severity TEXT
+  --status [draft|filed|triaged|accepted|duplicate|informative|resolved|rewarded|closed|n-a]
+                                  Submission lifecycle state.
+  --bounty FLOAT                  Payout amount.
+  --currency TEXT
+  --url TEXT                      Link to the report on the platform.
+  --notes TEXT
+  --help                          Show this message and exit.
+```
+
+## `orthrus submissions`
+
+```text
+Usage: orthrus submissions [OPTIONS]
+
+  List tracked submissions and roll up earnings.
+
+Options:
+  --program TEXT  Filter to one program.
+  --help          Show this message and exit.
+```
+
+## `orthrus suppress`
+
+```text
+Usage: orthrus suppress [OPTIONS]
+
+  Add a mute rule so known-noise findings stay out of a program's report
+  queue.
+
+  At least one of --vuln-type / --host / --title-contains is required (an
+  empty rule would mute everything, so it's refused). Muted findings are still
+  counted in the campaign summary — nothing silently disappears.
+
+Options:
+  --program TEXT         Program the rule applies to.  [required]
+  --vuln-type TEXT       Mute this vuln_type (e.g. security-headers).
+  --host TEXT            Mute this host (matches the host and its subdomains).
+  --title-contains TEXT  Mute findings whose title contains this text.
+  --reason TEXT          Why it's muted (kept for the audit trail).
+  --help                 Show this message and exit.
+```
+
+## `orthrus suppressions`
+
+```text
+Usage: orthrus suppressions [OPTIONS]
+
+  List (or --remove) a program's mute rules.
+
+Options:
+  --program TEXT    Program to list/edit rules for.  [required]
+  --remove INTEGER  Remove the rule at this index (from the list).
+  --help            Show this message and exit.
 ```
 
 ## `orthrus surface`

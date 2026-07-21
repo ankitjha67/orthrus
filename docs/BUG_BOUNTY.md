@@ -159,6 +159,38 @@ orthrus submissions --program acme          # earnings roll-up
 | `orthrus bounty-report --program NAME --platform …` | Re-render a program's last campaign in a different platform format — **no re-scanning** (reuses stored findings). |
 | `orthrus bounty-status` | One-view cockpit: programs, earnings, assets, mute rules, spend, audit integrity. |
 
+## Operator graph (v2.0)
+
+The v2.0 operator platform anchors everything to a persistent, DB-backed **program
+graph** (assets → endpoints → findings), driven by these commands and the cockpit
+(`orthrus serve --cockpit`). Deny-by-default holds at every entry point.
+
+```bash
+# 1. Continuous recon → dedup into the graph, alert on NEW assets
+orthrus recon-run --program acme --in-scope acme.com --authorization https://hackerone.com/acme
+
+# 2. Import the surface you browsed by hand — Burp / Caido / HAR (out-of-scope hosts refused)
+orthrus import-traffic history.har --program acme            # --format auto-detects
+orthrus import-traffic burp-items.xml --program acme --format burp
+
+# 3. Ask what to do next — deterministic, grounded in real graph state (no LLM, no invented steps)
+orthrus plan --program acme
+
+# 4. Scan the live assets → promote findings into the triage queue
+orthrus program-scan --program acme
+
+# 5. Work the queue
+orthrus program-findings --program acme --status new
+```
+
+| Command | What it's for |
+|---|---|
+| `orthrus recon-run` / `recon-watch` | Enumerate scope into the graph (once / continuously), alerting on new assets. |
+| `orthrus import-traffic FILE --program NAME` | Fold a Burp XML / Caido JSON / HAR proxy history into the graph as assets + endpoints (query/body params + a juicy-score). Out-of-scope hosts refused unless `--no-scope-filter`. |
+| `orthrus program-scan --program NAME` | Scan the graph's live assets and promote deduped findings into the queue. |
+| `orthrus plan --program NAME` | A priority-ranked, grounded to-do list of the exact next commands to run. |
+| `orthrus program-findings --program NAME` | The operator-graph triage queue (filter `--status`), priority-first. |
+
 ## Notes
 
 - **Reduce triager noise:** submit `--min-confidence confirmed` first — those come
