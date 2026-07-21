@@ -226,6 +226,7 @@ class ProgramGraph:
         metadata: dict | None = None,
         scope_entry_id: int | None = None,
         alive: bool = True,
+        wildcard_noise: bool = False,
     ) -> tuple[ProgramAsset, bool]:
         """Upsert an asset by (program, kind, canonical_value); return (asset, is_new).
 
@@ -254,6 +255,8 @@ class ProgramGraph:
                 asset.is_alive = alive
                 if alive:
                     asset.last_alive_at = now
+                if wildcard_noise:
+                    asset.is_wildcard_noise = True
                 if fingerprint:
                     asset.fingerprint = {**(asset.fingerprint or {}), **fingerprint}
                 if metadata:
@@ -268,6 +271,7 @@ class ProgramGraph:
                 fingerprint=fingerprint or {}, metadata_json=metadata or {},
                 scope_entry_id=scope_entry_id, first_seen_at=now, last_seen_at=now,
                 is_alive=alive, last_alive_at=now if alive else None,
+                is_wildcard_noise=wildcard_noise,
             )
             session.add(asset)
             await session.commit()

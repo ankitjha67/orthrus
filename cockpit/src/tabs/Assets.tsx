@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { api, Asset, Program } from "../api";
 
+function isRecent(iso: string | null): boolean {
+  if (!iso) return false;
+  const seen = new Date(iso).getTime();
+  return Number.isFinite(seen) && Date.now() - seen < 24 * 60 * 60 * 1000;
+}
+
 export default function Assets({ program }: { program: Program | null }) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -43,7 +49,10 @@ export default function Assets({ program }: { program: Program | null }) {
                 <td>
                   <span className="tag">{a.kind}</span>
                 </td>
-                <td className="mono">{a.display_value}</td>
+                <td className="mono">
+                  {a.display_value}
+                  {isRecent(a.first_seen_at) && <span className="pill" style={{ background: "var(--accent)", color: "var(--on-accent)", marginLeft: 8 }}>new</span>}
+                </td>
                 <td>{a.is_alive ? "✓" : "—"}</td>
                 <td>{a.trust_score.toFixed(2)}</td>
                 <td className="faint">{a.discovered_by ?? "—"}</td>
