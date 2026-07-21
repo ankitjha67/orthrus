@@ -358,6 +358,31 @@ class AuditLogRow(Base):
     row_hash: Mapped[str] = mapped_column(String(64))
 
 
+class Note(Base):
+    """Operator knowledge-base note, optionally tied to a program/asset/finding (PRD §6.1/§7.13)."""
+
+    __tablename__ = "notes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    program_id: Mapped[str | None] = mapped_column(
+        ForeignKey("programs.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    asset_id: Mapped[str | None] = mapped_column(
+        ForeignKey("program_assets.id", ondelete="SET NULL"), nullable=True
+    )
+    finding_id: Mapped[str | None] = mapped_column(
+        ForeignKey("program_findings.id", ondelete="SET NULL"), nullable=True
+    )
+    title: Mapped[str] = mapped_column(Text)
+    markdown: Mapped[str] = mapped_column(Text, default="")
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
+    created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+
+
 class CostLedgerRow(Base):
     """One spend line — LLM/STT/OAST/compute/API (PRD §6.1/§10)."""
 
@@ -387,6 +412,7 @@ __all__ = [
     "FindingChain",
     "AuditLogRow",
     "CostLedgerRow",
+    "Note",
     "PLATFORMS",
     "SCOPE_ENTRY_TYPES",
     "SCOPE_KINDS",

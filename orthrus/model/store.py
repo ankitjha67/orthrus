@@ -31,6 +31,7 @@ from orthrus.model.entities import (
     AuditLogRow,
     CostLedgerRow,
     Evidence,
+    Note,
     Program,
     ProgramAsset,
     ProgramFinding,
@@ -541,6 +542,67 @@ class ProgramGraph:
             by_provider[r.provider] = round(by_provider.get(r.provider, 0.0) + r.cost_usd, 6)
         return {"entries": len(rows), "total_usd": round(total, 4),
                 "by_category": by_category, "by_provider": by_provider}
+
+    # ------------------------------------------------------------------- notes
+    async def add_note(
+        self, title: str, markdown: str = "", *, program_id: str | None = None,
+        asset_id: str | None = None, finding_id: str | None = None,
+        tags: list | None = None, created_by: str | None = None,
+    ) -> Note:
+        if not (title or "").strip():
+            raise ValueError("note title is required")
+        note = Note(title=title.strip(), markdown=markdown, program_id=program_id,
+                    asset_id=asset_id, finding_id=finding_id, tags=tags or [],
+                    created_by=created_by)
+        async with self._session() as session:
+            session.add(note)
+            await session.commit()
+            await session.refresh(note)
+        return note
+
+    async def get_note(self, note_id: str) -> Note | None:
+        async with self._session() as session:
+            return await session.get(Note, note_id)
+
+    async def list_notes(self, *, program_id: str | None = None,
+                         finding_id: str | None = None) -> list[Note]:
+        stmt = select(Note)
+        if program_id:
+            stmt = stmt.where(Note.program_id == program_id)
+        if finding_id:
+            stmt = stmt.where(Note.finding_id == finding_id)
+        async with self._session() as session:
+            result = await session.execute(stmt.order_by(Note.updated_at.desc()))
+            return list(result.scalars().all())
+
+    async def search_notes(self, query: str, *, program_id: str | None = None) -> list[Note]:
+        """Case-insensitive title/body/tag substring search (a real embedder can layer on)."""
+        q = (query or "").strip().lower()
+        if not q:
+            return []
+        notes = await self.list_notes(program_id=program_id)
+        return [n for n in notes
+                if q in (n.title or "").lower() or q in (n.markdown or "").lower()
+                or any(q in str(t).lower() for t in (n.tags or []))]
+
+    async def update_note(self, note_id: str, **fields) -> Note | None:
+        allowed = {"title", "markdown", "tags", "asset_id", "finding_id"}
+        async with self._session() as session:
+            note = await session.get(Note, note_id)
+            if note is None:
+                return None
+            for key, value in fields.items():
+                if key in allowed:
+                    setattr(note, key, value)
+            await session.commit()
+            await session.refresh(note)
+        return note
+
+    async def delete_note(self, note_id: str) -> bool:
+        async with self._session() as session:
+            result = await session.execute(delete(Note).where(Note.id == note_id))
+            await session.commit()
+        return (result.rowcount or 0) > 0
 
 
 __all__ = ["ProgramGraph"]
