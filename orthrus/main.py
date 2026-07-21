@@ -3857,6 +3857,86 @@ def recon_watch(program_name, interval, max_runs, sources, notify_slack, notify_
         console.print("\n[orthrus.muted]stopped.[/]")
 
 
+@cli.command(name="program-scan")
+@click.option("--program", "program_name", required=True, help="Operator-graph program to scan.")
+@click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),
+              default="firm", help="Confidence floor for promoted findings.")
+@click.option("--max-assets", default=25, type=int, help="Cap live assets scanned this run.")
+@click.option("--aggressive", is_flag=True, help="Aggressive scanning.")
+def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
+    """Scan a program's live in-scope assets → promote findings into the operator graph (PRD Phase 2).
+
+    Bridges recon → scan → triage queue: takes the live assets the recon engine
+    discovered, runs the full scan+confirm pipeline over them, and folds the bugs
+    into the program's ProgramFinding queue (deduped, priority-scored, ScanRun-
+    linked) — where the cockpit Findings tab and triage see them.
+    """
+    _ensure_utf8_output()
+    from uuid import uuid4
+
+    from orthrus.bounty.campaign import run_campaign
+    from orthrus.bounty.scope_intake import ProgramScope
+    from orthrus.model.promote import promote_findings
+    from orthrus.model.store import ProgramGraph
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(
+                    f"no program '{program_name}' — create it with "
+                    f"`orthrus recon-run --program {program_name} …` first.")
+            assets = await graph.list_assets(program.id, alive_only=True)
+            seeds = []
+            for a in assets:
+                if a.kind in ("subdomain", "host"):
+                    seeds.append(f"https://{a.canonical_value}")
+                elif a.kind == "url":
+                    seeds.append(a.canonical_value)
+            seeds = seeds[:max_assets]
+            if not seeds:
+                return program, None, {"seen": 0, "new": 0, "duplicate": 0}, 0
+            domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
+                              if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
+            scope = ProgramScope(seeds=seeds, domains=domains or [
+                h for s in seeds if (h := urlsplit(s).hostname)])
+            run_row = await graph.start_scan_run(
+                program.id, triggered_by="manual",
+                config={"seeds": len(seeds), "min_confidence": min_confidence})
+
+            aggr = Aggressiveness.AGGRESSIVE if aggressive else Aggressiveness.NORMAL
+
+            def make_config(seed: str, scope_cfg: ScopeConfig, scan_id: str) -> ScanConfig:
+                return ScanConfig(scan_id=scan_id, target=seed, scope=scope_cfg,
+                                  modules=["all"], aggressiveness=aggr)
+
+            result = await run_campaign(scope, make_config,
+                                        campaign_id=f"pscan-{uuid4().hex[:8]}",
+                                        min_confidence=min_confidence)
+            counts = await promote_findings(
+                graph, program.id, [g.lead for g in result.report.groups], scan_run_id=run_row.id)
+            await graph.finish_scan_run(run_row.id, status="completed", stats={
+                "assets": len(seeds), "findings_seen": counts["seen"], "findings_new": counts["new"]})
+            return program, run_row, counts, len(seeds)
+        finally:
+            await graph.close()
+
+    _program, run_row, counts, n_assets = asyncio.run(_run())
+    section(console, f"PROGRAM-SCAN · {program_name}")
+    if n_assets == 0:
+        console.print("[orthrus.muted]no live in-scope assets — run "
+                      f"`orthrus recon-run --program {program_name} --in-scope … --authorization …` first.[/]")
+        return
+    console.print(f"scanned [bold]{n_assets}[/] live asset(s) · promoted [bold]{counts['new']}[/] new "
+                  f"finding(s) (of {counts['seen']}; {counts['duplicate']} dup) into the graph.")
+    console.print(f"[orthrus.muted]scan run {run_row.id} · see the cockpit Findings tab / "
+                  "`orthrus bounty-status`.[/]")
+
+
 @cli.command(name="mcp")
 def mcp_cmd() -> None:
     """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
