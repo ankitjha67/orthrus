@@ -1800,6 +1800,62 @@ async def _run_submission_gate(scan_id: str) -> None:
         await store.close()
 
 
+@cli.command(name="capture-auth")
+@click.option("--har", "har_path", required=True, help="HAR export from your logged-in browser tab.")
+@click.option("--host", required=True, help="Host to extract the session for (e.g. 1win.com).")
+@click.option("--name", default="captured", help="Identity name to write into identities.json.")
+@click.option("--out", "out_path", default=None,
+              help="identities.json to create/update; prints the entry to stdout if omitted.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def capture_auth(har_path: str, host: str, name: str, out_path: str | None, verbose: str) -> None:
+    """Extract an authenticated session (cookies + User-Agent + bearer) from a HAR.
+
+    One HAR from your logged-in browser gives BOTH the API surface (feed it to
+    `orthrus scan --import-spec`) and the session captured here into identities.json.
+    Nothing is sent anywhere - this only reads the HAR file you provide.
+    """
+    configure_logging(verbose)
+    from orthrus.core.auth_capture import auth_from_har, merge_identity, to_identity
+
+    try:
+        with open(har_path, encoding="utf-8", errors="replace") as fh:
+            har_text = fh.read()
+    except OSError as exc:
+        logger.error("cannot read HAR '%s': %s", har_path, exc)
+        raise SystemExit(1) from exc
+
+    material = auth_from_har(har_text, host)
+    if material is None:
+        logger.error("no session for %s in %s - is the HAR from a logged-in tab on that host?",
+                     host, har_path)
+        raise SystemExit(1)
+
+    entry = to_identity(name, material)
+    if out_path:
+        existing: list = []
+        if os.path.exists(out_path):
+            try:
+                with open(out_path, encoding="utf-8") as fh:
+                    loaded = json.load(fh)
+                existing = loaded if isinstance(loaded, list) else []
+            except (ValueError, OSError):
+                existing = []
+        merged = merge_identity(existing, entry)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(merged, fh, indent=2)
+        console.print(f"[green]wrote[/] identity '{name}' for {host} -> {out_path} "
+                      f"({len(merged)} total)")
+    else:
+        console.print(json.dumps(entry, indent=2))
+
+    cookie_preview = material.cookie[:70] + ("..." if len(material.cookie) > 70 else "")
+    console.print(f"\n[bold]single-session flags:[/] --auth-cookie \"{cookie_preview}\"")
+    if material.user_agent:
+        console.print(f"[bold]--user-agent[/] \"{material.user_agent}\"")
+    if material.token:
+        console.print("[bold]bearer token[/] captured into the identity's 'token' field")
+
+
 @cli.command()
 @click.option("--scan-id", required=True, help="Scan identifier to report on.")
 @click.option(

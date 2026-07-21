@@ -22,53 +22,52 @@ findings when you give them an authenticated session and a second identity.
 
 ---
 
-## 1. Register two identities (A and B)
+## 1. Register two accounts and export one HAR each
 
 Authorization testing is a differential: does **B** reach **A**'s object? You need two
-real, separate accounts. Log into each in a normal browser and capture its session.
+real, separate accounts. Log into each in a normal browser, exercise the wallet, bet
+history, profile, deposit and withdraw screens (so the API calls are recorded), then
+**DevTools -> Network -> Save all as HAR** for each account (`A.har`, `B.har`).
 
-For a Cloudflare-fronted SPA (as 1win is), capture per account from the logged-in
-browser's DevTools -> Network -> any XHR -> Copy -> Copy as cURL, and read off:
-- the full `Cookie:` header (session + `cf_clearance`),
-- the exact `User-Agent` (the `cf_clearance` token is bound to it),
-- any `Authorization: Bearer ...` header the SPA sends.
+That single HAR per account carries **both** things you need: the real authenticated API
+surface *and* the live session (`cf_clearance` + cookies + the exact User-Agent).
 
-## 2. Build `identities.json`
+## 2. Build `identities.json` with `capture-auth` (no manual copying)
 
-ORTHRUS parses a list of principals. The **first is the privileged baseline**; the rest
-are tested against it. An entry with no auth material is treated as anonymous (ORTHRUS
-also injects its own anonymous control automatically).
+`orthrus capture-auth` extracts the session straight out of each HAR - no DevTools
+cURL-copy, no hand-editing:
+
+```bash
+orthrus capture-auth --har A.har --host 1win.com --name userA-baseline --out identities.json
+orthrus capture-auth --har B.har --host 1win.com --name userB-attacker  --out identities.json
+```
+
+It writes a two-identity file (first = privileged baseline; the rest are tested against
+it), capturing the full `Cookie` (including `cf_clearance`), the bound `User-Agent`, and a
+bearer token if the app uses one. ORTHRUS injects its own anonymous control automatically,
+so you do not need to add an anonymous entry.
+
+The resulting file looks like:
 
 ```json
 [
-  {
-    "name": "userA-baseline",
-    "cookie": "cf_clearance=...; session=AAA...",
-    "headers": { "User-Agent": "Mozilla/5.0 (... exact UA A ...)" }
-  },
-  {
-    "name": "userB-attacker",
-    "cookie": "cf_clearance=...; session=BBB...",
-    "headers": { "User-Agent": "Mozilla/5.0 (... exact UA B ...)" }
-  }
+  { "name": "userA-baseline", "cookie": "cf_clearance=...; session=AAA...",
+    "headers": { "User-Agent": "Mozilla/5.0 (... exact UA A ...)" } },
+  { "name": "userB-attacker", "cookie": "cf_clearance=...; session=BBB...",
+    "headers": { "User-Agent": "Mozilla/5.0 (... exact UA B ...)" } }
 ]
 ```
 
-If the API uses bearer tokens instead of cookies, use `"token": "eyJ..."` (aliased as
-`"bearer"`), which ORTHRUS sends as `Authorization: Bearer ...`.
+## 3. Feed the SAME HAR as the API surface
 
-## 3. Capture the REAL authenticated API surface
+Do not point the scanner at `https://1win.com/` and hope. Pass A's HAR to the scan so it
+tests the real endpoints the app calls, not static pages:
 
-Do not point the scanner at `https://1win.com/` and hope. Drive the logged-in app and
-record what it actually calls, then feed that to ORTHRUS:
-
-- In the browser (logged in as A), exercise wallet, bet history, profile, deposit and
-  withdraw screens. DevTools -> Network -> right-click -> **Save all as HAR**.
-- Pass the HAR to the scan with `--import-spec bugbounty_1win/traffic.har`. ORTHRUS reads
-  endpoints, methods, and JSON bodies from it, so `authz-matrix` and `idor` test the real
-  object-referencing endpoints (`/api/.../wallet`, `/api/.../bets/{id}`, `/kyc/...`) rather
-  than static pages.
-- `--import-spec` also accepts an OpenAPI/Swagger file if the program publishes one.
+- `--import-spec A.har` reads endpoints, methods, and JSON bodies from the HAR, so
+  `authz-matrix` and `idor` test the real object-referencing endpoints
+  (`/api/.../wallet`, `/api/.../bets/{id}`, `/kyc/...`).
+- `--import-spec` also accepts an OpenAPI/Swagger, GraphQL introspection, or Postman file
+  if the program publishes one.
 
 ## 4. Run ORTHRUS authenticated, two identities
 
@@ -76,7 +75,7 @@ record what it actually calls, then feed that to ORTHRUS:
 orthrus scan https://1win.com \
   --scope "1win.com,*.1win.com" \
   --identities identities.json \
-  --import-spec bugbounty_1win/traffic.har \
+  --import-spec A.har \
   --login-url "https://1win.com/api/.../login" \
   --login-data '{"email":"A@example.com","password":"..."}' \
   --login-check '"balance"' \
