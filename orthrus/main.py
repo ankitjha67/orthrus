@@ -3736,7 +3736,7 @@ def recon_run(program_name, in_scope, authorization, sources,
     """
     _ensure_utf8_output()
     from orthrus.model.store import ProgramGraph
-    from orthrus.recon_engine import ReconEngine, ReconScope, get_recon_adapters
+    from orthrus.recon_engine.run import recon_once
 
     settings = get_settings()
 
@@ -3766,22 +3766,9 @@ def recon_run(program_name, in_scope, authorization, sources,
                               if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
             if not domains:
                 raise click.UsageError("program has no in-scope domains — add with --in-scope.")
-            adapters = get_recon_adapters(None if sources == "all" else sources.split(","))
-            result = await ReconEngine(graph, adapters).run(
-                program.id, ReconScope(domains=domains, program_id=program.id))
-            await graph.append_audit("recon-run", "completed", subject_type="program",
-                                     subject_id=program.id,
-                                     details={"new": len(result.new), "discovered": result.discovered,
-                                              "sources": result.sources_run})
-            notified: dict[str, bool] = {}
-            if result.new and (notify_slack or notify_discord):
-                from orthrus.integrations.notify import send_discord, send_slack
-                from orthrus.recon_engine.alerts import new_asset_message
-                msg = new_asset_message(program_name, result.new)
-                if notify_slack:
-                    notified["slack"] = await send_slack(notify_slack, {"text": msg})
-                if notify_discord:
-                    notified["discord"] = await send_discord(notify_discord, msg)
+            result, notified = await recon_once(
+                graph, program.id, program_name, domains, sources=sources,
+                notify_slack=notify_slack, notify_discord=notify_discord)
             return program, domains, result, notified
         finally:
             await graph.close()
@@ -3808,6 +3795,66 @@ def recon_run(program_name, in_scope, authorization, sources,
         console.print(f"[orthrus.muted]{channel} alert {'sent' if ok else 'failed'}.[/]")
     if result.failed_sources:
         console.print(f"[orthrus.muted]sources that errored: {', '.join(result.failed_sources)}[/]")
+
+
+@cli.command(name="recon-watch")
+@click.option("--program", "program_name", required=True, help="Saved operator-graph program.")
+@click.option("--interval", default=3600, type=int, show_default=True,
+              help="Seconds between recon passes.")
+@click.option("--max-runs", default=0, type=int,
+              help="Stop after N passes (0 = run until interrupted).")
+@click.option("--sources", default="all", help="Comma-separated recon adapters, or 'all'.")
+@click.option("--notify-slack", "notify_slack", default=None, metavar="WEBHOOK",
+              help="Alert this Slack webhook on new assets.")
+@click.option("--notify-discord", "notify_discord", default=None, metavar="WEBHOOK",
+              help="Alert this Discord webhook on new assets.")
+def recon_watch(program_name, interval, max_runs, sources, notify_slack, notify_discord) -> None:
+    """Continuously re-run recon for a program, alerting on NEW assets (PRD §7.2).
+
+    Runs when nobody's watching: each pass folds fresh discoveries into the graph
+    and fires Slack/Discord alerts on new in-scope assets. Interrupt to stop.
+    """
+    _ensure_utf8_output()
+    from orthrus.model.store import ProgramGraph
+    from orthrus.recon_engine.run import recon_once
+
+    settings = get_settings()
+
+    async def _watch() -> int:
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(
+                    f"no program '{program_name}' — create it first with "
+                    f"`orthrus recon-run --program {program_name} --in-scope … --authorization …`.")
+            domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
+                              if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
+            if not domains:
+                raise click.UsageError("program has no in-scope domains.")
+            runs = 0
+            while True:
+                result, _notified = await recon_once(
+                    graph, program.id, program_name, domains, sources=sources,
+                    notify_slack=notify_slack, notify_discord=notify_discord)
+                runs += 1
+                tail = f" · [bold]✚{len(result.new)} new[/]" if result.new else ""
+                console.print(f"[orthrus.muted]pass {runs}:[/] {result.summary()}{tail}")
+                if max_runs and runs >= max_runs:
+                    return runs
+                await asyncio.sleep(interval)
+        finally:
+            await graph.close()
+
+    section(console, f"RECON-WATCH · {program_name}")
+    cadence = f"{max_runs} pass(es)" if max_runs else "until interrupted"
+    console.print(f"[orthrus.muted]every {interval}s · {cadence}[/]")
+    try:
+        runs = asyncio.run(_watch())
+        console.print(f"[bold]done[/] — {runs} pass(es).")
+    except KeyboardInterrupt:
+        console.print("\n[orthrus.muted]stopped.[/]")
 
 
 @cli.command(name="mcp")
