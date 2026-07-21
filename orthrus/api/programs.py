@@ -65,6 +65,13 @@ class AssetRecord(BaseModel):
     metadata: dict = Field(default_factory=dict)
 
 
+class FindingUpdate(BaseModel):
+    status: str | None = None
+    assigned_to: str | None = None
+    hunter_notes_md: str | None = None
+    llm_fp_confidence: float | None = None
+
+
 # --------------------------------------------------------------- serialization
 def _dt(value) -> str | None:
     return value.isoformat() if value else None
@@ -229,6 +236,44 @@ async def list_findings(request: Request, program_id: str,
     await _require_program(request, program_id)
     findings = await _graph(request).list_findings(program_id, status=status)
     return [finding_dict(f) for f in findings]
+
+
+async def _require_finding(request: Request, program_id: str, finding_id: str):
+    finding = await _graph(request).get_finding(finding_id)
+    if finding is None or finding.program_id != program_id:
+        raise HTTPException(status_code=404, detail=f"finding '{finding_id}' not found in this program")
+    return finding
+
+
+@router.patch("/programs/{program_id}/findings/{finding_id}",
+              dependencies=[Depends(require_write)])
+async def update_finding(request: Request, program_id: str, finding_id: str,
+                         body: FindingUpdate) -> dict[str, Any]:
+    await _require_program(request, program_id)
+    await _require_finding(request, program_id, finding_id)
+    graph = _graph(request)
+    finding = None
+    if body.status is not None:
+        try:
+            finding = await graph.set_finding_status(finding_id, body.status)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    other = {k: v for k, v in body.model_dump(exclude={"status"}).items() if v is not None}
+    if other:
+        finding = await graph.update_finding(finding_id, **other)
+    if finding is None:                       # no fields supplied — return current state
+        finding = await graph.get_finding(finding_id)
+    return finding_dict(finding)
+
+
+@router.get("/programs/{program_id}/findings/{finding_id}/report")
+async def finding_report(request: Request, program_id: str, finding_id: str,
+                         platform: str = "generic") -> dict[str, Any]:
+    program = await _require_program(request, program_id)
+    finding = await _require_finding(request, program_id, finding_id)
+    from orthrus.model.report import render_program_finding
+    markdown = render_program_finding(finding, platform=platform, program_name=program.name)
+    return {"platform": platform, "finding_id": finding_id, "markdown": markdown}
 
 
 @router.get("/programs/{program_id}/cost")
