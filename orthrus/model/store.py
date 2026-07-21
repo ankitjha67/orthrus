@@ -34,6 +34,7 @@ from orthrus.model.entities import (
     Note,
     Program,
     ProgramAsset,
+    ProgramEndpoint,
     ProgramFinding,
     ScanRun,
     ScopeEntry,
@@ -310,6 +311,90 @@ class ProgramGraph:
             )
             return list(result.scalars().all())
 
+    # --------------------------------------------------------------- endpoints
+    async def record_endpoint(
+        self,
+        asset_id: str,
+        path: str,
+        *,
+        method: str = "GET",
+        query_params: list | None = None,
+        body_params: list | None = None,
+        response_status: int | None = None,
+        response_content_type: str | None = None,
+        response_size: int | None = None,
+        juicy_score: float | None = None,
+    ) -> tuple[ProgramEndpoint, bool]:
+        """Upsert an HTTP route by (asset, method, path); return (endpoint, is_new).
+
+        Dedups on the request identity so importing the same Burp/Caido session
+        twice (or a route already seen by recon) bumps ``probe_count`` and merges
+        freshly-observed params/response metadata rather than duplicating routes.
+        """
+        method = (method or "GET").upper()[:8]
+        path = (path or "/").strip() or "/"
+        now = _utcnow()
+        async with self._session() as session:
+            existing = await session.execute(
+                select(ProgramEndpoint).where(
+                    ProgramEndpoint.asset_id == asset_id,
+                    ProgramEndpoint.method == method,
+                    ProgramEndpoint.path == path,
+                ).limit(1)
+            )
+            ep = existing.scalar_one_or_none()
+            if ep is not None:
+                ep.probe_count = (ep.probe_count or 0) + 1
+                ep.last_probed_at = now
+                # union newly-observed params; keep the richest response snapshot
+                if query_params:
+                    ep.query_params = sorted(set(ep.query_params or []) | set(query_params))
+                if body_params:
+                    ep.body_params = sorted(set(ep.body_params or []) | set(body_params))
+                if response_status is not None:
+                    ep.response_status = response_status
+                if response_content_type:
+                    ep.response_content_type = response_content_type
+                if response_size is not None:
+                    ep.response_size = response_size
+                if juicy_score is not None:
+                    ep.juicy_score = max(ep.juicy_score or 0.0, juicy_score)
+                await session.commit()
+                await session.refresh(ep)
+                return ep, False
+
+            ep = ProgramEndpoint(
+                asset_id=asset_id, method=method, path=path,
+                query_params=sorted(set(query_params or [])),
+                body_params=sorted(set(body_params or [])),
+                response_status=response_status,
+                response_content_type=response_content_type,
+                response_size=response_size, juicy_score=juicy_score,
+                last_probed_at=now, probe_count=1,
+            )
+            session.add(ep)
+            await session.commit()
+            await session.refresh(ep)
+            return ep, True
+
+    async def list_endpoints(
+        self, program_id: str, *, asset_id: str | None = None, limit: int | None = None,
+    ) -> list[ProgramEndpoint]:
+        """Endpoints for a program (optionally one asset), ranked juiciest-first."""
+        stmt = (
+            select(ProgramEndpoint)
+            .join(ProgramAsset, ProgramEndpoint.asset_id == ProgramAsset.id)
+            .where(ProgramAsset.program_id == program_id)
+        )
+        if asset_id:
+            stmt = stmt.where(ProgramEndpoint.asset_id == asset_id)
+        stmt = stmt.order_by(ProgramEndpoint.juicy_score.desc().nullslast(), ProgramEndpoint.path)
+        if limit:
+            stmt = stmt.limit(limit)
+        async with self._session() as session:
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
+
     # --------------------------------------------------------------- scan runs
     async def start_scan_run(
         self, program_id: str, *, triggered_by: str = "manual",
@@ -344,6 +429,18 @@ class ProgramGraph:
             await session.commit()
             await session.refresh(run)
         return run
+
+    async def list_scan_runs(
+        self, program_id: str, *, limit: int | None = None,
+    ) -> list[ScanRun]:
+        """A program's scan runs, most-recent-first (drives the next-action planner)."""
+        stmt = (select(ScanRun).where(ScanRun.program_id == program_id)
+                .order_by(ScanRun.started_at.desc()))
+        if limit:
+            stmt = stmt.limit(limit)
+        async with self._session() as session:
+            result = await session.execute(stmt)
+            return list(result.scalars().all())
 
     # -------------------------------------------------------------- findings
     async def record_finding(

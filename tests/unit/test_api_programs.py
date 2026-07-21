@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from orthrus.api import create_app  # noqa: E402
+from orthrus.model.store import ProgramGraph  # noqa: E402
 
 
 @pytest.fixture
@@ -82,6 +85,33 @@ def test_findings_cost_audit_endpoints(client):
     assert client.get(f"/api/programs/{pid}/findings").json() == []
     assert client.get(f"/api/programs/{pid}/cost").json()["entries"] == 0
     assert client.get("/api/audit/verify").json()["intact"] is True
+
+
+def test_endpoints_and_plan_endpoints(client, tmp_path):
+    pid = _make_program(client).json()["id"]
+    client.post(f"/api/programs/{pid}/scope",
+                json={"value": "acme.com", "entry_type": "in", "kind": "domain"})
+    # empty program still plans (recon, since it's scoped) and lists no endpoints
+    assert client.get(f"/api/programs/{pid}/endpoints").json() == []
+    plan = client.get(f"/api/programs/{pid}/plan").json()["actions"]
+    assert plan and plan[0]["key"] == "recon"
+
+    # record an asset (via API) + an endpoint (via a separate graph on the same file DB)
+    aid = client.post(f"/api/programs/{pid}/assets",
+                      json={"kind": "subdomain",
+                            "canonical_value": "api.acme.com"}).json()["asset"]["id"]
+
+    async def _add():
+        g = ProgramGraph(f"sqlite+aiosqlite:///{tmp_path / 'graph_api.sqlite3'}")
+        await g.init()
+        await g.record_endpoint(aid, "/v1/login", method="POST",
+                                body_params=["u", "p"], juicy_score=0.9)
+        await g.close()
+    asyncio.run(_add())
+
+    eps = client.get(f"/api/programs/{pid}/endpoints").json()
+    assert len(eps) == 1 and eps[0]["path"] == "/v1/login" and eps[0]["juicy_score"] == 0.9
+    assert client.get("/api/programs/nope/plan").status_code == 404
 
 
 def test_write_gate_requires_token_when_configured(client, monkeypatch):

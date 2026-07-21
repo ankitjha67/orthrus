@@ -129,6 +129,16 @@ def note_dict(n) -> dict[str, Any]:
     }
 
 
+def endpoint_dict(e) -> dict[str, Any]:
+    return {
+        "id": e.id, "asset_id": e.asset_id, "method": e.method, "path": e.path,
+        "query_params": e.query_params, "body_params": e.body_params,
+        "response_status": e.response_status, "response_content_type": e.response_content_type,
+        "response_size": e.response_size, "juicy_score": e.juicy_score,
+        "probe_count": e.probe_count, "last_probed_at": _dt(e.last_probed_at),
+    }
+
+
 def finding_dict(f) -> dict[str, Any]:
     return {
         "id": f.id, "vuln_class": f.vuln_class, "title": f.title,
@@ -250,6 +260,15 @@ async def record_asset(request: Request, program_id: str, body: AssetRecord) -> 
     return {"asset": asset_dict(asset), "is_new": is_new}
 
 
+@router.get("/programs/{program_id}/endpoints")
+async def list_endpoints(request: Request, program_id: str, asset_id: str | None = None,
+                         limit: int | None = None) -> list[dict[str, Any]]:
+    """A program's HTTP routes (from recon + imported Burp/Caido/HAR), juiciest-first."""
+    await _require_program(request, program_id)
+    eps = await _graph(request).list_endpoints(program_id, asset_id=asset_id, limit=limit)
+    return [endpoint_dict(e) for e in eps]
+
+
 # ------------------------------------------------------------------- findings
 @router.get("/programs/{program_id}/findings")
 async def list_findings(request: Request, program_id: str,
@@ -346,6 +365,17 @@ async def copilot(request: Request, program_id: str, body: CopilotQuery) -> dict
         "hits": [{"source": h.source, "title": h.title, "snippet": h.snippet, "score": h.score}
                  for h in hits],
     }
+
+
+# ----------------------------------------------------------------------- plan
+@router.get("/programs/{program_id}/plan")
+async def program_plan(request: Request, program_id: str) -> dict[str, Any]:
+    """Ranked next actions grounded in the program's graph state (deterministic)."""
+    program = await _require_program(request, program_id)
+    from orthrus.model.planner import next_actions
+    actions = await next_actions(_graph(request), program_id, program_name=program.name)
+    return {"actions": [{"key": a.key, "priority": a.priority,
+                         "reason": a.reason, "command": a.command} for a in actions]}
 
 
 # --------------------------------------------------------------------- audit
