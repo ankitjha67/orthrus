@@ -496,8 +496,10 @@ commands cover the rest of the workflow — `program-policy`, `bounty-assets`,
 `suppress`/`suppressions`, `submission`/`submissions`, `note`/`notes`, `copilot`
 (RAG over your own data), `cost`, `audit`, `bounty-report` (re-render without
 re-scanning), and `bounty-status` (one-view cockpit). Optional external tools
-(nuclei / dalfox / testssl / ffuf / nikto / wpscan) fold in via `--tools`. Full
-guide: **[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md)**.
+fold in via `--tools`, spanning web (nuclei / dalfox / testssl / ffuf / nikto /
+wpscan), code (semgrep), cloud & IaC (checkov), and web3 (slither) — each
+self-skips if its binary is absent. Full guide:
+**[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md)**.
 
 ## ⚙️ Configuration
 
