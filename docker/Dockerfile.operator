@@ -1,0 +1,40 @@
+# ORTHRUS v2.0 operator-platform image (PRD §9 team mode + cockpit).
+#
+# Serves the REST API + the React/Tauri cockpit at /cockpit over a shared Postgres
+# graph, for a team of operators. Distinct from docker/Dockerfile (the CLI/worker
+# image): this is the long-running web platform.
+#
+#   docker compose -f docker/docker-compose.operator.yml up -d --build
+#
+# NOTE: not built/run in the dev environment that authored it — the compose file is
+# `docker compose config`-validated; exercise the image build in your own CI.
+
+# --- stage 1: build the cockpit (React + Vite) -------------------------------
+FROM node:20-slim AS cockpit
+WORKDIR /build/cockpit
+COPY cockpit/package.json cockpit/package-lock.json* ./
+RUN npm ci || npm install
+COPY cockpit/ ./
+RUN npm run build          # → /build/cockpit/dist
+
+# --- stage 2: the Python operator service ------------------------------------
+FROM python:3.12-slim
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends nmap ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY orthrus ./orthrus
+COPY alembic.ini ./
+RUN pip install --no-cache-dir -e ".[api,postgres,reporting,mcp]"
+
+# the pre-built cockpit; cockpit_dist() resolves this via ORTHRUS_COCKPIT_DIST.
+COPY --from=cockpit /build/cockpit/dist ./cockpit/dist
+ENV ORTHRUS_COCKPIT_DIST=/app/cockpit/dist
+
+EXPOSE 8000
+# team mode enforces RBAC once ORTHRUS_API_TOKEN is set (see docker-compose.operator.yml).
+ENTRYPOINT ["orthrus"]
+CMD ["serve", "--cockpit", "--host", "0.0.0.0", "--port", "8000"]
