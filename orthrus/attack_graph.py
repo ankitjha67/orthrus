@@ -1,16 +1,16 @@
-"""Reachability attack graph — collapse a flat finding list into the few attack
+"""Reachability attack graph - collapse a flat finding list into the few attack
 *paths* an adversary can actually walk.
 
 ``chains.py`` matches findings against a rule catalog and emits each matched rule
 independently. This engine goes further: it treats the same rule catalog as a set
 of directed *enables* edges between findings, builds a per-host graph, and
 extracts the **maximal** kill-chains. Because edges compose, two rules that share
-a finding merge into one longer path — e.g. `LFI → exposed-secret` (rule A) and
+a finding merge into one longer path - e.g. `LFI → exposed-secret` (rule A) and
 `exposed-secret → auth-forgery` (rule B) collapse into a single three-step path
 `LFI → secret → auth-forgery` that neither rule expresses alone.
 
 The output is the handful of reachable attack paths, each with its combined
-severity and impact narrative, plus the **collapse ratio** — how many raw
+severity and impact narrative, plus the **collapse ratio** - how many raw
 findings lie on a reachable path (Trident-style "N findings → M paths"). Pure and
 deterministic: ``build_attack_graph`` takes findings and returns the report.
 """

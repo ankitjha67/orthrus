@@ -4,12 +4,12 @@ One Markdown file per (deduplicated) bug, written the way a triager wants to rea
 it: a clear title, severity + CVSS, the affected asset, copy-paste **steps to
 reproduce**, impact, and remediation. Plus an index over the whole campaign.
 
-Two filters keep the output signal-dense — exactly what stops a program from
+Two filters keep the output signal-dense - exactly what stops a program from
 muting you:
 
-* **In scope only** — a finding whose host isn't in the program scope (or is
+* **In scope only** - a finding whose host isn't in the program scope (or is
   under an exclusion) is dropped.
-* **Confidence floor** — defaults to ``firm`` (confirmed + firm), so unproven
+* **Confidence floor** - defaults to ``firm`` (confirmed + firm), so unproven
   ``tentative`` heuristics don't reach a human triager unless asked for.
 
 Nothing here calls a model; it's deterministic and fast. (`orthrus ai-report`
@@ -34,7 +34,7 @@ _BOUNTY_HINT = {
     "high": "usually a high reward",
     "medium": "a moderate reward",
     "low": "a small reward, if any",
-    "info": "usually informational — often not rewarded",
+    "info": "usually informational - often not rewarded",
 }
 _TITLE_TAIL = re.compile(r"\s+(?:via|in|on|through|at)\s+", re.IGNORECASE)
 
@@ -146,7 +146,7 @@ def render_submission(group: BugGroup, program_name: str = "", *, prior_seen: in
     sev = _sev(f.severity)
     cvss = f"{f.cvss_score} ({f.cvss_vector})" if f.cvss_score is not None else "not scored"
     conf = _conf(f.confidence)
-    proof = f" — re-proven by `{group.technique}`" if (conf == "confirmed" and group.technique) else ""
+    proof = f" - re-proven by `{group.technique}`" if (conf == "confirmed" and group.technique) else ""
     ev = f.evidence
     snippets = build_snippets(url=f.url, request_raw=getattr(ev, "request_raw", None))
 
@@ -154,20 +154,20 @@ def render_submission(group: BugGroup, program_name: str = "", *, prior_seen: in
         f"# [{sev.upper()}] {_norm_title(f.title)}",
         "",
         (f"**Program:** {program_name}  " if program_name else "") + f"\n**Asset:** {f.url}",
-        f"**Severity:** {sev.capitalize()} — CVSS {cvss}",
+        f"**Severity:** {sev.capitalize()} - CVSS {cvss}",
         f"**Weakness:** {f.cwe or 'n/a'}",
         f"**Confidence:** {conf}{proof}",
-        f"**Reward guidance:** {_BOUNTY_HINT.get(sev, 'varies')} *(indicative only — the program decides)*",
+        f"**Reward guidance:** {_BOUNTY_HINT.get(sev, 'varies')} *(indicative only - the program decides)*",
     ]
     if is_destructive(f.vuln_type):
         parts.append(
-            "\n> ⚠️ **Destructive class** — confirming or exploiting this can write state or affect "
+            "\n> ⚠️ **Destructive class** - confirming or exploiting this can write state or affect "
             "other users. Verify manually and follow the program's rules before active testing."
         )
     if prior_seen > 0:
         runs = "run" if prior_seen == 1 else "runs"
         parts.append(
-            f"\n> ♻ **Seen before** — this bug matches a finding from {prior_seen} earlier {runs}. "
+            f"\n> ♻ **Seen before** - this bug matches a finding from {prior_seen} earlier {runs}. "
             "It may already be reported; check your submission history before filing (duplicates "
             "hurt your platform reputation)."
         )
@@ -211,7 +211,7 @@ def render_submission(group: BugGroup, program_name: str = "", *, prior_seen: in
         "high": "A remote attacker can seriously abuse this against users or data.",
         "medium": "Exploitable under realistic conditions with meaningful impact.",
         "low": "Limited impact; still weakens the asset's security posture.",
-        "info": "Informational — hardening opportunity.",
+        "info": "Informational - hardening opportunity.",
     }.get(sev, "See summary.")
     parts += ["", "## Impact", impact]
 
@@ -237,7 +237,7 @@ def campaign_summary(report: CampaignReport, program_name: str = "", *,
     """A machine-readable view of the ranked bug queue (for automation/dashboards).
 
     Pure: the same deduped, priority-ranked queue the Markdown index shows, plus
-    the filter counts and per-bug metadata — including ``prior_seen`` so a
+    the filter counts and per-bug metadata - including ``prior_seen`` so a
     consumer can skip likely duplicates.
     """
     prior_seen = prior_seen or {}
@@ -281,12 +281,12 @@ def render_index(report: CampaignReport, program_name: str = "", *,
     rows = []
     for i, g in enumerate(report.groups, 1):
         f = g.lead
-        cvss = f.cvss_score if f.cvss_score is not None else "—"
+        cvss = f.cvss_score if f.cvss_score is not None else "-"
         mark = " ♻" if prior_seen.get(id(f)) else ""
         any_seen = any_seen or bool(mark)
         rows.append(f"| {i} | {priority_score(f):.0f} | {_sev(f.severity).upper()} | "
                     f"{_norm_title(f.title)}{mark} | {cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
-    body = "\n".join(rows) or "| — | — | — | — | — | — | — |"
+    body = "\n".join(rows) or "| - | - | - | - | - | - | - |"
     sev_counts: dict[str, int] = {}
     for g in report.groups:
         s = _sev(g.lead.severity)
@@ -297,11 +297,11 @@ def render_index(report: CampaignReport, program_name: str = "", *,
         f"{report.below_confidence} below the confidence floor"
         + (f" · {report.suppressed} muted" if report.suppressed else "") + "._\n\n"
     )
-    seen_note = ("_♻ = matched a finding from an earlier run (possible duplicate — verify before "
+    seen_note = ("_♻ = matched a finding from an earlier run (possible duplicate - verify before "
                  "filing)._\n\n" if any_seen else "")
     return (
-        f"# Bug-bounty findings{f' — {program_name}' if program_name else ''}\n\n"
-        f"**{report.reportable} reportable bug(s)** — {dist}.  \n"
+        f"# Bug-bounty findings{f' - {program_name}' if program_name else ''}\n\n"
+        f"**{report.reportable} reportable bug(s)** - {dist}.  \n"
         + considered_line
         + "| # | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
         "|---|---|---|---|---|---|---|\n" + body + "\n\n"

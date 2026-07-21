@@ -1,11 +1,11 @@
-"""Provider-normalized cloud inventory — the input to CSPM/IAM posture analysis.
+"""Provider-normalized cloud inventory - the input to CSPM/IAM posture analysis.
 
 A cloud "snapshot" is deliberately provider-agnostic and flat: a list of
 ``CloudResource`` records with the handful of attributes posture rules and the
 toxic-combination graph actually reason over (public exposure, encryption, IAM
 permissions, attached roles, internet-open ports, tags). It can be produced by
 the read-only ``collect`` adapter (boto3) or hand-exported from `aws`/Steampipe/
-ScoutSuite and fed to ``orthrus cloud`` as JSON — so analysis never needs live
+ScoutSuite and fed to ``orthrus cloud`` as JSON - so analysis never needs live
 credentials to run or to be tested.
 """
 
@@ -37,7 +37,7 @@ def _as_int_list(value: Any) -> list[int]:
 class CloudResource:
     """One cloud resource, normalized to the attributes posture rules need."""
 
-    id: str  # ARN / resource id — used as the finding URL
+    id: str  # ARN / resource id - used as the finding URL
     type: str  # e.g. "s3-bucket", "ec2-instance", "iam-user", "iam-role", "security-group", "rds-instance"
     name: str = ""
     region: str | None = None

@@ -124,7 +124,7 @@ async def test_discover_emits_only_in_scope_assets(monkeypatch):
     _patch_sources(
         monkeypatch,
         crtsh=["api.example.com"],
-        revip=["shared-tenant.net"],  # out of scope — must NOT become an Asset
+        revip=["shared-tenant.net"],  # out of scope - must NOT become an Asset
         resolve={"example.com": ["93.184.216.34"]},
     )
     scope = ScopeValidator(ScopeConfig(domains=["example.com", "*.example.com"]))

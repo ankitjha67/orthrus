@@ -2,7 +2,7 @@
 
 Operates on a small :class:`MatchInput` snapshot of a response (status, body,
 joined headers) so it can be unit-tested without any HTTP layer. No network, no
-regex compilation caching surprises — deterministic given its inputs.
+regex compilation caching surprises - deterministic given its inputs.
 """
 
 from __future__ import annotations

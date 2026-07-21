@@ -1,4 +1,4 @@
-"""Consolidated remediation runbook — collapse a flat finding list into the few
+"""Consolidated remediation runbook - collapse a flat finding list into the few
 *fixes* that actually retire the risk, ordered so the highest-leverage change is
 first.
 
@@ -7,7 +7,7 @@ remediation (same ``vuln_type``) become one fix action spanning every affected
 endpoint, so "42 SQLi findings across 9 URLs" reads as a single "parameterise
 queries" task. Actions are then ranked by leverage: a fix that removes a step
 from a correlated attack path (see ``attack_graph``) sorts above an equally-severe
-fix that only clears isolated findings — breaking one link collapses the whole
+fix that only clears isolated findings - breaking one link collapses the whole
 kill-chain.
 
 Pure and deterministic: ``build_runbook`` takes findings and returns a ``Runbook``
@@ -49,7 +49,7 @@ def _representative(values: list[str]) -> str:
 
 
 def _fullest(values: list[str]) -> str:
-    """The longest non-empty value — the most complete remediation text in a group."""
+    """The longest non-empty value - the most complete remediation text in a group."""
     return max((v for v in values if v), key=len, default="")
 
 
@@ -129,24 +129,24 @@ class Runbook:
 
     def to_markdown(self) -> str:
         scope = self.target or self.scan_id or "scan"
-        out: list[str] = [f"# Remediation Runbook — {scope}", "", f"_{self.summary()}._", ""]
+        out: list[str] = [f"# Remediation Runbook - {scope}", "", f"_{self.summary()}._", ""]
         if not self.actions:
             out.append("No findings require remediation.")
             return "\n".join(out) + "\n"
         out += [
-            "Work top-down: actions are ordered by leverage — fixes that break an "
+            "Work top-down: actions are ordered by leverage - fixes that break an "
             "attack path come first, then by severity and blast radius.",
             "",
         ]
         for i, a in enumerate(self.actions, 1):
-            out.append(f"## {i}. {a.title} — {a.severity.upper()}")
+            out.append(f"## {i}. {a.title} - {a.severity.upper()}")
             span = f"**Fixes {a.count} finding(s)** across {len(a.urls)} endpoint(s)."
             if a.cwe:
                 span += f" · {a.cwe}"
             out.append(span)
             for sig in a.breaks_paths:
                 out.append(f"> 🔓 Breaks attack path: {sig}")
-            out += ["", f"**Remediation:** {a.remediation or '—'}", "", "**Affected endpoints:**"]
+            out += ["", f"**Remediation:** {a.remediation or '-'}", "", "**Affected endpoints:**"]
             out += [f"- `{u}`" for u in a.urls[:_MAX_URLS_SHOWN]]
             if len(a.urls) > _MAX_URLS_SHOWN:
                 out.append(f"- …and {len(a.urls) - _MAX_URLS_SHOWN} more.")

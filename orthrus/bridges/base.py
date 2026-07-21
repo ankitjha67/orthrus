@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from orthrus.model.store import ProgramGraph
 
 # path substrings that make a route worth testing first (auth surface, mutations,
-# APIs, file handling). Kept small + high-signal — this only ranks, never filters.
+# APIs, file handling). Kept small + high-signal - this only ranks, never filters.
 _JUICY_HINTS = (
     "admin", "api", "graphql", "login", "logout", "auth", "token", "oauth", "sso",
     "password", "reset", "account", "user", "profile", "session", "upload", "file",
@@ -69,7 +69,7 @@ def _asset_kind(host: str) -> str:
 
 
 def endpoint_juicy_score(req: CapturedRequest) -> float:
-    """Heuristic 0..1 — how worth-testing this route is (ranks the endpoint queue).
+    """Heuristic 0..1 - how worth-testing this route is (ranks the endpoint queue).
 
     Purely advisory triage signal: input vectors + state-changing verbs + auth/API
     surface score higher, so a hand-browsed session bubbles its interesting routes
@@ -99,7 +99,7 @@ async def fold_traffic(
     """Fold captured requests into the graph as assets + endpoints (dedup upsert).
 
     ``in_scope`` (host -> bool), when given, refuses out-of-scope hosts so a proxy
-    history's third-party noise never enters the program graph — deny-by-default
+    history's third-party noise never enters the program graph - deny-by-default
     carried onto import. Returns a :class:`TrafficImportResult` for the caller to
     report and audit-log.
     """

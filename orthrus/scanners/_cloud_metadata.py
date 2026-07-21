@@ -4,7 +4,7 @@ When SSRF reaches a cloud instance's metadata service, the prize is not the
 metadata itself but the **temporary credentials** it hands out: an attacker who
 reads them can act as the instance's role across the cloud account. This module
 turns a metadata *response body* into the concrete credential material it leaked
-— redacting the secret portions so ORTHRUS proves the exposure without ever
+- redacting the secret portions so ORTHRUS proves the exposure without ever
 storing a usable key.
 
 Pure and offline: ``extract_credentials`` takes a body string and returns the
@@ -50,7 +50,7 @@ def redact_secret(value: str, keep: int = 4) -> str:
 def extract_credentials(body: str) -> CloudCreds | None:
     """Extract leaked cloud credentials from a metadata response, redacted.
 
-    Returns the first provider matched (AWS, then Azure, then GCP — Azure is
+    Returns the first provider matched (AWS, then Azure, then GCP - Azure is
     checked before GCP because both carry an ``access_token`` but only Azure
     carries a ``client_id``). Secret material (SecretAccessKey, session/OAuth
     tokens) is redacted; the AccessKeyId is kept in full as it is an identifier,

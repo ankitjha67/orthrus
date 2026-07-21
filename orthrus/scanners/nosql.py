@@ -1,7 +1,7 @@
 """NoSQL injection scanner (error-based).
 
 Sends NoSQL-breaking payloads (operator objects, stray quotes/braces) into every
-injection point and flags responses that leak a NoSQL driver error — the same
+injection point and flags responses that leak a NoSQL driver error - the same
 low-false-positive approach the SQLi scanner uses for SQL errors. A baseline is
 checked first so endpoints that error on *any* input are skipped.
 

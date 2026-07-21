@@ -2,7 +2,7 @@
 
 Clients receive PDF/HTML deliverables, not Markdown. This is a small hand-rolled
 renderer for the exact Markdown subset the report writer emits (headings, tables,
-fenced code, lists, blockquotes, rules, bold/italic/code/link inlines) — no new
+fenced code, lists, blockquotes, rules, bold/italic/code/link inlines) - no new
 dependency. The HTML shell carries an inline Big-Four-style stylesheet with print
 page-breaks so `orthrus.reporting.pdf.html_to_pdf` (headless Chromium) turns it
 into a paginated PDF.
@@ -62,7 +62,7 @@ def _render_table(header: list[str], rows: list[list[str]]) -> str:
     return f"<table>\n<thead><tr>{thead}</tr></thead>\n<tbody>{''.join(body)}</tbody>\n</table>"
 
 
-def _render_body(md: str) -> str:  # noqa: C901 — a small, linear block dispatcher
+def _render_body(md: str) -> str:  # noqa: C901 - a small, linear block dispatcher
     lines = md.split("\n")
     n = len(lines)
     out: list[str] = []
@@ -158,7 +158,7 @@ def _render_body(md: str) -> str:  # noqa: C901 — a small, linear block dispat
     return "\n".join(out)
 
 
-# Colours are red/white/black only — canonical tokens in orthrus/utils/palette.py.
+# Colours are red/white/black only - canonical tokens in orthrus/utils/palette.py.
 _CSS = """
 :root { --ink:#1a1a1a; --muted:#666666; --line:#e2e2e2; --accent:#c40000;
         --crit:#a10000; --high:#c0392b; --med:#8a3a3a; --low:#555555; --code:#f5f5f5; }
@@ -198,7 +198,7 @@ tbody tr:nth-child(even) { background: #f7f7f7; }
 
 _BANNER = ('<div style="background:#8b1a1a;color:#fff;text-align:center;'
            'font-size:9pt;letter-spacing:.12em;padding:5px;text-transform:uppercase;">'
-           'Confidential — Penetration Test Report</div>')
+           'Confidential - Penetration Test Report</div>')
 
 
 def markdown_to_html(md: str, title: str = "Penetration Test Report") -> str:

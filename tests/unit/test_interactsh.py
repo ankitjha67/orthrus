@@ -4,7 +4,7 @@ The decisive check is that our poll path exactly inverts the ProjectDiscovery
 server's encryption: a per-poll AES key wrapped with our RSA public key
 (RSA-OAEP, SHA-256), and each interaction as AES-CFB ciphertext prefixed by its
 IV. We synthesise a standards-compliant server response and confirm the client
-decrypts and buckets it — no network required.
+decrypts and buckets it - no network required.
 """
 
 from __future__ import annotations

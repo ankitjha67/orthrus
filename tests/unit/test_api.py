@@ -1,4 +1,4 @@
-"""ORTHRUS REST API (FastAPI) — exercised via TestClient against a seeded DB."""
+"""ORTHRUS REST API (FastAPI) - exercised via TestClient against a seeded DB."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def client(tmp_path):
         await store.add_finding("scan-apitest", _finding("sqli", schemas.Severity.HIGH))
         await store.add_finding("scan-apitest", _finding("xss", schemas.Severity.MEDIUM))
         await store.set_scan_status("scan-apitest", "completed", completed=True)
-        # A second scan whose finding URL carries an XSS payload — the dashboard
+        # A second scan whose finding URL carries an XSS payload - the dashboard
         # must render it escaped (a security tool's own UI must not be XSS-able).
         await store.create_scan("scan-xss", "https://x.example", {}, {})
         await store.add_finding(

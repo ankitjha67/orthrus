@@ -1,4 +1,4 @@
-"""Infrastructure-as-Code misconfiguration analyzer — native, offline, no deps
+"""Infrastructure-as-Code misconfiguration analyzer - native, offline, no deps
 beyond PyYAML (already required).
 
 Parses Dockerfiles, docker-compose, and Terraform and emits ORTHRUS ``Finding``s
@@ -89,7 +89,7 @@ def analyze_dockerfile(text: str, path: str = "Dockerfile") -> list[Finding]:
                 f"Hardcoded secret baked into the image ({env.group(1)})", Severity.HIGH, path, i,
                 "A secret-looking ENV/ARG with a literal value is stored in the image and "
                 "recoverable from any layer.",
-                "Inject secrets at runtime (env vars, secret mounts, a secret manager) — never bake "
+                "Inject secrets at runtime (env vars, secret mounts, a secret manager) - never bake "
                 "them into the image.", "CWE-798", f"{env.group(1)}=***",
             ))
     if not saw_user or user_is_root:
@@ -134,7 +134,7 @@ def analyze_compose(text: str, path: str = "docker-compose.yml") -> list[Finding
         if svc.get("privileged") is True:
             findings.append(_finding(
                 f"Privileged container '{name}'", Severity.HIGH, path, 0,
-                "privileged: true grants ~all host capabilities — a compromise is a trivial host "
+                "privileged: true grants ~all host capabilities - a compromise is a trivial host "
                 "takeover.",
                 "Remove privileged; add only the specific capabilities required.", "CWE-250", loc,
             ))
@@ -188,7 +188,7 @@ def analyze_terraform(text: str, path: str = "main.tf") -> list[Finding]:
         if "0.0.0.0/0" in raw and ("cidr" in low or "ingress" in low):
             findings.append(_finding(
                 "Security group open to the internet (0.0.0.0/0)", Severity.HIGH, path, i,
-                "An ingress rule allows 0.0.0.0/0 — the resource is reachable from the entire internet.",
+                "An ingress rule allows 0.0.0.0/0 - the resource is reachable from the entire internet.",
                 "Restrict cidr_blocks to specific trusted ranges.", "CWE-284", raw.strip(),
             ))
         if re.search(r'acl\s*=\s*"public-read', low):

@@ -28,8 +28,8 @@ def test_parse_robots_paths_and_sitemaps():
         "Disallow: /admin/\n"
         "Disallow: /internal/export\n"
         "Allow: /public\n"
-        "Disallow: /*.json$\n"   # wildcard — skipped (not directly requestable)
-        "Disallow: /\n"          # site-wide — skipped
+        "Disallow: /*.json$\n"   # wildcard - skipped (not directly requestable)
+        "Disallow: /\n"          # site-wide - skipped
         "# comment\n"
         "Sitemap: https://t/sitemap.xml\n"
     )
@@ -59,8 +59,8 @@ def test_parse_openid_config_extracts_endpoints():
         "authorization_endpoint": "https://t/oauth/authorize",
         "token_endpoint": "https://t/oauth/token",
         "jwks_uri": "https://t/jwks",
-        "response_types_supported": ["code"],   # non-URL — ignored
-        "grant_types": "not-a-url",              # non-URL — ignored
+        "response_types_supported": ["code"],   # non-URL - ignored
+        "grant_types": "not-a-url",              # non-URL - ignored
     }
     urls = parse_openid_config(cfg)
     assert set(urls) == {"https://t", "https://t/oauth/authorize", "https://t/oauth/token", "https://t/jwks"}

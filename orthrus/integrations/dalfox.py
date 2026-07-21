@@ -1,4 +1,4 @@
-"""Dalfox adapter — run the popular XSS scanner and normalize its JSON output.
+"""Dalfox adapter - run the popular XSS scanner and normalize its JSON output.
 
 Dalfox (hahwul) is a staple of the bounty XSS workflow. This adapter runs it
 against the target and maps each proof-of-concept object to an ORTHRUS XSS

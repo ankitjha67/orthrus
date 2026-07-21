@@ -5,7 +5,7 @@ info:
   severity: high
   description: >-
     A SQL database dump/backup is publicly downloadable. These commonly contain
-    full table contents — user records, password hashes, and secrets — and the
+    full table contents - user records, password hashes, and secrets - and the
     schema needed to attack the live database.
   remediation: >-
     Remove backups from the web root, store them outside any served directory,

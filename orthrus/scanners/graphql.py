@@ -3,15 +3,15 @@
 Locates GraphQL endpoints (common paths + crawled hits) and runs a battery of
 GraphQL-specific tests modelled on DVGA (Damn Vulnerable GraphQL Application):
 
-* **Introspection** — a schema-dumping introspection query that leaks the API.
-* **Field-suggestion leakage** — graphql-core/js suggest valid field names in
+* **Introspection** - a schema-dumping introspection query that leaks the API.
+* **Field-suggestion leakage** - graphql-core/js suggest valid field names in
   error messages ("Did you mean ...") *even when introspection is disabled*,
   re-enabling schema discovery one field at a time.
-* **Query batching** — the server accepts a JSON array of operations and
+* **Query batching** - the server accepts a JSON array of operations and
   returns an array of results, enabling auth brute-force + request amplification.
-* **Alias overloading** — the server resolves an unbounded number of aliases of
+* **Alias overloading** - the server resolves an unbounded number of aliases of
   the same field in one request, the basis of an alias-amplification DoS.
-* **Debug / stack-trace disclosure** — server errors leak Python tracebacks or
+* **Debug / stack-trace disclosure** - server errors leak Python tracebacks or
   internal stack frames (DVGA runs Flask in debug mode).
 
 All probes are read-only and bounded (a handful of requests per confirmed
@@ -52,7 +52,7 @@ COMMON_PATHS = [
 INTROSPECTION_QUERY = {"query": "query{__schema{queryType{name} types{name}}}"}
 TYPENAME_QUERY = {"query": "{__typename}"}
 
-# A deliberately invalid root field — servers that leak suggestions answer with
+# A deliberately invalid root field - servers that leak suggestions answer with
 # "Cannot query field \"<x>\" on type \"Query\". Did you mean \"...\"?".
 _SUGGEST_PROBE_FIELD = "orthrusInvalidFieldZzz"
 SUGGESTION_PROBE = {"query": "query{" + _SUGGEST_PROBE_FIELD + "}"}
@@ -176,7 +176,7 @@ class GraphqlScanner(BaseScanner):
         return resp.text
 
     async def _get_query(self, ctx: ScanContext, url: str, query: str) -> str | None:
-        """Execute a GraphQL query over an HTTP GET (?query=...) — the CSRF probe."""
+        """Execute a GraphQL query over an HTTP GET (?query=...) - the CSRF probe."""
         try:
             resp = await ctx.http.get(url, params={"query": query}, follow_redirects=False)
         except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL) as exc:
@@ -203,7 +203,7 @@ class GraphqlScanner(BaseScanner):
                 confirmed = True
 
             # GraphQL CSRF: a query that executes over an HTTP GET (?query=...)
-            # can be triggered cross-site (no preflight) — state-changing mutations
+            # can be triggered cross-site (no preflight) - state-changing mutations
             # over GET are forgeable. Executed iff the result contains __typename
             # (the GraphiQL playground returns HTML, so this won't false-positive).
             get_body = await self._get_query(ctx, url, "{__typename}")
@@ -218,7 +218,7 @@ class GraphqlScanner(BaseScanner):
                         "The GraphQL endpoint executed a query supplied via an HTTP GET request "
                         "(?query=...). GET requests carry cookies, trigger no CORS preflight, and "
                         "can be fired cross-site (e.g. via an <img>/<script>/navigation), so any "
-                        "state-changing operation reachable over GET is forgeable — cross-site "
+                        "state-changing operation reachable over GET is forgeable - cross-site "
                         "request forgery against the GraphQL API."
                     ),
                     remediation=(
@@ -277,7 +277,7 @@ class GraphqlScanner(BaseScanner):
     async def _deep_probes(
         self, ctx: ScanContext, url: str, intro_on: bool
     ) -> AsyncIterator[Finding]:
-        # 1. Field-suggestion leakage — most impactful when introspection is OFF.
+        # 1. Field-suggestion leakage - most impactful when introspection is OFF.
         suggest_body = await self._post(ctx, url, SUGGESTION_PROBE)
         if suggest_body is not None:
             leaked = suggestion_leak(suggest_body)
@@ -307,7 +307,7 @@ class GraphqlScanner(BaseScanner):
                     ),
                 )
 
-        # 2. Query batching — array of operations accepted.
+        # 2. Query batching - array of operations accepted.
         batch_payload = [TYPENAME_QUERY, TYPENAME_QUERY]
         batch_body = await self._post(ctx, url, batch_payload)
         if batch_body is not None and batching_enabled(batch_body):
@@ -319,7 +319,7 @@ class GraphqlScanner(BaseScanner):
                 url=url,
                 description=(
                     "The endpoint accepted a JSON array of operations and returned an array of "
-                    "results. Batching lets an attacker pack many operations into one request — "
+                    "results. Batching lets an attacker pack many operations into one request - "
                     "amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use."
                 ),
                 remediation=(
@@ -334,7 +334,7 @@ class GraphqlScanner(BaseScanner):
                 ),
             )
 
-        # 3. Alias overloading — many aliases of one field resolved in one request.
+        # 3. Alias overloading - many aliases of one field resolved in one request.
         alias_body = await self._post(ctx, url, ALIAS_PROBE)
         if alias_body is not None:
             count = resolved_alias_count(alias_body)
@@ -348,7 +348,7 @@ class GraphqlScanner(BaseScanner):
                     description=(
                         f"The endpoint resolved all {count} aliases of a single field in one "
                         "request with no cost/complexity limit. An attacker can multiply server "
-                        "work arbitrarily within one query — an alias-amplification DoS primitive."
+                        "work arbitrarily within one query - an alias-amplification DoS primitive."
                     ),
                     remediation=(
                         "Enforce query cost analysis / complexity limits and cap the number of "

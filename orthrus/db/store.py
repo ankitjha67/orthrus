@@ -168,7 +168,7 @@ class Store:
     ) -> ScanRow | None:
         """The most recent scan of ``target`` (excluding ``exclude_id``).
 
-        Serves as the drift baseline for ``orthrus monitor`` — the previous
+        Serves as the drift baseline for ``orthrus monitor`` - the previous
         snapshot of the same target's attack surface.
         """
         async with self.session() as session:

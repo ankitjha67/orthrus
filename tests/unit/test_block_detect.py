@@ -2,7 +2,7 @@
 
 The classifier must flag genuine WAF interference (rate-limits, JS/CAPTCHA
 interstitials, vendor block pages) while leaving ordinary application responses
-— including a plain app 403 — untouched, so it never inflates the block rate.
+- including a plain app 403 - untouched, so it never inflates the block rate.
 """
 
 from __future__ import annotations
@@ -44,7 +44,7 @@ def test_akamai_access_denied_reference() -> None:
 
 
 def test_captcha_page_with_200_status() -> None:
-    # Some WAFs serve the interstitial with a 200 — body is the giveaway.
+    # Some WAFs serve the interstitial with a 200 - body is the giveaway.
     v = detect_block(200, {}, "Please complete the security check to continue. hCaptcha")
     assert v and v.blocked and v.challenge
 

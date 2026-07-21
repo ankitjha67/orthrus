@@ -7,7 +7,7 @@ Each host gets its own bucket so a slow host never starves a fast one.
 On top of the static limit, the limiter *adapts* to server feedback: a target
 that answers ``429 Too Many Requests`` or ``503 Service Unavailable`` is telling
 us to slow down, so the per-host rate is cut multiplicatively and recovered
-additively as requests start succeeding again (AIMD — the same control law TCP
+additively as requests start succeeding again (AIMD - the same control law TCP
 congestion control uses). A ``Retry-After`` header is honored as a hard pause.
 This is what real scanners do to stay polite and avoid being blocked mid-scan.
 """
@@ -30,7 +30,7 @@ THROTTLE_STATUSES = frozenset({429, 503})
 def parse_retry_after(value: str | None, *, now: float | None = None) -> float | None:
     """Parse a ``Retry-After`` header into seconds-from-now.
 
-    Accepts the two RFC 7231 forms — a delta-seconds integer or an HTTP-date —
+    Accepts the two RFC 7231 forms - a delta-seconds integer or an HTTP-date -
     and returns a non-negative float, or ``None`` if absent/unparseable. ``now``
     (epoch seconds) is injectable for deterministic tests of the date form.
     """

@@ -54,7 +54,7 @@ def test_parse_nuclei_jsonl_maps_severity_and_fields() -> None:
                 "host": "https://example.com",
             }
         ),
-        "not json — ignored",
+        "not json - ignored",
         "",
     ]
     findings = parse_nuclei_jsonl("\n".join(lines), "https://example.com")

@@ -1,4 +1,4 @@
-"""Big-Four-grade AI report writer — grounded assembly, dry-run, CLI."""
+"""Big-Four-grade AI report writer - grounded assembly, dry-run, CLI."""
 
 from __future__ import annotations
 

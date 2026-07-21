@@ -1,4 +1,4 @@
-// ORTHRUS cockpit — Tauri 2.0 desktop shell around the React frontend.
+// ORTHRUS cockpit - Tauri 2.0 desktop shell around the React frontend.
 // The window loads the built SPA (../dist), which talks to the ORTHRUS REST API.
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

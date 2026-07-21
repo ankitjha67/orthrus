@@ -6,7 +6,7 @@ engine/schema as the v0.1 :class:`orthrus.db.store.Store`. Phase 0 covers Progra
 land on the same class as they're built.
 
 Deny-by-default is enforced at creation: a Program cannot be persisted without a
-non-empty ``authorization_source`` (PRD §2.3) — the DB-level guarantee behind the
+non-empty ``authorization_source`` (PRD §2.3) - the DB-level guarantee behind the
 scope enforcer.
 """
 
@@ -48,7 +48,7 @@ from orthrus.model.entities import (
 
 
 def _iso(dt: datetime) -> str:
-    """UTC, second-resolution ISO — stable across DB round-trips for hashing."""
+    """UTC, second-resolution ISO - stable across DB round-trips for hashing."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=UTC)
     return dt.astimezone(UTC).isoformat(timespec="seconds")
@@ -96,7 +96,7 @@ class ProgramGraph:
             # Deny-by-default: no engagement without a declared authorization source.
             raise ValueError(
                 "authorization_source is required (a platform URL, 'signed:<hash>', "
-                "'direct:<note>', or 'self-owned-lab') — ORTHRUS will not create an "
+                "'direct:<note>', or 'self-owned-lab') - ORTHRUS will not create an "
                 "unauthorized program"
             )
         if platform not in PLATFORMS:
@@ -158,7 +158,7 @@ class ProgramGraph:
 
     async def delete_program(self, program_id: str) -> bool:
         # Explicit bulk deletes (child first) so we never depend on ORM relationship
-        # cascade — which would lazy-load under async and raise MissingGreenlet.
+        # cascade - which would lazy-load under async and raise MissingGreenlet.
         async with self._session() as session:
             await session.execute(
                 delete(ScopeEntry).where(ScopeEntry.program_id == program_id)
@@ -305,7 +305,7 @@ class ProgramGraph:
             return list(result.scalars().all())
 
     async def new_assets_since(self, program_id: str, since: datetime) -> list[ProgramAsset]:
-        """Assets first seen at/after ``since`` — the continuous-recon diff (PRD §7.2)."""
+        """Assets first seen at/after ``since`` - the continuous-recon diff (PRD §7.2)."""
         async with self._session() as session:
             result = await session.execute(
                 select(ProgramAsset).where(
@@ -597,7 +597,7 @@ class ProgramGraph:
         return row
 
     async def verify_audit(self) -> tuple[bool, int]:
-        """Walk the hash chain; return (intact, first_bad_id) — first_bad_id -1 if OK."""
+        """Walk the hash chain; return (intact, first_bad_id) - first_bad_id -1 if OK."""
         async with self._session() as session:
             rows = list((await session.execute(
                 select(AuditLogRow).order_by(AuditLogRow.id)
@@ -821,7 +821,7 @@ class ProgramGraph:
         return (result.rowcount or 0) > 0
 
     async def effective_role(self, program_id: str, user_id: str) -> str | None:
-        """A user's role on a program — platform admins are implicit owners everywhere."""
+        """A user's role on a program - platform admins are implicit owners everywhere."""
         user = await self.get_user(user_id)
         if user is None or not user.is_active:
             return None

@@ -1,4 +1,4 @@
-"""ORTHRUS MCP server — tool-logic functions (SDK-free) + server construction."""
+"""ORTHRUS MCP server - tool-logic functions (SDK-free) + server construction."""
 
 from __future__ import annotations
 

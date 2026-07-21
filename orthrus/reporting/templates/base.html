@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>{{ branding.name }} — {% block title %}Report{% endblock %}</title>
+<title>{{ branding.name }} - {% block title %}Report{% endblock %}</title>
 <style>
   :root { --brand: {{ branding.color }}; }
   * { box-sizing: border-box; }
@@ -21,7 +21,7 @@
   th { background: #f6f8fa; }
   .sev { display: inline-block; padding: 2px 9px; border-radius: 10px; color: #fff;
          font-size: 11px; font-weight: 700; text-transform: uppercase; }
-  /* severity fills — red-intensity ramp; mirrors orthrus/utils/palette.py (SEVERITY_FILL) */
+  /* severity fills - red-intensity ramp; mirrors orthrus/utils/palette.py (SEVERITY_FILL) */
   .sev-critical { background: #8b0000; }
   .sev-high { background: #b71c1c; }
   .sev-medium { background: #c94f4f; }
@@ -50,11 +50,11 @@
 </style>
 </head>
 <body>
-<div class="classification">Internal — Authorized Personnel Only</div>
+<div class="classification">Internal - Authorized Personnel Only</div>
 <header class="brand">
   {% if branding.logo_uri %}<img src="{{ branding.logo_uri }}" alt="logo"
        style="max-height:48px;display:block;margin-bottom:8px">{% endif %}
-  <h1>{{ branding.name }} — {% block heading %}Security Assessment{% endblock %}</h1>
+  <h1>{{ branding.name }} - {% block heading %}Security Assessment{% endblock %}</h1>
   <div class="meta">
     Target: {{ scan.target }} &nbsp;·&nbsp; Scan: {{ scan.id }} &nbsp;·&nbsp;
     Generated: {{ generated_at }}

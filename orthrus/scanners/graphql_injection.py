@@ -1,6 +1,6 @@
 """GraphQL-aware injection scanner (closes the DVGA-class coverage gap).
 
-The generic SQLi/command/SSTI scanners fuzz HTTP query/body parameters — they
+The generic SQLi/command/SSTI scanners fuzz HTTP query/body parameters - they
 never reach arguments nested inside GraphQL operations. Most of a GraphQL app's
 real attack surface (DVGA's SQLi, OS command injection, template injection) lives
 in *mutation/query arguments*, so this scanner:
@@ -10,7 +10,7 @@ in *mutation/query arguments*, so this scanner:
 3. enumerates every Query/Mutation field argument of a String/ID scalar type,
 4. injects an error-based SQLi probe, an OS-command canary, and an SSTI
    arithmetic probe into each argument via a real GraphQL operation, and
-5. flags a finding when the sink proves the injection *in band* — a DBMS error,
+5. flags a finding when the sink proves the injection *in band* - a DBMS error,
    the command canary echoed back (without its ``echo`` prefix), or the template
    arithmetic evaluated (product present, literal absent).
 
@@ -54,7 +54,7 @@ INTROSPECT = {
 _SQLI_PAYLOAD = "orthrus_gql'"
 _CMD_TOKEN = "ORTHRUSGQLCMD9174"
 _CMD_PAYLOAD = f"; echo {_CMD_TOKEN}"
-_SSTI_PRODUCT = "1022117"  # 1009 * 1013 — distinctive, collision-unlikely
+_SSTI_PRODUCT = "1022117"  # 1009 * 1013 - distinctive, collision-unlikely
 _SSTI_PAYLOADS = ("{{1009*1013}}", "${1009*1013}", "#{1009*1013}")
 
 
@@ -141,7 +141,7 @@ class GraphqlInjectionScanner(BaseScanner):
         for url in self._candidates(ctx):
             intro = await self._post(ctx, url, INTROSPECT)
             if intro is None or not confirms_graphql(intro):
-                # Not a GraphQL endpoint, or a stray 200 — probe once more, then bail.
+                # Not a GraphQL endpoint, or a stray 200 - probe once more, then bail.
                 tn = await self._post(ctx, url, TYPENAME_QUERY)
                 if tn is None or '"__typename"' not in tn:
                     continue
@@ -171,7 +171,7 @@ class GraphqlInjectionScanner(BaseScanner):
                 f"SQL injection in GraphQL argument '{field}.{arg}'",
                 f"Injecting a single quote into the GraphQL argument '{arg}' of "
                 f"'{operation} {field}' produced a {dbms} database error, so the argument is "
-                "concatenated into a SQL query unsanitised — SQL injection via GraphQL.",
+                "concatenated into a SQL query unsanitised - SQL injection via GraphQL.",
                 "Use parameterised queries / an ORM for values derived from GraphQL arguments; "
                 "never build SQL by string-concatenating resolver inputs.",
                 _operation(operation, field, arg, _SQLI_PAYLOAD, needs_sub), f"{dbms} error",
@@ -185,7 +185,7 @@ class GraphqlInjectionScanner(BaseScanner):
                 "cmd-injection", Severity.CRITICAL, "CWE-78", url, loc,
                 f"OS command injection in GraphQL argument '{field}.{arg}'",
                 f"A shell metacharacter + canary injected into the GraphQL argument '{arg}' of "
-                f"'{operation} {field}' was executed — the canary was echoed back by the OS shell, "
+                f"'{operation} {field}' was executed - the canary was echoed back by the OS shell, "
                 "proving arbitrary command execution via a GraphQL resolver.",
                 "Never pass GraphQL argument values to a shell; use argument-vector process APIs "
                 "with a fixed command and strict allow-listing of inputs.",

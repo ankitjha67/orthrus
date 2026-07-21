@@ -1,4 +1,4 @@
-"""ORTHRUS MCP server — expose scans/findings as tools an AI agent can call.
+"""ORTHRUS MCP server - expose scans/findings as tools an AI agent can call.
 
 The tool *logic* lives in plain async functions (``*_data``) that query the same
 store the CLI/API use and return JSON-able data, so they're unit-testable with no

@@ -47,7 +47,7 @@ def test_origin_form_request_without_host_borrows_from_url():
 
 def test_non_http_request_raw_falls_back_to_url_get():
     # some scanners stash a payload description / GraphQL dict in request_raw;
-    # it must NOT become a garbage `curl -X {'QUERY':...` — fall back to a clean GET
+    # it must NOT become a garbage `curl -X {'QUERY':...` - fall back to a clean GET
     for junk in ("{'query': 'mutation{...}'}", "HOST=127.0.0.1; id", "MULTIPART upload: x"):
         s = build_snippets(url="http://127.0.0.1:8791/graphql", request_raw=junk)
         assert s["curl"] == "curl -sk 'http://127.0.0.1:8791/graphql'"

@@ -3,7 +3,7 @@
 A retire.js-style check: fetch the JavaScript ORTHRUS discovered, fingerprint
 the bundled library versions from their banners/identifiers, and flag any that
 fall below the fixed version for a known advisory (XSS, prototype pollution,
-end-of-life). Pure version comparison — no network beyond fetching the already
+end-of-life). Pure version comparison - no network beyond fetching the already
 in-scope ``.js`` assets.
 
 The rule set is intentionally small and high-confidence (each library has a

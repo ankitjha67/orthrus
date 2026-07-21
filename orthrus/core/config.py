@@ -22,7 +22,7 @@ class ScopeConfig(BaseModel):
     """Defines the authorized testing boundary for an engagement.
 
     Anything not explicitly permitted here is denied. This is a deny-by-default
-    safety boundary — do not weaken it.
+    safety boundary - do not weaken it.
     """
 
     domains: list[str] = Field(

@@ -4,17 +4,17 @@ Most real targets only expose their interesting surface behind a login, so
 ORTHRUS authenticates once before recon and replays the session for every later
 request. This module covers the auth styles modern apps actually use:
 
-* **Form / JSON login** — POST credentials; the response ``Set-Cookie`` jar
+* **Form / JSON login** - POST credentials; the response ``Set-Cookie`` jar
   persists automatically and an optional JSON bearer token is attached to later
   requests.
-* **Rotating CSRF tokens** — GET the login page first, harvest the anti-CSRF
+* **Rotating CSRF tokens** - GET the login page first, harvest the anti-CSRF
   token (hidden form field, ``<meta>`` tag, or double-submit cookie) and replay
   it in the login body and/or a request header.
-* **MFA (TOTP)** — given a base32 shared secret, compute the RFC 6238 one-time
+* **MFA (TOTP)** - given a base32 shared secret, compute the RFC 6238 one-time
   code inline (dependency-free) and submit it with the credentials.
-* **OAuth2 / OIDC** — acquire a bearer token from a token endpoint via the
+* **OAuth2 / OIDC** - acquire a bearer token from a token endpoint via the
   ``password``, ``client_credentials`` or ``refresh_token`` grant.
-* **Session refresh** — detect a dropped/expired session mid-scan and silently
+* **Session refresh** - detect a dropped/expired session mid-scan and silently
   re-authenticate (see :func:`looks_unauthenticated` and the ``Session.reauth``
   hook wired by the orchestrator).
 
@@ -22,7 +22,7 @@ Full SP-initiated SAML / interactive SSO redirect dances and push/SMS MFA can't
 be driven head-less; for those, capture a live session and pass ``--auth-cookie``.
 
 Every request still flows through the scope-enforced HttpClient. Credentials and
-tokens are never logged — only whether authentication succeeded.
+tokens are never logged - only whether authentication succeeded.
 """
 
 from __future__ import annotations

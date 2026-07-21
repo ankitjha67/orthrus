@@ -71,7 +71,7 @@ def test_report_summary_and_markdown_has_code_fence():
     report = build_patch_report(findings, target="http://t")
     assert "1 with a concrete patch" in report.summary()
     md = report.to_markdown()
-    assert md.startswith("# Remediation Patches — http://t")
+    assert md.startswith("# Remediation Patches - http://t")
     assert "```python" in md and "parameterized queries" in md.lower()
 
 

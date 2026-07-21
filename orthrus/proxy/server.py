@@ -2,14 +2,14 @@
 
 A minimal forward proxy (Burp/ZAP-style, capture-only) whose entire point is to
 observe traffic to an *authorized* target and feed the discovered endpoints and
-parameters into ORTHRUS's endpoint store — so a manual browse of the app becomes
+parameters into ORTHRUS's endpoint store - so a manual browse of the app becomes
 scanner input. Scope enforcement is load-bearing and deny-by-default: an in-scope
 request is forwarded and captured; an out-of-scope one is **blocked** (403)
 unless the operator explicitly passes it through (and pass-through traffic is
 never captured).
 
 HTTP requests are forwarded via httpx and their responses relayed verbatim.
-HTTPS is tunneled (CONNECT) as an opaque relay — no TLS interception, so bodies
+HTTPS is tunneled (CONNECT) as an opaque relay - no TLS interception, so bodies
 aren't captured, only the visited host is noted. The parsing/serialization
 helpers are pure and unit-tested; the server itself is exercised over loopback.
 """

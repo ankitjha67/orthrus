@@ -1,15 +1,15 @@
-"""Source-map recovery — reconstruct endpoints from leaked ``.map`` files.
+"""Source-map recovery - reconstruct endpoints from leaked ``.map`` files.
 
 Production front-ends are minified, but teams routinely ship the matching
 JavaScript **source maps** (``//# sourceMappingURL=app.js.map``) to prod. A map's
-``sourcesContent`` is the *original*, un-minified source — which exposes API
+``sourcesContent`` is the *original*, un-minified source - which exposes API
 routes, internal paths, and constants that the minified bundle hides. Recovering
 and mining it is one of the highest finding-density, lowest-cost recon moves.
 
 This module locates the source map for each discovered JS file (from the inline
 ``sourceMappingURL`` comment, falling back to ``<file>.js.map``), fetches it
 in-scope, parses ``sourcesContent``, and re-uses the JS endpoint extractor to
-surface API endpoints from the original source — expanding the attack surface
+surface API endpoints from the original source - expanding the attack surface
 for the scan phase. Read-only; every URL is scope-checked.
 """
 

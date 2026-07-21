@@ -1,7 +1,7 @@
 # Example bug-bounty program scope for `orthrus bounty --scope-file this-file`.
 #
 # ⚠️  Only ever list assets a program has AUTHORIZED you to test. The example.com
-#     entries below are documentation placeholders (RFC 2606) — replace them with
+#     entries below are documentation placeholders (RFC 2606) - replace them with
 #     the program's actual published scope, and read the program's rules first.
 #
 # Format: one entry per line. No '!' = in scope. Leading '!' = out-of-scope

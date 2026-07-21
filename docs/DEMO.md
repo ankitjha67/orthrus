@@ -1,7 +1,7 @@
-# ORTHRUS — 6-step demo
+# ORTHRUS - 6-step demo
 
 A safe, reproducible walkthrough that runs **only** against the bundled,
-`127.0.0.1`-only, intentionally-vulnerable practice target — nothing external is
+`127.0.0.1`-only, intentionally-vulnerable practice target - nothing external is
 contacted. Everything below is **real output** from [`demo.sh`](../demo.sh).
 
 ## Run it
@@ -13,7 +13,7 @@ contacted. Everything below is **real output** from [`demo.sh`](../demo.sh).
 ORTHRUS="python -m orthrus.main" ./demo.sh
 ```
 
-It takes ~3–4 minutes (the scan runs in `--aggressive` mode so the injection
+It takes ~3-4 minutes (the scan runs in `--aggressive` mode so the injection
 scanners actually confirm). To capture a GIF/cast for sharing:
 
 ```bash
@@ -23,7 +23,7 @@ termtosvg orthrus-demo.svg      -c ./demo.sh     # animated SVG, no extra servic
 
 ## What it shows
 
-### 1 · Full pipeline — recon → scan → exploitation-confirmation → report
+### 1 · Full pipeline - recon → scan → exploitation-confirmation → report
 
 A curated 12-scanner run against the practice target finds **25 issues**, and the
 confirmation phase actively re-proves the interesting ones:
@@ -46,8 +46,8 @@ confirmation phase actively re-proves the interesting ones:
 └────────────────┴──────────┴──────────┴──────────┴────────┘
 ```
 
-(A full 58-scanner `--aggressive` run of the same target finds **76 issues — 1
-critical, 32 high, 22 medium** (plus 19 low / 2 info) — **with 24
+(A full 58-scanner `--aggressive` run of the same target finds **76 issues - 1
+critical, 32 high, 22 medium** (plus 19 low / 2 info) - **with 24
 exploitation-confirmed**, including command injection, SQLi, SSTI, weak-secret JWT
 forgery, NoSQL injection, and prompt injection. See [PROOF.md](PROOF.md).)
 
@@ -62,7 +62,7 @@ few kill-chains an attacker can actually walk:
 [CRITICAL] 2-step path @ 127.0.0.1
    jwt → idor
    ⇒ An attacker obtains a session via the authentication weakness, then escalates
-     authorization to reach other users'/admin data — full account/admin takeover.
+     authorization to reach other users'/admin data - full account/admin takeover.
 
 [HIGH] 2-step path @ 127.0.0.1
    xss → cors
@@ -78,7 +78,7 @@ ordered so the highest-leverage change (one that breaks an attack path) is first
 ```
 25 finding(s) collapse into 9 fix action(s); 4 break at least one attack path.
 
-## 1. Reflected XSS via parameter 'q' — HIGH
+## 1. Reflected XSS via parameter 'q' - HIGH
 Fixes 7 finding(s) across 7 endpoint(s). · CWE-79
 > 🔓 Breaks attack path: xss → csrf
 Remediation: Contextually output-encode reflected user input and apply a strict CSP.
@@ -103,22 +103,22 @@ CRITICAL  cloud-toxic-combo  Privileged IAM user without MFA 'ci-deploy'
 HIGH      cloud-toxic-combo  IAM privilege-escalation path on 'ci-deploy'  (PassRole + RunInstances)
 ```
 
-### 6 · Autonomous agent — plan only (dry-run)
+### 6 · Autonomous agent - plan only (dry-run)
 
 `orthrus agent --dry-run` shows the LLM (or deterministic) planner choosing the next
 batch of scanners to run. Its action space is a **hard allow-list of registered,
-scope-enforced, non-destructive modules** — no shell, no arbitrary code:
+scope-enforced, non-destructive modules** - no shell, no arbitrary code:
 
 ```
 AGENT · http://127.0.0.1:8791
 planner: deterministic · aggressiveness: passive · max-steps: 2 · scope-enforced · non-destructive
 
 Plan:
-  • auth-session — baseline coverage (deterministic policy)
-  • cors — baseline coverage (deterministic policy)
-  • csrf — baseline coverage (deterministic policy)
+  • auth-session - baseline coverage (deterministic policy)
+  • cors - baseline coverage (deterministic policy)
+  • csrf - baseline coverage (deterministic policy)
   …
-planned 16 action(s) (dry-run — nothing executed)
+planned 16 action(s) (dry-run - nothing executed)
 ```
 
 ---

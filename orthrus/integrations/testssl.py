@@ -1,4 +1,4 @@
-"""testssl.sh adapter — run the TLS auditor and normalize its JSON findings.
+"""testssl.sh adapter - run the TLS auditor and normalize its JSON findings.
 
 testssl.sh is the reference TLS/SSL tester (protocols, ciphers, known CVEs like
 Heartbleed/ROBOT/BEAST). This adapter runs it with ``--jsonfile-pretty`` streamed

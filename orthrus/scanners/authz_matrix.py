@@ -1,4 +1,4 @@
-"""Multi-identity authorization matrix — BOLA / BFLA (Autorize-style).
+"""Multi-identity authorization matrix - BOLA / BFLA (Autorize-style).
 
 The single highest-leverage gap in automated DAST: most real-world bugs live
 behind authentication, and broken *authorization* (one user reaching another
@@ -69,12 +69,12 @@ def authz_verdict(base_status: int, base_body: str, other_status: int, other_bod
     """Compare a baseline (privileged) response to another identity's response.
 
     Returns "bypass" (other identity wrongly got access), "enforced" (properly
-    denied), or "ambiguous" (inconclusive — left for manual review).
+    denied), or "ambiguous" (inconclusive - left for manual review).
     Callers pass only endpoints the baseline could access (base_status < 400).
     """
     if other_status in (401, 403):
         return "enforced"
-    if other_status in (301, 302, 303, 307, 308):  # redirected — typically to a login page
+    if other_status in (301, 302, 303, 307, 308):  # redirected - typically to a login page
         return "enforced"
     if other_status >= 500:
         return "ambiguous"
@@ -175,7 +175,7 @@ class AuthorizationMatrixScanner(BaseScanner):
         anon_note = (
             ""
             if other.is_authenticated
-            else " (anonymous access — confirm the endpoint is meant to require auth)"
+            else " (anonymous access - confirm the endpoint is meant to require auth)"
         )
         return Finding(
             vuln_type="broken-authorization",
@@ -188,7 +188,7 @@ class AuthorizationMatrixScanner(BaseScanner):
                 f"'{baseline.name}' and returned an equivalent successful response to identity "
                 f"'{other.name}', which should not have access{anon_note}. This indicates the "
                 f"endpoint enforces authentication but not per-{('object' if bola else 'function')} "
-                "authorization — a client can reach another principal's "
+                "authorization - a client can reach another principal's "
                 f"{'data' if bola else 'functionality'} by replaying the request with their own "
                 "session."
             ),

@@ -1,7 +1,7 @@
 """`orthrus scan --target-file`: local sequential batch scanning.
 
 Two halves: the pure file/path helpers (target parsing, per-target report
-naming) and the CLI guarantees — each target becomes its own scan with its own
+naming) and the CLI guarantees - each target becomes its own scan with its own
 auto-derived scope, batch --dry-run sends nothing, and --target-file is
 mutually exclusive with --target / --distributed.
 """

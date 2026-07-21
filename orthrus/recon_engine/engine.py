@@ -2,7 +2,7 @@
 
 Runs every available adapter for a program's scope, deduplicates + records the
 results into the graph (``record_asset`` handles identity + first/last-seen),
-flags wildcard-DNS noise, and reports what's genuinely *new* since the last run —
+flags wildcard-DNS noise, and reports what's genuinely *new* since the last run -
 the signal continuous recon exists to surface. Network access (DNS resolution) is
 injected so the engine is fully unit-testable offline.
 """
@@ -97,7 +97,7 @@ class ReconEngine:
         discovered = []
         for adapter in self.adapters:
             if not adapter.available():
-                logger.info("recon adapter '%s' unavailable (binary missing) — skipping", adapter.name)
+                logger.info("recon adapter '%s' unavailable (binary missing) - skipping", adapter.name)
                 continue
             result.sources_run.append(adapter.name)
             try:

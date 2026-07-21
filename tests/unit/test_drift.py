@@ -86,7 +86,7 @@ def test_finding_drift_new_and_resolved():
 
 
 def test_finding_drift_identity_ignores_severity():
-    # Same issue, severity escalated — counts as persisting, not new+resolved.
+    # Same issue, severity escalated - counts as persisting, not new+resolved.
     base = [_f("xss", "/a", "q", severity="low")]
     cur = [_f("xss", "/a", "q", severity="critical")]
     d = compute_finding_drift(base, cur)
@@ -138,7 +138,7 @@ async def test_get_prior_scan_ignores_non_completed():
     await store.init()
     try:
         await store.create_scan("r1", "https://t2.example/", {}, {})
-        # left in default 'pending'/'running' state — not a valid baseline
+        # left in default 'pending'/'running' state - not a valid baseline
         assert await store.get_prior_scan("https://t2.example/") is None
     finally:
         await store.close()

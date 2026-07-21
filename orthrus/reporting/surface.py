@@ -1,9 +1,9 @@
-"""Attack-surface graph — visualize a scan's recon as a live node graph.
+"""Attack-surface graph - visualize a scan's recon as a live node graph.
 
 Recon already collects the pieces (hosts, resolved IPs, open ports, fingerprinted
 technologies, discovered endpoints); this turns them into a single self-contained
 HTML page: an interactive force-directed graph of target → host → port / technology,
-plus an endpoints table underneath. No external assets or CDN — the force
+plus an endpoints table underneath. No external assets or CDN - the force
 simulation is a few dozen lines of vanilla JS embedded inline, so it renders from
 `file://`, inside the dashboard, or emailed as-is.
 """
@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from orthrus.core.schemas import Asset, Endpoint
 
-# Colours here are red/white/black only — canonical tokens in orthrus/utils/palette.py.
+# Colours here are red/white/black only - canonical tokens in orthrus/utils/palette.py.
 # Ports that are worth flagging red in the graph (admin / data / remote-access).
 _RISKY_PORTS = {21, 22, 23, 445, 1433, 1521, 2049, 3306, 3389, 5432, 5900, 6379, 9200, 27017}
 
@@ -27,7 +27,7 @@ def _host_of(url: str) -> str:
 
 
 def build_surface(target: str, assets: list[Asset], endpoints: list[Endpoint]) -> dict:
-    """Build the {nodes, links, endpoints, stats} graph model (pure — unit-tested)."""
+    """Build the {nodes, links, endpoints, stats} graph model (pure - unit-tested)."""
     root = _host_of(target) or target
     nodes: dict[str, dict] = {}
     links: list[dict] = []
@@ -206,7 +206,7 @@ def render_surface_html(
     return (
         "<!doctype html><html lang=en><head><meta charset=utf-8>"
         '<meta name=viewport content="width=device-width, initial-scale=1">'
-        f"<title>{html.escape(title)} — {html.escape(target)}</title><style>"
+        f"<title>{html.escape(title)} - {html.escape(target)}</title><style>"
         "body{font-family:system-ui,'Segoe UI',sans-serif;background:#0f0f0f;color:#f0f0f0;margin:0;padding:20px}"
         "h1{color:#d70000;margin:0 0 2px;font-size:20px} .muted{color:#a8a8a8;font-size:13px}"
         "#wrap{position:relative;border:1px solid #2b2b2b;border-radius:8px;margin:12px 0;background:#0b0b0b}"
@@ -218,7 +218,7 @@ def render_surface_html(
         "th,td{text-align:left;padding:6px 9px;border-bottom:1px solid #2b2b2b} th{color:#a8a8a8}"
         "code{color:#e0e0e0;word-break:break-all}"
         "</style></head><body>"
-        f"<h1>Attack surface — {html.escape(target)}</h1>"
+        f"<h1>Attack surface - {html.escape(target)}</h1>"
         f"<div class=muted>{s['hosts']} host(s) · {s['ports']} open port(s) · "
         f"{s['technologies']} technolog(y/ies) · {s['endpoints']} endpoint(s) · drag nodes to explore</div>"
         f"<div class=legend>{legend}</div>"

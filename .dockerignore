@@ -11,7 +11,7 @@ __pycache__
 .mypy_cache
 .coverage
 htmlcov
-# Runtime artifacts / local data — never bake into the image
+# Runtime artifacts / local data - never bake into the image
 reports/
 scan_data/
 evidence/

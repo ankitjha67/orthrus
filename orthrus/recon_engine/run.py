@@ -1,7 +1,7 @@
-"""One recon pass for a program (PRD §7.2/§7.9) — shared by recon-run/recon-watch.
+"""One recon pass for a program (PRD §7.2/§7.9) - shared by recon-run/recon-watch.
 
-Runs every available source into the operator graph, audit-logs the pass, and —
-when new assets appear — fires the configured Slack/Discord alerts. Factored out
+Runs every available source into the operator graph, audit-logs the pass, and -
+when new assets appear - fires the configured Slack/Discord alerts. Factored out
 so the one-shot command and the continuous watch loop behave identically.
 """
 

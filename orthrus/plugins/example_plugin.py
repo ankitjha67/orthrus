@@ -1,4 +1,4 @@
-"""Example plugin (PRD §13) — a template for custom scanners.
+"""Example plugin (PRD §13) - a template for custom scanners.
 
 Demonstrates the plugin interface: subclass BaseScanner, decorate with
 ``@register`` from the scanner registry, and the loader picks it up at startup.

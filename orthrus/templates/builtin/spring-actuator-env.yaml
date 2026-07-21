@@ -5,7 +5,7 @@ info:
   severity: high
   description: >-
     A Spring Boot Actuator /env (or /actuator/env) endpoint is publicly
-    reachable. It dumps the application environment — property sources, system
+    reachable. It dumps the application environment - property sources, system
     properties, and frequently database URLs, credentials, and API keys.
   remediation: >-
     Restrict actuator endpoints to an internal management port and require

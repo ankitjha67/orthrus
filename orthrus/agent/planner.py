@@ -2,7 +2,7 @@
 
 The agent's "brain": given the target and what's been found so far, decide which
 of ORTHRUS's **existing, scope-enforced, non-destructive** tools to run next. The
-action space is a hard allow-list built from the scanner registry — the planner
+action space is a hard allow-list built from the scanner registry - the planner
 can only ever select a registered module, never a shell command or arbitrary
 code. An LLM proposes the plan; a deterministic policy is the fallback when no
 API key is present (and what the tests drive). Every proposed action is
@@ -104,7 +104,7 @@ def build_planner_prompt(state: AgentState, catalog: dict[str, ToolSpec]) -> str
     )
     return (
         "You are an autonomous but bounded web-app pentest orchestrator running against an "
-        "AUTHORIZED target. You may ONLY select tools from the allow-list below by exact name — "
+        "AUTHORIZED target. You may ONLY select tools from the allow-list below by exact name - "
         "every tool is scope-enforced and non-destructive; you cannot run shells or arbitrary "
         "code. Choose the next batch of scanners to run based on the target and findings so far, "
         "avoiding ones already run. Respond with JSON only:\n"

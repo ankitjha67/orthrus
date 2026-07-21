@@ -35,7 +35,7 @@ def test_epss_for_text_none_without_known_cve() -> None:
 
 
 def test_enrich_known_kev_and_epss() -> None:
-    intel = enrich("CVE-2021-44228")  # Log4Shell — KEV + high EPSS
+    intel = enrich("CVE-2021-44228")  # Log4Shell - KEV + high EPSS
     assert intel.kev is True
     assert intel.epss is not None and intel.epss > 0.9
     assert intel.has_intel is True

@@ -1,8 +1,8 @@
-"""Checkov adapter — normalize the IaC/cloud misconfig scanner's JSON (PRD Phase 5, cloud).
+"""Checkov adapter - normalize the IaC/cloud misconfig scanner's JSON (PRD Phase 5, cloud).
 
 Checkov scans Terraform / CloudFormation / Kubernetes / etc. for misconfigurations.
 Each failed check becomes a Finding (severity from checkov when present), carrying
-the file/resource as evidence — cloud posture findings in the same pipeline.
+the file/resource as evidence - cloud posture findings in the same pipeline.
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-"""Operator-graph REST API — Programs, scope, assets, findings, cost (PRD §7.1, Phase 0).
+"""Operator-graph REST API - Programs, scope, assets, findings, cost (PRD §7.1, Phase 0).
 
 CRUD over the v2.0 unified domain (``orthrus.model.store.ProgramGraph``) so the
 cockpit and other services drive the same graph the CLI does. Mutations are
@@ -361,7 +361,7 @@ async def update_finding(request: Request, program_id: str, finding_id: str,
     other = {k: v for k, v in body.model_dump(exclude={"status"}).items() if v is not None}
     if other:
         finding = await graph.update_finding(finding_id, **other)
-    if finding is None:                       # no fields supplied — return current state
+    if finding is None:                       # no fields supplied - return current state
         finding = await graph.get_finding(finding_id)
     return finding_dict(finding)
 
@@ -465,7 +465,7 @@ async def create_user(request: Request, body: UserCreate) -> dict[str, Any]:
 
 @router.post("/users/{user_id}/api-key", dependencies=[Depends(require_write)])
 async def mint_api_key(request: Request, user_id: str) -> dict[str, Any]:
-    """Mint a fresh bearer key — the raw value is returned ONCE and never stored."""
+    """Mint a fresh bearer key - the raw value is returned ONCE and never stored."""
     key = await _graph(request).generate_api_key(user_id)
     if key is None:
         raise HTTPException(status_code=404, detail=f"user '{user_id}' not found")

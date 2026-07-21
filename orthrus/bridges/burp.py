@@ -6,8 +6,8 @@ blob. We pull request identity from the tags and mine body-param names from the
 decoded request so imported routes carry real input vectors for triage.
 
 XXE-safety: Burp emits an internal DTD (ELEMENT/ATTLIST only, no entities), so we
-refuse any ``<!ENTITY``/``SYSTEM``/``PUBLIC`` token — blocking both billion-laughs
-and external-entity attacks — before handing the document to the stdlib parser.
+refuse any ``<!ENTITY``/``SYSTEM``/``PUBLIC`` token - blocking both billion-laughs
+and external-entity attacks - before handing the document to the stdlib parser.
 """
 
 from __future__ import annotations

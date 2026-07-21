@@ -2,11 +2,11 @@
 
 Passive scanner: it inspects the CSP header already captured during recon (and
 fetches the target root once if no header is available) and reports *weak* but
-PRESENT directives — ``'unsafe-inline'``/``'unsafe-eval'`` script sources, bare
+PRESENT directives - ``'unsafe-inline'``/``'unsafe-eval'`` script sources, bare
 wildcards, ``data:`` script sources, missing ``object-src``/``frame-ancestors``,
 and insecure ``http:`` sources.
 
-This deliberately does NOT flag a MISSING CSP — the dedicated security-headers
+This deliberately does NOT flag a MISSING CSP - the dedicated security-headers
 scanner already covers that. ``analyze_csp`` returns ``[]`` for an absent policy
 so the two scanners never duplicate each other. Findings are deduped per origin
 since the policy is usually server-wide.
@@ -57,7 +57,7 @@ def _script_sources(directives: dict[str, list[str]]) -> list[str]:
 def analyze_csp(csp: str | None) -> list[tuple[Severity, str, str]]:
     """Return ``(severity, title, detail)`` for each weakness in a PRESENT policy.
 
-    Returns ``[]`` when ``csp`` is ``None``/empty — a missing CSP is reported by
+    Returns ``[]`` when ``csp`` is ``None``/empty - a missing CSP is reported by
     the security-headers scanner, not here.
     """
     if not csp or not csp.strip():
@@ -117,7 +117,7 @@ def analyze_csp(csp: str | None) -> list[tuple[Severity, str, str]]:
                 Severity.LOW,
                 "CSP missing object-src 'none'",
                 "No object-src directive is set and default-src is not 'none', so plugins "
-                "(<object>/<embed>) can load — a legacy XSS/exfiltration vector.",
+                "(<object>/<embed>) can load - a legacy XSS/exfiltration vector.",
             )
         )
 
@@ -196,7 +196,7 @@ class CspAnalyzerScanner(BaseScanner):
         for origin in origins:
             csp = origin_csp.get(origin)
             if csp is None:
-                # No captured CSP for this origin — fetch the root once.
+                # No captured CSP for this origin - fetch the root once.
                 if not ctx.scope.is_allowed(origin + "/"):
                     continue
                 resp = await self._get(ctx, origin + "/")

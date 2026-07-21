@@ -1,21 +1,21 @@
 """Host-header injection / password-reset poisoning scanner (PRD §6 web-class gap).
 
-Many applications build *absolute* URLs — password-reset links, email
-confirmation links, redirects, `<script>`/`<link>` src — from the incoming
+Many applications build *absolute* URLs - password-reset links, email
+confirmation links, redirects, `<script>`/`<link>` src - from the incoming
 ``Host`` (or ``X-Forwarded-Host``) request header. If that header is trusted, an
 attacker can set it to a domain they control:
 
-* **Password-reset poisoning** — the poisoned reset link is emailed to the
+* **Password-reset poisoning** - the poisoned reset link is emailed to the
   victim; clicking it leaks the secret token to the attacker → account takeover.
-* **Web-cache poisoning** — a cached response embeds the attacker's host.
-* **Routing-based SSRF** — when the host is used to pick an upstream.
+* **Web-cache poisoning** - a cached response embeds the attacker's host.
+* **Routing-based SSRF** - when the host is used to pick an upstream.
 
 The probe is non-mutating: it sends a GET with a sentinel host in the ``Host``
 and ``X-Forwarded-Host`` headers (always through the scope-enforced HttpClient,
 which still connects to the real in-scope target) and looks for that sentinel
 reflected back as the **authority of an absolute URL** in the body, or as the
 host of a redirect ``Location``. Plain substring reflection is deliberately not
-enough — the sentinel must appear where it would actually be followed as a URL,
+enough - the sentinel must appear where it would actually be followed as a URL,
 which keeps false positives low.
 """
 
@@ -40,7 +40,7 @@ SCANNER_NAME = "host-header-injection"
 MAX_URLS = 40
 
 # A clearly-attacker-controlled sentinel host. It is only ever *sent* as a header
-# value and looked for in responses — ORTHRUS never connects to it.
+# value and looked for in responses - ORTHRUS never connects to it.
 SENTINEL = "orthrus-hhi.example"
 
 # Headers an app might trust when building absolute URLs.
@@ -53,7 +53,7 @@ _FORGED_HEADERS = {
 
 def _authority_pattern(sentinel: str) -> re.Pattern[str]:
     # `scheme://sentinel` or scheme-relative `//sentinel`, where the char after
-    # the sentinel is a URL delimiter (or end-of-string) — so a longer host such
+    # the sentinel is a URL delimiter (or end-of-string) - so a longer host such
     # as `sentinel.evil.com` does NOT match.
     return re.compile(
         r"(?:https?:)?//" + re.escape(sentinel) + r"(?=[:/?#\"'\s>]|$)",
@@ -127,7 +127,7 @@ class HostHeaderInjectionScanner(BaseScanner):
                 f"reflected back into {where}. When the application builds absolute URLs "
                 "(password-reset and email-confirmation links, redirects, or script/link src) "
                 "from the incoming host header, an attacker can set it to a domain they control. "
-                "A victim who clicks the resulting link — e.g. a poisoned password-reset email — "
+                "A victim who clicks the resulting link - e.g. a poisoned password-reset email - "
                 "leaks the secret token to the attacker (account takeover); the same primitive "
                 "enables web-cache poisoning and, where the host selects an upstream, SSRF."
             ),

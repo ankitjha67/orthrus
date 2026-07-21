@@ -1,4 +1,4 @@
-"""Template-driven scanner — runs declarative templates against in-scope hosts.
+"""Template-driven scanner - runs declarative templates against in-scope hosts.
 
 Loaded only when the operator passes ``--templates`` (a path or ``builtin``), so
 it never duplicates the dedicated Python scanners during a default scan. Every

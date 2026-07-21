@@ -1,7 +1,7 @@
 """Parse a HAR 1.2 archive into CapturedRequests.
 
-HAR (HTTP Archive) is the universal interchange format — browsers' devtools,
-Caido, mitmproxy, and Burp (via extensions) all export it — so a HAR importer
+HAR (HTTP Archive) is the universal interchange format - browsers' devtools,
+Caido, mitmproxy, and Burp (via extensions) all export it - so a HAR importer
 covers every source that isn't natively Burp-XML or Caido-JSON. The spec is
 precise, so this reads the documented ``log.entries[].request/response`` shape
 directly (``queryString``/``postData.params`` give param names for free).

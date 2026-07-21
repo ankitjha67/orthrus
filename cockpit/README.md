@@ -1,12 +1,12 @@
 # ORTHRUS Cockpit (v2.0)
 
-The operator cockpit — a React 18 + Vite + TypeScript SPA that talks to the
+The operator cockpit - a React 18 + Vite + TypeScript SPA that talks to the
 ORTHRUS operator-graph REST API (`orthrus/api/programs.py`). It runs **two ways**
 from the same code:
 
-- **Web** — served same-origin by the backend at `/cockpit` (no desktop toolchain
+- **Web** - served same-origin by the backend at `/cockpit` (no desktop toolchain
   needed).
-- **Desktop** — wrapped by **Tauri 2.0** (`src-tauri/`) into a native window.
+- **Desktop** - wrapped by **Tauri 2.0** (`src-tauri/`) into a native window.
 
 Palette is red / white / black only (theme-aware), matching the rest of ORTHRUS.
 
@@ -43,7 +43,7 @@ npm --prefix cockpit run tauri build     # bundle a desktop binary
 
 ```
 cockpit/
-  src/            React app — App shell + tabs/ (Programs, Assets, Findings, Reports, Copilot)
+  src/            React app - App shell + tabs/ (Programs, Assets, Findings, Reports, Copilot)
   src/api.ts      typed client for the operator-graph REST API
   src-tauri/      Tauri 2.0 desktop wrapper (Rust)
   vite.config.ts  base "/cockpit/" in prod, "/" (+ /api proxy) in dev

@@ -1,20 +1,42 @@
-# Bounty v2.0 — PRD → plan
+# Bounty v2.0 - PRD → plan
 
 The ORTHRUS **v2.0 "Unified Bug Bounty Operator Platform"** PRD describes a
 44-week product: a Rust core, a Tauri cockpit, continuous cloud recon, a RAG
 copilot, a managed SaaS tier, and team mode. This document maps that vision onto
 what actually exists today and turns it into an **honest, incremental plan** the
-current Python codebase can execute — without a rewrite and without pretending a
+current Python codebase can execute - without a rewrite and without pretending a
 platform ships in a session.
 
 **Guiding decision.** ORTHRUS stays a Python DAST + operator toolkit. We expand
-the existing `orthrus/bounty/` module toward the PRD's *spirit* — authorization,
-continuous recon, triage, platform-native reporting, a grounded copilot — one
+the existing `orthrus/bounty/` module toward the PRD's *spirit* - authorization,
+continuous recon, triage, platform-native reporting, a grounded copilot - one
 tested, merged PR at a time. The Rust/Tauri/managed-SaaS layer is a separate
 business bet, deliberately **not** started as part of "expand the bounty module".
 
 Status legend: ✅ have · 🟡 partial · 🛠 build-now (Python, in-reach) · 🔑 needs
 an account/credential/infra · 🏗 major rewrite / separate product bet.
+
+## Delivered (v2.0 operator platform, shipped 2026-07)
+
+The plan below has since been **executed**. The full v2.0 operator platform (PRD
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1254 tests green.
+The tables further down are kept as the historical plan; here is what actually landed:
+
+| Phase | Delivered | Where it lives |
+|---|---|---|
+| 0 - Unified domain model | Program-anchored operator graph (assets/endpoints/scan-runs/findings/evidence/audit/cost) on the shared DB; REST API; Tauri/React cockpit (5 tabs); `orthrus panic`; v0.1->v2.0 migration | `orthrus/model/`, `orthrus/api/programs.py`, `cockpit/` |
+| 1 - Continuous recon | Adapter framework + pure-Python sources (crt.sh/certspotter/DNS/wayback) + subfinder/amass; wildcard-DNS detection; new-asset diff; Slack/Discord alerts; `recon-run`/`recon-watch` | `orthrus/recon_engine/` |
+| 2 - Scan -> graph | `promote_findings` bridge (cross-tool dedup signature, priority score, ScanRun-linked); `orthrus program-scan` | `orthrus/model/promote.py` |
+| 3 - Triage + reports | Finding status/assign lifecycle; platform-native report renderer; cockpit Findings tab | `orthrus/model/report.py` |
+| 4 - Copilot + notes | Operator-graph Notes (entity/DAL/REST) + grounded BM25 copilot over findings+notes (cites, never invents); cockpit Copilot tab | `orthrus/model/copilot.py`, `orthrus/model/entities.py` |
+| 5 - Multi-domain adapters | slither (web3) / checkov (cloud-IaC) / semgrep (SAST) external-tool adapters, self-skip if binary absent | `orthrus/integrations/` |
+| 6 - Traffic bridge + planner | Burp XML / Caido JSON / HAR import into the graph (XXE-guarded, deny-by-default on import); deterministic `orthrus plan` next-action engine | `orthrus/bridges/`, `orthrus/model/planner.py` |
+| 7 - Team + deploy | User/Membership RBAC (owner/member/viewer), per-user API keys, `orthrus team` CLI + REST gating; `docker-compose.operator.yml` (API + cockpit over Postgres) | `orthrus/model/store.py`, `docker/` |
+
+Optional/pluggable by design (not gaps): LanceDB/BGE embeddings (BM25-lite is the
+default backend); external tools that self-skip when their binary is absent. Still a
+deliberate out-of-repo bet: the **managed/SaaS tier** (org billing, hosted infra) and
+the native Rust core (the cockpit ships as Tauri + FastAPI, per the hybrid decision).
 
 ## Subsystem map
 
@@ -23,7 +45,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 | Scope enforcement (§5) | ✅ | Deny-by-default client + bounty scope intake. |
 | **Authorization model + kill-list** (§2.3/§6/§11) | ✅ | Shipped: `bounty/authorization.py` (program URL / signed / direct / self-lab; public scope refused without it) + `bounty/killlist.py` (gov/mil/edu/health/sanctioned refused unless attested). |
 | Program record + scope_entries (§6) | 🟡→🛠 | Authorization is captured; a persisted `programs` store (pause, jurisdiction, expiry, history) is next. |
-| Recon engine — continuous / diff / CT-log (§7.2) | 🟡→🛠 | Have subdomain enum + recon modules. Next: **expand `*.wildcard` → live in-scope subdomains before scanning**; then diffing + a per-program scheduler; then external adapters (subfinder/amass/dnsx/httpx). CT-log + cloud workers are heavier. |
+| Recon engine - continuous / diff / CT-log (§7.2) | 🟡→🛠 | Have subdomain enum + recon modules. Next: **expand `*.wildcard` → live in-scope subdomains before scanning**; then diffing + a per-program scheduler; then external adapters (subfinder/amass/dnsx/httpx). CT-log + cloud workers are heavier. |
 | Scan engine (§7.3) | ✅ + 🛠 | 59 scanners today; `--tools nuclei` exists. **dalfox** (XSS) + **testssl** (TLS) adapters added; sqlmap/ffuf still to come. |
 | Confirm engine (§7.4) | ✅ + 🛠 | 19 confirmers, incl. XXE-OOB and deserialization-OOB (shipped). Next: SSRF→cloud-metadata chain, single-packet race. |
 | Triage engine (§7.5) | ✅ + 🛠 | Composite **priority scoring** (`bounty/triage.py`), cross-run history recall (`bounty/history.py`), LLM FP-judge (`orthrus triage --llm`), and per-program **mute rules** (`bounty/suppress.py` + `orthrus suppress`/`suppressions`): known-noise findings are kept out of the queue (counted, never silently hidden). Next: cross-program near-dup clustering. |
@@ -32,7 +54,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 | Attack graph (§7.8) | ✅ + 🛠 | `chains`/`graph` exist. Next: wire the SSRF→metadata and JWT→BOLA chains as first-class. |
 | Monitoring & notifications (§7.9) | 🟡→🛠 | `notify` (Slack/Jira) exists. Next: per-program schedule + digest wired to bounty campaigns. |
 | Vuln-class ontology (Appendix B) | 🟡→🛠 | Have attack-map + CVSS defaults. Formalize a versioned ontology module (severity/CVSS/CWE/OWASP/ATT&CK + `default_confidence_ceiling` + `is_destructive`). |
-| Audit log (§6/§8.5) + cost ledger (§10) | ✅ | Hash-chained append-only audit of scope decisions/requests (`orthrus audit`); per-program cost ledger (`orthrus cost`) — LLM spend auto-recorded by the copilot, blended per-model estimate, `ORTHRUS_LLM_RATE` override. |
+| Audit log (§6/§8.5) + cost ledger (§10) | ✅ | Hash-chained append-only audit of scope decisions/requests (`orthrus audit`); per-program cost ledger (`orthrus cost`) - LLM spend auto-recorded by the copilot, blended per-model estimate, `ORTHRUS_LLM_RATE` override. |
 | Payments/bounty tracking (§7.12) | ✅ | `bounty/submissions.py` + `orthrus submission`/`submissions`: track status + payouts, roll up earnings. Notes (§7.13): ✅ `bounty/notes.py` + `orthrus note`/`notes` (tagged, searchable knowledge base). |
 | Multi-domain: mobile/web3/LLM/cloud (Phase 5) | 🛠/🔑 | Adapter wrappers (MobSF/slither/garak/prowler) are build-now; several need the external binary installed. |
 | Burp/Caido bridge (§7.10) | 🔑/🏗 | ORTHRUS side is buildable; the Burp/Caido extensions are separate Java/TS projects. |
@@ -40,17 +62,17 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 
 ## Build-now queue (Python, in-reach, one PR each)
 
-1. ✅ **Authorization + kill-list** — *this PR.*
-2. ✅ **Subdomain expansion recon** — `bounty/assets.py`: a `*.wildcard` scope is expanded into its live in-scope subdomains (crt.sh + DNS), filtered against exclusions + kill-list, via `--enumerate`.
-3. ✅ **Platform-native report templates** — `bounty/platforms.py` + `--platform`: per-bug reports shaped for HackerOne / Bugcrowd (P1–P5) / Intigriti / YesWeHack / Immunefi (gist reminder).
-4. ✅ **Program store + traffic policy** — `bounty/store.py` + `--program NAME` + `orthrus programs`: persist a program's authorization + scope + campaign history (JSON at `$ORTHRUS_HOME/programs.json`); re-run by name. `orthrus program-policy` records a **rate ceiling** (honored as a hard cap on every run) and an **identifying header** (attached to every request) — courtesy + ban-avoidance, applied automatically.
-5. ✅ **Triage priority scoring** — `bounty/triage.py`: a 0–100 composite (severity × confidence + CVSS) ranks the bug queue so a confirmed medium outranks a tentative high; shown + sorted-on in the report index. History recall (`bounty/history.py`) flags bugs seen in earlier runs.
-6. ✅ **Vuln-class ontology** — `bounty/ontology.py` (versioned): per-class `confidence_ceiling` + `is_destructive` governance metadata; destructive classes get a manual-verification caution in the report.
-7. ✅ **Audit log + cost ledger** — `bounty/audit.py` + `orthrus audit [--verify]`: hash-chained, append-only JSONL of authorization / kill-list refusals / campaigns; `verify()` pinpoints tampering. `bounty/cost.py` + `orthrus cost [--program]`: append-only JSONL spend ledger — the copilot auto-records LLM token cost (blended per-model estimate, `ORTHRUS_LLM_RATE` override), rolled up by provider/category/program.
+1. ✅ **Authorization + kill-list** - *this PR.*
+2. ✅ **Subdomain expansion recon** - `bounty/assets.py`: a `*.wildcard` scope is expanded into its live in-scope subdomains (crt.sh + DNS), filtered against exclusions + kill-list, via `--enumerate`.
+3. ✅ **Platform-native report templates** - `bounty/platforms.py` + `--platform`: per-bug reports shaped for HackerOne / Bugcrowd (P1-P5) / Intigriti / YesWeHack / Immunefi (gist reminder).
+4. ✅ **Program store + traffic policy** - `bounty/store.py` + `--program NAME` + `orthrus programs`: persist a program's authorization + scope + campaign history (JSON at `$ORTHRUS_HOME/programs.json`); re-run by name. `orthrus program-policy` records a **rate ceiling** (honored as a hard cap on every run) and an **identifying header** (attached to every request) - courtesy + ban-avoidance, applied automatically.
+5. ✅ **Triage priority scoring** - `bounty/triage.py`: a 0-100 composite (severity × confidence + CVSS) ranks the bug queue so a confirmed medium outranks a tentative high; shown + sorted-on in the report index. History recall (`bounty/history.py`) flags bugs seen in earlier runs.
+6. ✅ **Vuln-class ontology** - `bounty/ontology.py` (versioned): per-class `confidence_ceiling` + `is_destructive` governance metadata; destructive classes get a manual-verification caution in the report.
+7. ✅ **Audit log + cost ledger** - `bounty/audit.py` + `orthrus audit [--verify]`: hash-chained, append-only JSONL of authorization / kill-list refusals / campaigns; `verify()` pinpoints tampering. `bounty/cost.py` + `orthrus cost [--program]`: append-only JSONL spend ledger - the copilot auto-records LLM token cost (blended per-model estimate, `ORTHRUS_LLM_RATE` override), rolled up by provider/category/program.
 8. **Attack chains**: SSRF→cloud-metadata, JWT→BOLA.
-9. 🚧 **Notifications & asset monitoring** — `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary. Cross-run **new-asset detection**: `bounty/asset_monitor.py` snapshots a saved program's live in-scope hosts each `--enumerate` run and flags which are NEW since last time (fresh, untested surface — the highest-signal bounty event; audit-logged as `asset-drift`); `orthrus bounty-assets --program NAME` shows the inventory. (Time-based auto-scheduling still to come — pair with the existing `orthrus monitor --watch`.)
-10. ✅ **Data-grounded copilot** — `bounty/copilot.py` + `orthrus copilot "…"`: BM25-lite retrieval over your notes + submissions (no embedding deps), optional `--llm` grounding held to the context (never invents). Embeddings + vendored corpora (HackTricks/PayloadsAllTheThings) are a follow-up.
-11. 🚧 **External-tool adapters** — expanded the catalog beyond nuclei: `dalfox` (XSS), `testssl` (TLS), `ffuf` (content discovery), `nikto` (web-server misconfig, conservatively rated), `wpscan` (WordPress core/plugin/theme CVEs + exposed debug-log/listing). Each is a tested JSON parser + `@register_tool` class that normalizes to ORTHRUS Findings (run via `orthrus scan --tools` / `orthrus bounty --tools`); binaries absent on PATH are skipped cleanly. Multi-domain (mobile/web3/LLM/cloud) still to come.
+9. 🚧 **Notifications & asset monitoring** - `orthrus bounty --notify-slack` (or `ORTHRUS_SLACK_WEBHOOK`) posts a campaign summary. Cross-run **new-asset detection**: `bounty/asset_monitor.py` snapshots a saved program's live in-scope hosts each `--enumerate` run and flags which are NEW since last time (fresh, untested surface - the highest-signal bounty event; audit-logged as `asset-drift`); `orthrus bounty-assets --program NAME` shows the inventory. (Time-based auto-scheduling still to come - pair with the existing `orthrus monitor --watch`.)
+10. ✅ **Data-grounded copilot** - `bounty/copilot.py` + `orthrus copilot "…"`: BM25-lite retrieval over your notes + submissions (no embedding deps), optional `--llm` grounding held to the context (never invents). Embeddings + vendored corpora (HackTricks/PayloadsAllTheThings) are a follow-up.
+11. 🚧 **External-tool adapters** - expanded the catalog beyond nuclei: `dalfox` (XSS), `testssl` (TLS), `ffuf` (content discovery), `nikto` (web-server misconfig, conservatively rated), `wpscan` (WordPress core/plugin/theme CVEs + exposed debug-log/listing). Each is a tested JSON parser + `@register_tool` class that normalizes to ORTHRUS Findings (run via `orthrus scan --tools` / `orthrus bounty --tools`); binaries absent on PATH are skipped cleanly. Multi-domain (mobile/web3/LLM/cloud) still to come.
 
 ## Needs you (the 🔑 items)
 
@@ -63,4 +85,4 @@ the build-now queue is code I can land.
 
 Rust core rewrite · Tauri desktop app · managed cloud tier · Stripe billing ·
 OIDC/SCIM team mode · SOC 2. These are real and in the PRD, but they are a
-company, not a module expansion — call them out as a funded effort, not a turn.
+company, not a module expansion - call them out as a funded effort, not a turn.

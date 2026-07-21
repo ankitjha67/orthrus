@@ -1,16 +1,16 @@
-"""Model-agnostic LLM client — local or any market model, over plain httpx.
+"""Model-agnostic LLM client - local or any market model, over plain httpx.
 
 One tiny client speaks three wire protocols, which between them cover essentially
 every model a user might have:
 
-* **anthropic**          — Claude (``api.anthropic.com``)
-* **openai**             — OpenAI, and via ``ORTHRUS_LLM_BASE_URL`` any
+* **anthropic**          - Claude (``api.anthropic.com``)
+* **openai**             - OpenAI, and via ``ORTHRUS_LLM_BASE_URL`` any
   OpenAI-*compatible* endpoint: Azure OpenAI, Groq, Together, OpenRouter,
   Mistral, DeepSeek, vLLM, LM Studio, LocalAI, …
-* **ollama**             — a **local** Ollama server (default ``localhost:11434``)
+* **ollama**             - a **local** Ollama server (default ``localhost:11434``)
 
 Selection is a ``provider:model`` spec (``anthropic:claude-sonnet-5``,
-``ollama:llama3.1``, ``openai:gpt-4o``); keys/base-url come from env. No SDKs —
+``ollama:llama3.1``, ``openai:gpt-4o``); keys/base-url come from env. No SDKs -
 just httpx (already a core dependency). Anything sent to a **remote** model is
 run through :func:`redact_for_llm` first, so credentials/cookies in captured
 evidence never leave the host (the full evidence still lives in the deterministic

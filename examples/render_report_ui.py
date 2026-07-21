@@ -4,7 +4,7 @@
 Loads a JSON report (the ``orthrus scan --format json`` output) and renders the
 banner, the AUTHORIZED SCOPE panel, the scan summary, OWASP Top-10 coverage and
 the colour-coded findings table into a recording :class:`rich.console.Console`,
-then exports an **SVG** and **HTML** frame you can open in a browser — handy for
+then exports an **SVG** and **HTML** frame you can open in a browser - handy for
 docs, slides, and sharing results. A **PNG** is written too when Playwright +
 Chromium are available (``pip install orthrus-framework[browser]``).
 
@@ -103,7 +103,7 @@ def build_console(data: dict, *, width: int, max_findings: int | None) -> Consol
     console.print()
     console.print(
         Text(
-            " authorized security testing only — render of an Orthrus JSON report",
+            " authorized security testing only - render of an Orthrus JSON report",
             style="orthrus.accent",
         )
     )
@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
     html_path = out_base.with_suffix(".html")
     png_path = out_base.with_suffix(".png")
 
-    console.save_svg(svg_path, title="Orthrus — scan report", clear=False)
+    console.save_svg(svg_path, title="Orthrus - scan report", clear=False)
     console.save_html(html_path)
     print(f"wrote {svg_path}  ({svg_path.stat().st_size:,} bytes)")
     print(f"wrote {html_path} ({html_path.stat().st_size:,} bytes)")

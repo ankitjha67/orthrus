@@ -1,4 +1,4 @@
-"""HTTP request smuggling (desync) scanner — timing-based CL.TE / TE.CL."""
+"""HTTP request smuggling (desync) scanner - timing-based CL.TE / TE.CL."""
 
 from __future__ import annotations
 

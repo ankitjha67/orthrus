@@ -4,10 +4,10 @@ ORTHRUS already maps findings to CWE / OWASP / ATT&CK (in the report generator).
 This module adds the two *governance* attributes those maps don't carry, keyed by
 the scanner ``vuln_type``:
 
-* ``confidence_ceiling`` — the highest confidence a class can honestly reach.
+* ``confidence_ceiling`` - the highest confidence a class can honestly reach.
   Most classes can be actively re-proven (``confirmed``); a few have no safe,
   generic active proof (business logic, races) and top out at ``firm``.
-* ``destructive`` — whether confirming/abusing the class writes state or can
+* ``destructive`` - whether confirming/abusing the class writes state or can
   affect other users, so it warrants manual verification before active testing.
 
 The ontology is versioned (semver) and extensible; unknown types get a safe

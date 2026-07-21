@@ -1,7 +1,7 @@
 """Exposed-secret scanner: credentials/keys leaked in responses & inline JS.
 
 Passive-leaning detector that scans the bodies of discovered HTML/JS/JSON
-endpoints (plus the root page) for high-signal secret patterns — AWS access
+endpoints (plus the root page) for high-signal secret patterns - AWS access
 keys, Google API/OAuth tokens, Slack tokens, Stripe live keys, GitHub tokens,
 and PEM private-key blocks. Each pattern is specific enough that a match is a
 near-certain leak, keeping false positives low (no generic "looks like a

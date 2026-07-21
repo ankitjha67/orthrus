@@ -1,18 +1,18 @@
 """Business-logic probes: parameter tampering + HTTP parameter pollution (PRD §6.7).
 
-True business-logic flaws — broken multi-step workflows, price manipulation that
-actually ships goods for free, coupon/loyalty abuse — need an application model a
+True business-logic flaws - broken multi-step workflows, price manipulation that
+actually ships goods for free, coupon/loyalty abuse - need an application model a
 scanner does not have, so this module is *honestly scoped*. It automates the two
 mechanical, high-signal precursors that frequently expose weak server-side
 validation and reports them as TENTATIVE for manual confirmation:
 
-1. Parameter tampering — value-bearing numeric params (price / amount / quantity
+1. Parameter tampering - value-bearing numeric params (price / amount / quantity
    / balance …) are resent with out-of-band values (negative, zero, fractional,
    overflow). To keep false positives down the probe first proves the endpoint
    *does* validate input by sending garbage and confirming a rejection; only then
    does an accepted negative/zero value count as a missing range/sign check.
 
-2. HTTP parameter pollution — a query key is sent twice with two distinct,
+2. HTTP parameter pollution - a query key is sent twice with two distinct,
    reflected sentinels. If exactly one sentinel survives in the response (and
    which one is order-dependent), the server silently drops a duplicate, so a
    control that inspects the *other* occurrence (a WAF, an auth filter, an input
@@ -169,9 +169,9 @@ def tampering_signal(
     """Whether an out-of-band numeric value slipped past a field that validates.
 
     Requires: the legitimate value succeeded (2xx); a garbage value was *rejected*
-    (so the field validates input at all — otherwise the signal is meaningless);
+    (so the field validates input at all - otherwise the signal is meaningless);
     and the tampered value was accepted (2xx, no rejection). That combination
-    means the field checks type but not range/sign — a missing-validation flaw.
+    means the field checks type but not range/sign - a missing-validation flaw.
     """
     if not (200 <= baseline_status < 300):
         return False
@@ -284,8 +284,8 @@ class BusinessLogicScanner(BaseScanner):
                 "downstream (cart total, charged amount, fulfilled quantity)."
             ),
             remediation=(
-                "Validate numeric inputs server-side against business rules — enforce sign, "
-                "minimum/maximum range, and precision — and re-derive security-relevant "
+                "Validate numeric inputs server-side against business rules - enforce sign, "
+                "minimum/maximum range, and precision - and re-derive security-relevant "
                 "values (prices, totals) from trusted server state rather than the request."
             ),
             cwe="CWE-472",

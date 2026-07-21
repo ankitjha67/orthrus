@@ -1,5 +1,5 @@
 // Typed client for the ORTHRUS operator-graph REST API (orthrus/api/programs.py).
-// Same-origin "/api" — served by `orthrus serve --cockpit` in prod, Vite-proxied in dev.
+// Same-origin "/api" - served by `orthrus serve --cockpit` in prod, Vite-proxied in dev.
 
 export interface Program {
   id: string;

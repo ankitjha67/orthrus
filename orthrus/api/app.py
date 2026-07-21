@@ -1,11 +1,11 @@
-"""ORTHRUS REST API — programmatic, read access to scans and findings.
+"""ORTHRUS REST API - programmatic, read access to scans and findings.
 
 A real FastAPI application backed by the same async store the CLI uses, so scan
 results are queryable over HTTP / by other services and dashboards. Read-only by
 design in this layer (launching scans is a separate, authenticated concern).
 
 Run with ``orthrus serve`` (needs the ``[api]`` extra: fastapi + uvicorn). The
-app is fully exercisable in tests via ``fastapi.testclient.TestClient`` — no
+app is fully exercisable in tests via ``fastapi.testclient.TestClient`` - no
 network server required.
 """
 
@@ -51,7 +51,7 @@ def cockpit_dist() -> Path | None:
 _REPEATER_BODY = (
     "<p><a href='/'>&larr; all scans</a></p><h1>Repeater</h1>"
     "<p class=muted>Resend a request to an already-scanned (authorized) host and inspect the "
-    "response. Scope-enforced — off-target hosts are refused.</p>"
+    "response. Scope-enforced - off-target hosts are refused.</p>"
     "<div style='display:grid;grid-template-columns:1fr 1fr;gap:14px'>"
     "<div><label>Method</label><br><select id=m>"
     + "".join(f"<option>{x}</option>" for x in ("GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"))
@@ -213,7 +213,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
             + (trs or "<tr><td colspan=5>No scans yet.</td></tr>")
             + "</table>"
         )
-        return _page("ORTHRUS — scans", body)
+        return _page("ORTHRUS - scans", body)
 
     @app.get("/dashboard/scans/{scan_id}", response_class=HTMLResponse)
     async def dashboard_scan(scan_id: str) -> str:
@@ -250,7 +250,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
             + (frs or "<tr><td colspan=5>No findings.</td></tr>")
             + "</table>"
         )
-        return _page(f"ORTHRUS — {scan_id}", body)
+        return _page(f"ORTHRUS - {scan_id}", body)
 
     @app.get("/dashboard/scans/{scan_id}/surface", response_class=HTMLResponse)
     async def dashboard_surface(scan_id: str) -> str:
@@ -261,7 +261,7 @@ def create_app(db_url: str | None = None) -> FastAPI:
 
     @app.get("/dashboard/repeater", response_class=HTMLResponse)
     async def dashboard_repeater() -> str:
-        return _page("ORTHRUS — repeater", _REPEATER_BODY)
+        return _page("ORTHRUS - repeater", _REPEATER_BODY)
 
     async def _authorized_hosts() -> set[str]:
         rows = await app.state.store.list_scans(limit=500)

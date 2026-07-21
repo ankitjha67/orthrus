@@ -1,4 +1,4 @@
-"""Model-agnostic LLM client — spec parsing, redaction, and the three protocols."""
+"""Model-agnostic LLM client - spec parsing, redaction, and the three protocols."""
 
 from __future__ import annotations
 

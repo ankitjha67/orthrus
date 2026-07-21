@@ -49,7 +49,7 @@ def test_modules_descriptions_present_and_prd_free():
     data = json.loads(result.output)
 
     # Descriptions fall back to the module docstring, so they should be non-empty
-    # for the core scanners — and must never leak the internal PRD references.
+    # for the core scanners - and must never leak the internal PRD references.
     described = {s["name"]: s["description"] for s in data["scanners"]}
     assert described["sqli"]
     for desc in described.values():

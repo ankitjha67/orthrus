@@ -197,6 +197,6 @@ async def test_graphql_get_csrf_flagged_when_get_executes():
 
 async def test_graphql_get_csrf_not_flagged_when_get_returns_html():
     # A server that returns only the GraphiQL HTML on GET (no query execution)
-    # must NOT be flagged — avoids the playground false positive.
+    # must NOT be flagged - avoids the playground false positive.
     findings = [f async for f in GraphqlScanner().scan(_scan_ctx(_GetOnlyHttp(get_executes=False)))]
     assert not any("GET (CSRF)" in f.title for f in findings)

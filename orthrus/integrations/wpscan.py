@@ -1,9 +1,9 @@
-"""WPScan adapter — normalize WPScan's JSON into ORTHRUS Findings.
+"""WPScan adapter - normalize WPScan's JSON into ORTHRUS Findings.
 
 WordPress is ubiquitous in bounty scope and WPScan is the standard scanner for
-it. This adapter maps the three things WPScan actually finds — a vulnerable core
+it. This adapter maps the three things WPScan actually finds - a vulnerable core
 version, vulnerable plugins/themes, and "interesting findings" (exposed
-readme/debug-log/directory-listing) — into Findings, carrying CVE references and
+readme/debug-log/directory-listing) - into Findings, carrying CVE references and
 the fixed-in version so a report is actionable.
 """
 

@@ -1,4 +1,4 @@
-"""Finding triage — turn a raw finding list into a high-signal, deduplicated view.
+"""Finding triage - turn a raw finding list into a high-signal, deduplicated view.
 
 A scanner that crawls a real app reports the *same* issue many times: reflected
 XSS on 50 product pages, IDOR on ``/order/1``…``/order/999``, a missing security
@@ -6,14 +6,14 @@ header on every route. A flat list of 600 findings hides the 12 real problems.
 
 This layer collapses that noise deterministically:
 
-* **URL templating** — id-like path segments (``/order/8412`` → ``/order/{id}``)
+* **URL templating** - id-like path segments (``/order/8412`` → ``/order/{id}``)
   are normalised so the same bug at many ids folds into one cluster.
-* **Clustering** — findings group by (vuln_type, templated-url, parameter); each
+* **Clustering** - findings group by (vuln_type, templated-url, parameter); each
   cluster keeps its highest-severity representative, a count, and the affected
   URLs.
 
 That core is pure and offline. On top of it sits an **optional** LLM judge that
-assesses each cluster's false-positive likelihood — the prompt builder and the
+assesses each cluster's false-positive likelihood - the prompt builder and the
 response parser are pure (and unit-tested); the network call is opt-in and
 no-ops cleanly when no API key is configured, so triage always works without it.
 """

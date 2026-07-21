@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ORTHRUS quick demo — safe: runs only against the bundled, 127.0.0.1-only,
+# ORTHRUS quick demo - safe: runs only against the bundled, 127.0.0.1-only,
 # intentionally-vulnerable practice target. Nothing external is contacted.
 #
 # Record it as a GIF/cast with either:
@@ -35,7 +35,7 @@ $ORTHRUS --no-banner patch --scan-id "$SID" | head -22
 echo; echo "▶ 5/6  read-only cloud posture (CSPM/IAM) + toxic combinations"
 $ORTHRUS --no-banner cloud examples/cloud_inventory.json
 
-echo; echo "▶ 6/6  autonomous agent — plan only (dry-run; allow-listed, scope-enforced, no shell)"
+echo; echo "▶ 6/6  autonomous agent - plan only (dry-run; allow-listed, scope-enforced, no shell)"
 $ORTHRUS --no-banner agent -t "http://127.0.0.1:${PORT}" --scope 127.0.0.1 --no-llm --dry-run --aggressiveness passive
 
-echo; echo "✔ done — full HTML report written to orthrus_report_demo.html"
+echo; echo "✔ done - full HTML report written to orthrus_report_demo.html"

@@ -1,4 +1,4 @@
-"""Cloud posture (CSPM/IAM) — posture rules, toxic-combination graph, CLI, collector."""
+"""Cloud posture (CSPM/IAM) - posture rules, toxic-combination graph, CLI, collector."""
 
 from __future__ import annotations
 
@@ -89,7 +89,7 @@ def test_open_admin_port_plus_privileged_role_is_critical():
 def test_exposed_compute_without_privilege_is_not_toxic():
     ec2 = CloudResource(id="i-3", type="ec2-instance", public=True,
                         attached_roles=["arn:iam::1:role/ro"])
-    # A genuinely minimal permission — not one of the privilege fragments.
+    # A genuinely minimal permission - not one of the privilege fragments.
     ro = CloudResource(id="arn:iam::1:role/ro", type="iam-role",
                        permissions=["cloudwatch:PutMetricData"])
     assert toxic_combinations(_inv(ec2, ro)) == []

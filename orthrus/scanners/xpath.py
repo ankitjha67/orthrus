@@ -2,7 +2,7 @@
 
 Sends XPath-expression-breaking payloads (stray quotes, unbalanced brackets and
 parentheses) into every injection point and flags responses that leak an XPath
-evaluation error — the same low-false-positive, error-based approach the SQLi,
+evaluation error - the same low-false-positive, error-based approach the SQLi,
 NoSQL and LDAP scanners use. A baseline is checked first so endpoints that error
 on *any* input are skipped.
 

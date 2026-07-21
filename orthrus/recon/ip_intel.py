@@ -1,23 +1,23 @@
-"""IP-address intelligence recon — infrastructure OSINT (PRD §5.1).
+"""IP-address intelligence recon - infrastructure OSINT (PRD §5.1).
 
 Given an in-scope target host or IP, this module enriches it with passive
 network intelligence about the *infrastructure* it runs on:
 
-* **Reverse DNS (PTR)** — the hostname(s) the IP points back to.
-* **ASN / network owner** — the autonomous system announcing the IP, its
+* **Reverse DNS (PTR)** - the hostname(s) the IP points back to.
+* **ASN / network owner** - the autonomous system announcing the IP, its
   organisation name, and the covering BGP prefix, resolved via Team Cymru's
   IP-to-ASN service over DNS (no API key required).
-* **Allocation country / registry** — the RIR allocation country code and
-  registry. This is a coarse, allocation-level locator — *not* a precise
+* **Allocation country / registry** - the RIR allocation country code and
+  registry. This is a coarse, allocation-level locator - *not* a precise
   geolocation, and never a person's location.
-* **Cloud / hosting attribution** — a best-effort provider label derived from
+* **Cloud / hosting attribution** - a best-effort provider label derived from
   the AS organisation (AWS, Google Cloud, Azure, Cloudflare, ...).
 
 Every lookup is **passive**: it queries public DNS databases *about* the IP and
 sends no packet to the target itself. The module only enriches addresses that
 the authorised target resolves to and that fall within any declared IP ranges,
 so the engagement boundary holds. This recons infrastructure for an authorised
-assessment — it is not a tool for locating or tracking individual people.
+assessment - it is not a tool for locating or tracking individual people.
 """
 
 from __future__ import annotations

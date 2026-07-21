@@ -1,4 +1,4 @@
-"""AI augmentation layer — grounded, provider-agnostic LLM features.
+"""AI augmentation layer - grounded, provider-agnostic LLM features.
 
 The deterministic scanners produce the ground truth; this layer reasons and
 writes *over* that truth. The flagship is the Big-Four-grade consultant report

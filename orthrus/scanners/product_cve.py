@@ -2,14 +2,14 @@
 
 The NVD CVE matcher (``cve_matcher.py``) needs a *precise* product **version** to
 correlate against CPE ranges. High-value enterprise products are frequently
-exposed without leaking a clean version string — Oracle WebLogic's admin console
+exposed without leaking a clean version string - Oracle WebLogic's admin console
 is the classic example: the login page is reachable, the product is unmistakable,
 but no version banner is offered. The version-gated matcher therefore skips it
 entirely and the most dangerous exposure on the perimeter goes unreported.
 
 This scanner closes that gap. It fingerprints a curated set of products with a
 long tail of *known-exploited* (CISA KEV) remote-code-execution CVEs by their
-distinctive paths / response markers / headers, and — even with no version —
+distinctive paths / response markers / headers, and - even with no version -
 surfaces the product's notorious CVEs as a prioritised finding, enriched with the
 same KEV/EPSS intelligence the NVD matcher uses. When a version *is* recoverable
 (e.g. Jenkins' ``X-Jenkins`` header) it is included to sharpen the report.
@@ -58,7 +58,7 @@ class ProductSignature:
     cves: tuple[KnownCve, ...]
     probe_paths: tuple[str, ...] = ()
     body_markers: tuple[str, ...] = ()
-    # (header-name, substring) — both lowercased at match time.
+    # (header-name, substring) - both lowercased at match time.
     header_markers: tuple[tuple[str, str], ...] = ()
     # Regexes whose first group is the version; tried against headers + body.
     version_patterns: tuple[str, ...] = ()
@@ -117,8 +117,8 @@ PRODUCTS: tuple[ProductSignature, ...] = (
             "Restrict administrative endpoints and place the instance behind authentication / VPN."
         ),
         cves=(
-            KnownCve("CVE-2022-26134", 9.8, "OGNL injection — unauthenticated RCE"),
-            KnownCve("CVE-2023-22515", 10.0, "Broken access control — privilege escalation"),
+            KnownCve("CVE-2022-26134", 9.8, "OGNL injection - unauthenticated RCE"),
+            KnownCve("CVE-2023-22515", 10.0, "Broken access control - privilege escalation"),
         ),
         probe_paths=("/", "/login.action"),
         body_markers=(
@@ -165,7 +165,7 @@ PRODUCTS: tuple[ProductSignature, ...] = (
         ),
         cves=(
             KnownCve("CVE-2019-17558", 8.5, "Velocity template injection RCE (params resource loader)"),
-            KnownCve("CVE-2021-44228", 10.0, "Log4Shell — log4j2 JNDI lookup RCE"),
+            KnownCve("CVE-2021-44228", 10.0, "Log4Shell - log4j2 JNDI lookup RCE"),
         ),
         probe_paths=("/solr/", "/solr/admin/cores"),
         body_markers=("Solr Admin", "solr-admin", '"responseHeader"', "Apache SOLR"),
@@ -315,7 +315,7 @@ class ProductCveScanner(BaseScanner):
 
         return Finding(
             vuln_type="cve",
-            title=f"Exposed {sig.name}{ver_str} — {len(sig.cves)} known-exploited CVE(s){kev_tag}",
+            title=f"Exposed {sig.name}{ver_str} - {len(sig.cves)} known-exploited CVE(s){kev_tag}",
             severity=severity,
             confidence=confidence,
             url=origin,

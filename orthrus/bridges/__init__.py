@@ -1,9 +1,9 @@
-"""Traffic bridges — import proxy history from Burp Suite / Caido into the graph.
+"""Traffic bridges - import proxy history from Burp Suite / Caido into the graph.
 
 An operator's Burp or Caido session already holds the real, authenticated attack
 surface (routes, params, methods) they browsed by hand. These bridges parse those
 tools' export formats into a neutral :class:`CapturedRequest` and fold each host →
-``ProgramAsset`` and route → ``ProgramEndpoint`` in the operator graph — so manual
+``ProgramAsset`` and route → ``ProgramEndpoint`` in the operator graph - so manual
 recon flows into the same scan/triage/report pipeline (PRD §7.12, Phase 6).
 
 Deny-by-default holds on import too: a scope predicate can refuse out-of-scope

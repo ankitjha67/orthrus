@@ -5,7 +5,7 @@ info:
   severity: medium
   description: >-
     The Apache /server-status page is publicly reachable. It discloses active
-    requests with client IPs and target URLs, server uptime, and worker state —
+    requests with client IPs and target URLs, server uptime, and worker state -
     leaking traffic patterns and internal endpoints.
   remediation: >-
     Restrict mod_status with "Require local" / IP allow-listing, or disable the

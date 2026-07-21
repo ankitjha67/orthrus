@@ -3,7 +3,7 @@
 Not a general chat: it retrieves over the operator's own notes and submissions and
 answers only from what it finds. Retrieval is a dependency-free BM25-lite keyword
 score (no embedding model to download); an optional LLM turns the retrieved
-snippets into prose, but is held to the context — if nothing relevant is found it
+snippets into prose, but is held to the context - if nothing relevant is found it
 says so rather than inventing a finding.
 
 Corpus = your [[notes]] + tracked [[submissions]] + your cross-run finding

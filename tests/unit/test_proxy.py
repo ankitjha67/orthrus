@@ -1,7 +1,7 @@
 """Scope-aware capturing proxy (`orthrus proxy`).
 
 Pure parse/serialize/extract helpers, plus loopback integration: a real proxy in
-front of a tiny origin server, driven by httpx through the proxy — asserting the
+front of a tiny origin server, driven by httpx through the proxy - asserting the
 response relays, in-scope traffic is captured, and out-of-scope is blocked.
 """
 

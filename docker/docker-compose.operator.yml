@@ -1,4 +1,4 @@
-# ORTHRUS v2.0 operator platform (PRD §9) — API + cockpit over Postgres.
+# ORTHRUS v2.0 operator platform (PRD §9) - API + cockpit over Postgres.
 #
 #   ORTHRUS_API_TOKEN=$(openssl rand -hex 24) \
 #     docker compose -f docker/docker-compose.operator.yml up -d --build

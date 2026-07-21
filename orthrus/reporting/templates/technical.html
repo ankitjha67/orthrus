@@ -76,7 +76,7 @@
   {% for ex in f.exploitations if ex.success %}
     <div class="kv">
       <strong>Confirmed</strong> via {{ ex.technique }}
-      {% if ex.extracted_data %} — extracted: <code>{{ ex.extracted_data }}</code>{% endif %}
+      {% if ex.extracted_data %} - extracted: <code>{{ ex.extracted_data }}</code>{% endif %}
     </div>
     {% if ex.request_raw %}<pre>{{ ex.request_raw }}</pre>{% endif %}
     {% if ex.response_raw %}<pre>{{ ex.response_raw }}</pre>{% endif %}

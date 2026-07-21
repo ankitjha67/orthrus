@@ -3,12 +3,12 @@
 Compares a fresh recon snapshot against a stored baseline and reports what
 *changed* about the attack surface: hosts that appeared or vanished, new IP
 addresses behind a host, and newly-observed open ports. Drift is the signal
-that turns ORTHRUS from a point-in-time scanner into continuous monitoring — a
+that turns ORTHRUS from a point-in-time scanner into continuous monitoring - a
 new subdomain or a freshly-exposed port is exactly what a defender wants paged
 about.
 
 Pure and deterministic: ``compute_asset_drift`` takes two asset lists and
-returns a structured diff, with no I/O — so it is trivially unit-testable and
+returns a structured diff, with no I/O - so it is trivially unit-testable and
 reusable by the ``monitor`` command, the API, and alert webhooks.
 """
 
@@ -59,7 +59,7 @@ class AssetDrift:
         if self.is_baseline:
             return f"baseline established: {self.current_count} host(s) recorded"
         if not self.has_changes:
-            return f"no drift — {self.unchanged} host(s) unchanged"
+            return f"no drift - {self.unchanged} host(s) unchanged"
         return (
             f"{len(self.new_hosts)} new, {len(self.removed_hosts)} removed, "
             f"{len(self.changed_hosts)} changed host(s)"
@@ -82,9 +82,9 @@ class AssetDrift:
 
 @dataclass
 class FindingDrift:
-    """The difference between two scans' findings — new vs resolved vulns.
+    """The difference between two scans' findings - new vs resolved vulns.
 
-    Identity is (vuln_type, url, parameter) — severity/confidence are excluded so
+    Identity is (vuln_type, url, parameter) - severity/confidence are excluded so
     a finding that merely changes severity between runs still counts as the same
     issue (persisting), and a fixed-then-reappearing bug re-registers as new.
     """
@@ -99,7 +99,7 @@ class FindingDrift:
 
     def summary(self) -> str:
         if not self.has_changes:
-            return f"no finding drift — {len(self.persisting)} still present"
+            return f"no finding drift - {len(self.persisting)} still present"
         return (
             f"{len(self.new_findings)} new, {len(self.resolved_findings)} resolved finding(s) "
             f"({len(self.persisting)} still present)"
@@ -130,8 +130,8 @@ def _finding_identity(finding) -> tuple[str, str, str]:
 def compute_finding_drift(baseline: list, current: list) -> FindingDrift:
     """Diff two finding lists by (vuln_type, url, parameter).
 
-    Accepts any objects exposing ``vuln_type``/``url``/``parameter`` — both the
-    ``Finding`` schema and persisted DB rows qualify — so the same engine backs
+    Accepts any objects exposing ``vuln_type``/``url``/``parameter`` - both the
+    ``Finding`` schema and persisted DB rows qualify - so the same engine backs
     both ``orthrus diff`` and ``orthrus monitor --deep``.
     """
     base: dict[tuple, object] = {}
@@ -158,7 +158,7 @@ def compute_asset_drift(
     """Diff two asset snapshots by FQDN.
 
     ``is_baseline=True`` (or an empty baseline) marks the run as the first
-    snapshot — everything in ``current`` is recorded without raising new-host
+    snapshot - everything in ``current`` is recorded without raising new-host
     noise, since there is nothing to compare against.
     """
     base = {a.fqdn: a for a in baseline}

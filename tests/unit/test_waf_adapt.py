@@ -96,7 +96,7 @@ async def test_persistent_block_returns_after_single_retry() -> None:
 
 
 async def test_rate_limit_is_recorded_but_not_retried() -> None:
-    # A 429 is left to the rate limiter's backoff — no immediate identity-rotation
+    # A 429 is left to the rate limiter's backoff - no immediate identity-rotation
     # retry (which would only add load to an already-throttled host).
     client = _bare_client()
     sent: list[str] = []

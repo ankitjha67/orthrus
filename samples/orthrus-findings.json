@@ -143,7 +143,7 @@
       "cvss_v4_score": 9.8,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
       "scanner": "graphql-injection",
-      "description": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed — the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.",
+      "description": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed - the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.",
       "remediation": "Never pass GraphQL argument values to a shell; use argument-vector process APIs with a fixed command and strict allow-listing of inputs.",
       "evidence": {
         "request_raw": "{'query': 'mutation{ systemDiagnostics(cmd: \"; echo ORTHRUSGQLCMD9174\") }'}",
@@ -200,7 +200,7 @@
       "cvss_v4_score": 8.8,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
       "scanner": "file-upload",
-      "description": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload — confirm where the file lands and whether it executes.",
+      "description": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload - confirm where the file lands and whether it executes.",
       "remediation": "Validate uploads by content (magic bytes) and an allow-list of extensions/MIME types; store outside the web root with a generated name; serve via a handler that forces a non-executable Content-Type and Content-Disposition: attachment.",
       "evidence": {
         "request_raw": "multipart upload: orthrus_test.php",
@@ -341,7 +341,7 @@
       "cvss_v4_score": 8.1,
       "cvss_v4_vector": null,
       "scanner": "dom-taint",
-      "description": "A value taken from the page URL reached the JavaScript sink 'innerHTML', which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting — exploited entirely client-side, so the server (and server-side filters) never see the payload.",
+      "description": "A value taken from the page URL reached the JavaScript sink 'innerHTML', which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting - exploited entirely client-side, so the server (and server-side filters) never see the payload.",
       "remediation": "Never pass URL-derived data to HTML/script sinks. Use textContent / safe DOM APIs, sanitise with a vetted library (DOMPurify), and adopt Trusted Types + a strict CSP to neutralise DOM-XSS sinks.",
       "evidence": {
         "request_raw": null,
@@ -1023,7 +1023,7 @@
       "cvss_v4_score": 8.1,
       "cvss_v4_vector": null,
       "scanner": "graphql-injection",
-      "description": "Injecting a single quote into the GraphQL argument 'name' of 'query userByName' produced a MySQL database error, so the argument is concatenated into a SQL query unsanitised — SQL injection via GraphQL.",
+      "description": "Injecting a single quote into the GraphQL argument 'name' of 'query userByName' produced a MySQL database error, so the argument is concatenated into a SQL query unsanitised - SQL injection via GraphQL.",
       "remediation": "Use parameterised queries / an ORM for values derived from GraphQL arguments; never build SQL by string-concatenating resolver inputs.",
       "evidence": {
         "request_raw": "{'query': 'query{ userByName(name: \"orthrus_gql\\'\") }'}",
@@ -1244,7 +1244,7 @@
       "param_location": "body",
       "cwe": "CWE-915",
       "owasp": "Unmapped",
-      "pci_dss": "—",
+      "pci_dss": "-",
       "nist_csf": "PR.IP-1 / PR.DS-5 (Secure config / data leak protection)",
       "mitre_attack": "T1190 Exploit Public-Facing Application",
       "attack": [
@@ -1811,7 +1811,7 @@
       "cvss_v4_score": 7.5,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:N/SI:N/SA:N",
       "scanner": "framework-debug-exposure",
-      "description": "The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.",
+      "description": "The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes - valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.",
       "remediation": "Disable the endpoint in production or bind it to an internal interface; require authentication and restrict by network. For Spring Boot, expose only required actuators and secure them; remove phpinfo()/server-status from public hosts.",
       "evidence": {
         "request_raw": null,
@@ -2497,7 +2497,7 @@
       "cvss_v4_score": 6.5,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:R/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N",
       "scanner": "graphql",
-      "description": "The GraphQL endpoint executed a query supplied via an HTTP GET request (?query=...). GET requests carry cookies, trigger no CORS preflight, and can be fired cross-site (e.g. via an <img>/<script>/navigation), so any state-changing operation reachable over GET is forgeable — cross-site request forgery against the GraphQL API.",
+      "description": "The GraphQL endpoint executed a query supplied via an HTTP GET request (?query=...). GET requests carry cookies, trigger no CORS preflight, and can be fired cross-site (e.g. via an <img>/<script>/navigation), so any state-changing operation reachable over GET is forgeable - cross-site request forgery against the GraphQL API.",
       "remediation": "Only accept GraphQL over POST with a JSON content-type, reject mutations over GET, and require an anti-CSRF token or a custom header (which forces a CORS preflight).",
       "evidence": {
         "request_raw": "GET http://127.0.0.1:8791/graphql?query={__typename}",
@@ -2804,7 +2804,7 @@
       "cvss_v4_score": 5.5,
       "cvss_v4_vector": null,
       "scanner": "framework-debug-exposure",
-      "description": "The Apache server-status endpoint at /server-status is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.",
+      "description": "The Apache server-status endpoint at /server-status is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes - valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.",
       "remediation": "Disable the endpoint in production or bind it to an internal interface; require authentication and restrict by network. For Spring Boot, expose only required actuators and secure them; remove phpinfo()/server-status from public hosts.",
       "evidence": {
         "request_raw": null,
@@ -2851,7 +2851,7 @@
       "cvss_v4_score": 5.5,
       "cvss_v4_vector": null,
       "scanner": "graphql",
-      "description": "The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request — amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use.",
+      "description": "The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request - amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use.",
       "remediation": "Disable query batching, or enforce a per-request operation cap and apply rate limiting against the aggregate, not per HTTP request.",
       "evidence": {
         "request_raw": "[{'query': '{__typename}'}, {'query': '{__typename}'}]",
@@ -2908,7 +2908,7 @@
       "cvss_v4_score": 5.5,
       "cvss_v4_vector": null,
       "scanner": "graphql",
-      "description": "The endpoint resolved all 100 aliases of a single field in one request with no cost/complexity limit. An attacker can multiply server work arbitrarily within one query — an alias-amplification DoS primitive.",
+      "description": "The endpoint resolved all 100 aliases of a single field in one request with no cost/complexity limit. An attacker can multiply server work arbitrarily within one query - an alias-amplification DoS primitive.",
       "remediation": "Enforce query cost analysis / complexity limits and cap the number of aliased fields per request (e.g. graphql-query-complexity, depth limits).",
       "evidence": {
         "request_raw": "100 aliases of __typename",
@@ -3143,7 +3143,7 @@
       "cvss_v4_score": 5.5,
       "cvss_v4_vector": null,
       "scanner": "oauth-flow",
-      "description": "No 'state' parameter is present, so the authorization response is not bound to the user's session — enabling login CSRF / authorization-code injection.",
+      "description": "No 'state' parameter is present, so the authorization response is not bound to the user's session - enabling login CSRF / authorization-code injection.",
       "remediation": "Use the authorization-code flow with PKCE, a per-request unguessable 'state' bound to the session, and exact (allow-list) redirect_uri matching.",
       "evidence": {
         "request_raw": null,
@@ -3294,7 +3294,7 @@
       "cvss_v4_score": 4.2,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:H/AT:N/PR:N/UI:R/VC:L/VI:L/VA:N/SC:N/SI:N/SA:N",
       "scanner": "host-header-injection",
-      "description": "A sentinel host sent in the 'Host'/'X-Forwarded-Host' request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link — e.g. a poisoned password-reset email — leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF.",
+      "description": "A sentinel host sent in the 'Host'/'X-Forwarded-Host' request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link - e.g. a poisoned password-reset email - leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF.",
       "remediation": "Do not trust the incoming Host or X-Forwarded-* headers to build absolute URLs or routing decisions. Validate Host against an allow-list of expected hostnames (reject mismatches with 400), build links from a server-side canonical base URL, and strip X-Forwarded-* at the trust boundary.",
       "evidence": {
         "request_raw": "Host: orthrus-hhi.example\nX-Forwarded-Host: orthrus-hhi.example",
@@ -4331,7 +4331,7 @@
       "param_location": null,
       "cwe": "CWE-200",
       "owasp": "A05:2021 - Security Misconfiguration",
-      "pci_dss": "—",
+      "pci_dss": "-",
       "nist_csf": "PR.IP-1 / PR.DS-5 (Secure config / data leak protection)",
       "mitre_attack": "T1190 Exploit Public-Facing Application",
       "attack": [
@@ -4464,7 +4464,7 @@
       "cvss_v4_score": 9.8,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
       "scanner": "graphql-injection",
-      "description": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed — the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.",
+      "description": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed - the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.",
       "remediation": "Never pass GraphQL argument values to a shell; use argument-vector process APIs with a fixed command and strict allow-listing of inputs.",
       "evidence": {
         "request_raw": "{'query': 'mutation{ systemDiagnostics(cmd: \"; echo ORTHRUSGQLCMD9174\") }'}",
@@ -4521,7 +4521,7 @@
       "cvss_v4_score": 8.8,
       "cvss_v4_vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:L/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
       "scanner": "file-upload",
-      "description": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload — confirm where the file lands and whether it executes.",
+      "description": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload - confirm where the file lands and whether it executes.",
       "remediation": "Validate uploads by content (magic bytes) and an allow-list of extensions/MIME types; store outside the web root with a generated name; serve via a handler that forces a non-executable Content-Type and Content-Disposition: attachment.",
       "evidence": {
         "request_raw": "multipart upload: orthrus_test.php",
@@ -4643,7 +4643,7 @@
       "name": "Leaked secret → authentication forgery",
       "severity": "critical",
       "host": "127.0.0.1",
-      "impact": "A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user — full authentication bypass.",
+      "impact": "A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user - full authentication bypass.",
       "steps": [
         {
           "label": "Exposed secret / signing key",
@@ -4661,7 +4661,7 @@
       "name": "Session foothold → privilege escalation",
       "severity": "critical",
       "host": "127.0.0.1",
-      "impact": "An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users' or admin data — full account/admin takeover.",
+      "impact": "An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users' or admin data - full account/admin takeover.",
       "steps": [
         {
           "label": "Authentication weakness",
@@ -4715,7 +4715,7 @@
       "name": "Open redirect → OAuth token theft",
       "severity": "high",
       "host": "127.0.0.1",
-      "impact": "An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse — account takeover.",
+      "impact": "An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse - account takeover.",
       "steps": [
         {
           "label": "Open redirect",

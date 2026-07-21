@@ -5,8 +5,8 @@ page. This module answers a different, per-response question: **is this specific
 response a block or a challenge** (rather than a genuine application reply)?
 That signal drives two things in the HTTP client:
 
-* an adaptive reaction — rotate request identity and retry once when blocked;
-* a scan-reliability metric — if a large fraction of requests are blocked, the
+* an adaptive reaction - rotate request identity and retry once when blocked;
+* a scan-reliability metric - if a large fraction of requests are blocked, the
   findings are likely incomplete and the operator must be told.
 
 Detection is deliberately conservative: a plain ``403``/``401`` from the
@@ -22,11 +22,11 @@ import re
 from dataclasses import dataclass
 
 # Statuses a WAF commonly uses to deny/throttle. Used only to corroborate a
-# block-page body — never to classify a response as blocked by itself.
+# block-page body - never to classify a response as blocked by itself.
 _BLOCK_STATUSES = frozenset({403, 406, 429, 503})
 
 # Interstitial "prove you're human / running JS" pages (the request was held,
-# not necessarily denied) — Cloudflare/Akamai/DataDome/PerimeterX/CAPTCHA.
+# not necessarily denied) - Cloudflare/Akamai/DataDome/PerimeterX/CAPTCHA.
 _CHALLENGE_BODY = re.compile(
     r"just a moment\.\.\.|checking your browser before accessing|cf-browser-verification|"
     r"challenge-platform|enable javascript and cookies to continue|"
@@ -37,7 +37,7 @@ _CHALLENGE_BODY = re.compile(
     re.IGNORECASE,
 )
 
-# Hard block pages — the request was refused by the WAF.
+# Hard block pages - the request was refused by the WAF.
 _BLOCK_BODY = re.compile(
     r"you have been blocked|sorry, you have been blocked|"
     r"this request has been blocked|your request has been blocked|"
@@ -86,7 +86,7 @@ class BlockVerdict:
     vendor: str | None = None
     reason: str = ""
     challenge: bool = False  # held by a JS/CAPTCHA interstitial vs hard-denied
-    # "rate_limit" (429 — defer to the rate limiter's backoff), "challenge"
+    # "rate_limit" (429 - defer to the rate limiter's backoff), "challenge"
     # (JS/CAPTCHA interstitial), or "block" (hard deny). Identity rotation is
     # worthwhile for challenge/block, but not for a rate-limit.
     kind: str = "block"
@@ -135,7 +135,7 @@ def detect_block(status: int, headers: dict[str, str], body: str) -> BlockVerdic
 
 
 class BlockMonitor:
-    """Per-host tally of WAF blocks across a scan — the reliability signal.
+    """Per-host tally of WAF blocks across a scan - the reliability signal.
 
     Cheap and synchronous so the HTTP client can update it on every response.
     ``degraded()`` is true once enough of the run is being blocked that findings

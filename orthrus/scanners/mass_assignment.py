@@ -1,8 +1,8 @@
 """Mass-assignment / object-property injection scanner (OWASP API #3).
 
 APIs that bind a request body straight onto an internal object let a client set
-fields the server should control — ``role``, ``is_admin``, ``verified``,
-``account_balance`` — escalating privilege or tampering with state. This scanner
+fields the server should control - ``role``, ``is_admin``, ``verified``,
+``account_balance`` - escalating privilege or tampering with state. This scanner
 probes discovered write endpoints (POST/PUT/PATCH) by adding well-known
 privileged field names, each carrying a unique random nonce, and flags the
 endpoint when those nonces are reflected back in the response: proof the server

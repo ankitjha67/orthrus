@@ -1,10 +1,10 @@
-"""Browser-driven dynamic crawl — the Playwright half of recon (PRD §5.2).
+"""Browser-driven dynamic crawl - the Playwright half of recon (PRD §5.2).
 
 A static crawler only sees server-rendered HTML, so a single-page app's real
 attack surface (its `/rest` and `/api` JSON calls) is invisible to it. This
 module drives the target through the headless browser so the SPA's client-side
 JS fires its actual XHR/fetch requests, which the browser engine records. Those
-captured requests are converted into Endpoints — with JSON-body params — so the
+captured requests are converted into Endpoints - with JSON-body params - so the
 scan phase can probe the JSON/REST API surface.
 
 It runs only when the browser engine is available, and every navigation and
@@ -29,7 +29,7 @@ logger = get_logger("recon.browser-crawl")
 MAX_NAV = 20  # pages to drive through the browser (bounds runtime)
 NAV_WAIT_MS = 1500  # let the SPA's XHR/fetch fire after load
 
-# Transport/polling traffic that isn't an application endpoint — excluding it
+# Transport/polling traffic that isn't an application endpoint - excluding it
 # avoids flooding the inventory with noise and false positives (e.g. an IDOR
 # flagged on the Engine.IO protocol-version param).
 _TRANSPORT_NOISE = ("/socket.io/", "/engine.io/")

@@ -1,7 +1,7 @@
 """Exposed sensitive file scanner (PRD §5.5 git/env exposure).
 
 Consumes endpoints that content discovery confirmed as exposed sensitive files
-(``source="sensitive"``) and raises findings — no extra requests. Covers source
+(``source="sensitive"``) and raises findings - no extra requests. Covers source
 control (.git/.svn), environment files, backups, and server config.
 """
 

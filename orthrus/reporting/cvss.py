@@ -149,7 +149,7 @@ def _v3_to_v4_vector(v3_vector: str) -> str:
 def base_score_v4(vector: str) -> float:
     """Approximate CVSS v4.0 base score.
 
-    Maps v4.0 metrics back onto the v3.1 formula as a documented approximation —
+    Maps v4.0 metrics back onto the v3.1 formula as a documented approximation -
     the official CVSS-B v4.0 MacroVector lookup tables are not implemented. The
     v4.0 *vector* is exact; this numeric is an estimate (v3.1 stays authoritative).
     """

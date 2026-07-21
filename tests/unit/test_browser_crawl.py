@@ -73,7 +73,7 @@ def test_unknown_method_returns_none():
 
 
 def test_socketio_transport_noise_is_dropped():
-    # Engine.IO/Socket.IO polling is transport noise, not an app endpoint — and
+    # Engine.IO/Socket.IO polling is transport noise, not an app endpoint - and
     # caused a false-positive IDOR on its numeric EIO protocol-version param.
     cap = CapturedRequest(
         method="GET", url="http://h/socket.io/?EIO=4&transport=polling", resource_type="xhr"

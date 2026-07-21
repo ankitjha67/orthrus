@@ -1,4 +1,4 @@
-"""Operator notes — a lightweight, searchable knowledge base (PRD §7.13).
+"""Operator notes - a lightweight, searchable knowledge base (PRD §7.13).
 
 Free-form markdown notes attached to a program (or standalone), tagged and
 full-text searchable. This is where a hunter keeps methodology, per-program tips,

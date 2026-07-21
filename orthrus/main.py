@@ -193,7 +193,7 @@ def _load_config_file(ctx: click.Context, _param: object, value: str | None) -> 
     """Eager --config callback: merge file defaults so CLI flags still win.
 
     Values flow into ``ctx.default_map``, which Click consults only for options
-    the operator did *not* pass explicitly — so the command line overrides the
+    the operator did *not* pass explicitly - so the command line overrides the
     file, and the file overrides built-in defaults.
     """
     if not value:
@@ -299,7 +299,7 @@ def _ensure_utf8_output() -> None:
     """Force UTF-8 on stdout/stderr so no command crashes on its own output.
 
     Windows consoles default to a legacy code page (e.g. cp1252); when CLI output
-    contains non-Latin-1 glyphs — emoji in the runbook (🔓), the → in summaries —
+    contains non-Latin-1 glyphs - emoji in the runbook (🔓), the → in summaries -
     and stdout is a pipe or redirect, ``click.echo``/``print`` raise
     ``UnicodeEncodeError``. Reconfigure to UTF-8 with a replacing fallback.
     """
@@ -613,8 +613,8 @@ def scan(
         return
 
     def _config_for(t: str) -> ScanConfig:
-        # Each target gets its own scope — auto-derived per target unless an
-        # explicit --scope was given — so the engagement boundary is correct for
+        # Each target gets its own scope - auto-derived per target unless an
+        # explicit --scope was given - so the engagement boundary is correct for
         # every host, single or batch. Mirrors the per-target build in
         # _run_distributed.
         cfg = ScanConfig(
@@ -785,18 +785,18 @@ def _print_bounty_scope(program, seeds: list[str], auth=None) -> None:
         "program's rules. Out-of-scope hosts are enforced and never touched."
     )
     if auth is not None:
-        console.print(f"[bold]Authorization[/] — {auth.kind.value}: {auth.reference}")
-    console.print(f"\n[bold]In scope[/] — {len(program.domains)} domain(s), "
+        console.print(f"[bold]Authorization[/] - {auth.kind.value}: {auth.reference}")
+    console.print(f"\n[bold]In scope[/] - {len(program.domains)} domain(s), "
                   f"{len(program.ip_ranges)} range(s):")
     for d in program.domains:
         console.print(f"  + {d}")
     for c in program.ip_ranges:
         console.print(f"  + {c}")
     if program.out_of_scope:
-        console.print("[bold]Out of scope[/] — never touched:")
+        console.print("[bold]Out of scope[/] - never touched:")
         for o in program.out_of_scope:
             console.print(f"  [red]![/] {o}")
-    console.print(f"[bold]Seeds to scan[/] — {len(seeds)}:")
+    console.print(f"[bold]Seeds to scan[/] - {len(seeds)}:")
     for s in seeds:
         console.print(f"  -> {s}")
     console.print("")
@@ -808,7 +808,7 @@ def _print_bounty_summary(result, outdir: str, files: list[str]) -> None:
     failed = f", [red]{len(result.failed_seeds)} failed[/]" if result.failed_seeds else ""
     console.print(f"scanned [bold]{len(result.scan_ids)}[/] asset(s){failed}")
     console.print(
-        f"[bold]{r.reportable}[/] reportable bug(s) — {r.considered} considered, "
+        f"[bold]{r.reportable}[/] reportable bug(s) - {r.considered} considered, "
         f"{r.out_of_scope} out-of-scope, {r.below_confidence} below the confidence floor"
     )
     console.print(f"submission-ready reports -> [bold]{outdir}/[/] ({len(files)} file(s))")
@@ -870,7 +870,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     """Run an authorized bug-bounty campaign: scan every in-scope asset with all
     scanners, confirm the findings, and write submission-ready per-bug reports.
 
-    Requires an explicit program scope (--scope-file or --in-scope) — ORTHRUS is
+    Requires an explicit program scope (--scope-file or --in-scope) - ORTHRUS is
     deny-by-default and will not scan without one. Out-of-scope entries are
     enforced and never touched. Authorized programs only.
     """
@@ -899,7 +899,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     if saved and not has_new_scope:
         program = saved.to_scope()
         authorization = authorization or (saved.authorization or None)
-        console.print(f"[bold]Loaded program[/] '{program_name}' — {len(program.domains)} "
+        console.print(f"[bold]Loaded program[/] '{program_name}' - {len(program.domains)} "
                       f"domain(s), {len(program.ip_ranges)} range(s)")
     else:
         program = parse_program_scope("\n".join(text_parts))
@@ -916,7 +916,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     in_scope_hosts = list(program.domains) + [
         h for s in seeds if (h := (urlsplit(s).hostname or ""))
     ]
-    # 1) Every engagement needs a source of authorization (public scope) — or be a local lab.
+    # 1) Every engagement needs a source of authorization (public scope) - or be a local lab.
     try:
         auth = resolve_authorization(authorization, in_scope_hosts)
     except AuthorizationError as exc:
@@ -948,7 +948,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     _print_bounty_scope(program, seeds, auth)
     if dry_run:
         note = " (--enumerate would discover more at scan time)" if enumerate_subs and program.domains else ""
-        console.print(f"[orthrus.muted]dry-run — resolved scope shown above; no requests sent.{note}[/]")
+        console.print(f"[orthrus.muted]dry-run - resolved scope shown above; no requests sent.{note}[/]")
         return
 
     # Turn a *.wildcard scope into the live in-scope hosts to actually scan.
@@ -963,7 +963,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
         seeds = program.in_scope_seeds()
         console.print(f"  discovered [bold]{len(added)}[/] new in-scope host(s); "
                       f"{len(seeds)} seed(s) to scan")
-        # Cross-run: for a saved program, flag assets that are NEW since last time —
+        # Cross-run: for a saved program, flag assets that are NEW since last time -
         # fresh, untested surface is the highest-signal bounty event.
         if program_name:
             from orthrus.bounty.asset_monitor import AssetMonitor
@@ -975,7 +975,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
             elif adiff.added:
                 listing = ", ".join(adiff.added[:8]) + (" …" if len(adiff.added) > 8 else "")
                 console.print(f"[bold]✚ {len(adiff.added)} NEW in-scope asset(s)[/] since last run: {listing}")
-                console.print("[orthrus.muted]fresh attack surface — prioritize these.[/]")
+                console.print("[orthrus.muted]fresh attack surface - prioritize these.[/]")
                 AuditLog().append("asset-drift", "new-assets",
                                   {"program": program_name, "added": adiff.added})
             else:
@@ -1046,7 +1046,7 @@ def bounty(program_name, scope_file, in_scope, out_scope, authorization, i_am_au
     prior = hist.record([g.lead for g in result.report.groups], program_name or "")
     if prior:
         console.print(f"[bold]♻ {prior}[/] of {result.report.reportable} bug(s) match findings from "
-                      "earlier runs (possible known/duplicate — check before filing).")
+                      "earlier runs (possible known/duplicate - check before filing).")
     if notify_slack and result.report.reportable:
         from orthrus.integrations.notify import send_slack, slack_message
         payload = slack_message(f"bounty · {program_name or 'campaign'}", program.seeds[0] if seeds else None,
@@ -1068,9 +1068,9 @@ def audit(verify: bool, limit: int) -> None:
     ok, bad = log.verify()
     if verify:
         if ok:
-            console.print(f"[bold]audit chain intact[/] — {len(log.entries())} entr(y/ies), no tampering.")
+            console.print(f"[bold]audit chain intact[/] - {len(log.entries())} entr(y/ies), no tampering.")
         else:
-            console.print(f"[bold red]audit chain BROKEN[/] at entry #{bad} — tampering or corruption.")
+            console.print(f"[bold red]audit chain BROKEN[/] at entry #{bad} - tampering or corruption.")
             raise SystemExit(3)
         return
     entries = log.entries()
@@ -1081,7 +1081,7 @@ def audit(verify: bool, limit: int) -> None:
     section(console, f"BUG BOUNTY · AUDIT LOG ({len(entries)} entries · chain {status})")
     for e in entries[-limit:]:
         console.print(f"[bold]{e.get('ts', '?')}[/] {e.get('event', '?')}/{e.get('action', '?')} "
-                      f"— {json.dumps(e.get('details', {}))[:160]}")
+                      f"- {json.dumps(e.get('details', {}))[:160]}")
 
 
 @cli.command(name="programs")
@@ -1111,7 +1111,7 @@ def programs() -> None:
 
 @cli.command(name="program-policy")
 @click.option("--program", "program_name", required=True, help="Saved program to set policy on.")
-@click.option("--max-rps", type=float, default=None, help="Rate ceiling (req/s) — honored as a cap on every run.")
+@click.option("--max-rps", type=float, default=None, help="Rate ceiling (req/s) - honored as a cap on every run.")
 @click.option("--identify", default=None, help="Identifying header to send, e.g. \"X-Bug-Bounty: yourname\".")
 @click.option("--clear", is_flag=True, help="Clear both policy fields.")
 def program_policy(program_name: str, max_rps: float | None, identify: str | None, clear: bool) -> None:
@@ -1119,7 +1119,7 @@ def program_policy(program_name: str, max_rps: float | None, identify: str | Non
 
     Most programs state a max request rate and ask you to identify your traffic.
     Saved here, both are applied automatically on every `orthrus bounty --program
-    NAME` run — the rate is a hard cap (never exceeded), the header is attached to
+    NAME` run - the rate is a hard cap (never exceeded), the header is attached to
     every request.
     """
     _ensure_utf8_output()
@@ -1142,7 +1142,7 @@ def program_policy(program_name: str, max_rps: float | None, identify: str | Non
     if rec.identify and not rec.identify_header():
         raise click.UsageError('--identify must look like "Header-Name: value".')
     store.save(rec)
-    console.print(f"[bold]Policy for '{program_name}'[/] — "
+    console.print(f"[bold]Policy for '{program_name}'[/] - "
                   f"rate: {f'≤{rec.max_rps:g} req/s' if rec.max_rps else 'unset'} · "
                   f"identify: {rec.identify or 'unset'}")
 
@@ -1184,7 +1184,7 @@ def suppress(program_name: str, vuln_type: str, host: str, title_contains: str, 
 
     At least one of --vuln-type / --host / --title-contains is required (an empty
     rule would mute everything, so it's refused). Muted findings are still counted
-    in the campaign summary — nothing silently disappears.
+    in the campaign summary - nothing silently disappears.
     """
     _ensure_utf8_output()
     from orthrus.bounty.suppress import SuppressionStore, make_rule
@@ -1223,7 +1223,7 @@ def suppressions(program_name: str, remove: int | None) -> None:
         crit = " ".join(f"{k}={v}" for k, v in r.items()
                         if k in ("vuln_type", "host", "title_contains") and v)
         console.print(f"  [bold]#{i}[/] {crit}"
-                      + (f"  — {r['reason']}" if r.get("reason") else "")
+                      + (f"  - {r['reason']}" if r.get("reason") else "")
                       + f"  [orthrus.muted]({r.get('added', '?')})[/]")
 
 
@@ -1252,7 +1252,7 @@ def bounty_report(program_name: str, platform: str, min_confidence: str, outdir:
     if rec is None:
         raise click.UsageError(f"no saved program '{program_name}' (see `orthrus programs`).")
     if not rec.scan_ids:
-        raise click.UsageError(f"'{program_name}' has no recorded scans yet — run "
+        raise click.UsageError(f"'{program_name}' has no recorded scans yet - run "
                                f"`orthrus bounty --program {program_name} …` first.")
     supps = SuppressionStore().rules(program_name)
     report = asyncio.run(report_from_scans(rec.scan_ids, rec.to_scope(),
@@ -1296,7 +1296,7 @@ def submission(sub_id, program, title, platform, severity, status, bounty_amount
                                currency=currency, url=url, notes=notes)
         if updated is None:
             raise click.UsageError(f"no submission with id '{sub_id}'.")
-        console.print(f"[bold]updated[/] {updated.id} — {updated.status}"
+        console.print(f"[bold]updated[/] {updated.id} - {updated.status}"
                       + (f" · {updated.bounty_amount} {updated.currency}" if updated.bounty_amount else ""))
         return
     if not program or not title:
@@ -1305,7 +1305,7 @@ def submission(sub_id, program, title, platform, severity, status, bounty_amount
                                severity=severity or "", status=status or "draft",
                                bounty_amount=bounty_amount or 0.0, currency=currency or "USD",
                                url=url or "", notes=notes or ""))
-    console.print(f"[bold]added[/] submission {sub.id} for '{program}' — {sub.status}")
+    console.print(f"[bold]added[/] submission {sub.id} for '{program}' - {sub.status}")
 
 
 @cli.command(name="submissions")
@@ -1349,7 +1349,7 @@ def note(title, body, body_file, program, tags):
             text = fh.read()
     tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
     saved = NotesStore().add(Note(title=title, body=text, program=program or "", tags=tag_list))
-    console.print(f"[bold]saved note[/] {saved.id} — '{title}'"
+    console.print(f"[bold]saved note[/] {saved.id} - '{title}'"
                   + (f" · #{'/#'.join(tag_list)}" if tag_list else ""))
 
 
@@ -1389,7 +1389,7 @@ def bounty_status(as_json: bool) -> None:
         return
     section(console, "BUG BOUNTY · STATUS")
     progs = st["programs"]
-    console.print(f"[bold]Programs[/] — {len(progs)}")
+    console.print(f"[bold]Programs[/] - {len(progs)}")
     for p in progs:
         extra = []
         if p.get("assets"):
@@ -1403,16 +1403,16 @@ def bounty_status(as_json: bool) -> None:
                       f"{p['campaigns']} campaign(s) · last: {p['last_run'] or 'never'}" + tail)
     sub = st["submissions"]
     earn = " · ".join(f"{amt} {cur}" for cur, amt in sub["earnings"].items()) or "none"
-    console.print(f"[bold]Submissions[/] — {sub['total']} tracked · {sub['rewarded']} rewarded · "
+    console.print(f"[bold]Submissions[/] - {sub['total']} tracked · {sub['rewarded']} rewarded · "
                   f"earnings: {earn}")
-    console.print(f"[bold]History[/] — {st['history_signatures']} distinct bug signature(s) catalogued"
+    console.print(f"[bold]History[/] - {st['history_signatures']} distinct bug signature(s) catalogued"
                   f" · {st['tracked_assets']} asset(s) · {st['mute_rules']} mute rule(s)")
     cost = st["cost"]
     if cost["entries"]:
-        console.print(f"[bold]Spend[/] — ${cost['total_usd']:.4f} across {cost['entries']} ledger entr(y/ies)")
+        console.print(f"[bold]Spend[/] - ${cost['total_usd']:.4f} across {cost['entries']} ledger entr(y/ies)")
     a = st["audit"]
     chain = "intact" if a["intact"] else f"[red]BROKEN at #{a['first_bad']}[/]"
-    console.print(f"[bold]Audit[/] — {a['entries']} entr(y/ies) · chain {chain}")
+    console.print(f"[bold]Audit[/] - {a['entries']} entr(y/ies) · chain {chain}")
 
 
 @cli.command(name="copilot")
@@ -1837,7 +1837,7 @@ def _finding_summary(row: object) -> dict:
     """A compact, JSON-serialisable triage view of a finding row.
 
     Deliberately omits raw evidence (request/response/extracted data): this is a
-    triage listing, and that material can carry sensitive payloads — it stays in
+    triage listing, and that material can carry sensitive payloads - it stays in
     the encrypted store and the full report, never on stdout.
     """
     return {
@@ -1869,7 +1869,7 @@ def _finding_summary(row: object) -> dict:
 def findings(scan_id: str, severity: str | None, as_json: bool, verbose: str) -> None:
     """Show a stored scan's findings as a triage table (or JSON).
 
-    A read-only, network-free view of what a previous scan found — the quick
+    A read-only, network-free view of what a previous scan found - the quick
     triage list (severity, type, where, how sure) without regenerating a full
     report. Use --severity to focus on the high-risk end and --json to pipe the
     findings into other tools (stdout is reserved for that JSON; chrome is stderr).
@@ -1895,7 +1895,7 @@ async def _list_findings(scan_id: str, severity: str | None, as_json: bool) -> N
     if severity:
         floor = _FAIL_ON_ORDER.get(severity.lower(), 0)
         rows = [r for r in rows if _FAIL_ON_ORDER.get(r.severity, 0) >= floor]
-    # Highest severity first, then by type, so the riskiest findings lead — the
+    # Highest severity first, then by type, so the riskiest findings lead - the
     # same ordering the human table uses, kept consistent for the JSON view too.
     rows.sort(key=lambda r: (-_FAIL_ON_ORDER.get(r.severity, 0), r.vuln_type))
 
@@ -1983,7 +1983,7 @@ def triage(scan_id: str, llm: bool, model: str | None, as_json: bool, verbose: s
     A real scan reports the same bug at many URLs (IDOR on /order/1..999, a
     missing header on every route). This folds id-like URLs together
     (/order/{id}) and clusters by type + location, so a 600-finding list becomes
-    the handful of issues that actually need fixing — each with its severity, a
+    the handful of issues that actually need fixing - each with its severity, a
     count, and the affected URLs. With --llm, an LLM judge additionally flags
     clusters that look like false positives (opt-in; no-ops without an API key).
     """
@@ -2054,7 +2054,7 @@ async def _triage_cmd(scan_id: str, use_llm: bool, model: str | None, as_json: b
         if verdicts:
             v = verdicts.get(id(cluster))
             if v is None:
-                row.append("—")
+                row.append("-")
             elif v.is_false_positive:
                 row.append("[status.failed]likely FP[/]")
             else:
@@ -2071,7 +2071,7 @@ def chains(scan_id: str, as_json: bool, verbose: str) -> None:
     """Correlate a scan's findings into attack paths (kill-chains).
 
     A flat finding list hides impact: one SSRF and one exposed Redis are two
-    mediums — together they're RCE on the internal network. This matches the
+    mediums - together they're RCE on the internal network. This matches the
     findings against a catalog of known attack chains and shows the paths an
     attacker would actually walk, each with an escalated severity and an impact
     narrative, prioritised above the raw list.
@@ -2130,7 +2130,7 @@ def graph(scan_id: str, as_json: bool, verbose: str) -> None:
 
     Where `chains` matches each catalog rule independently, this builds a
     reachability graph and *merges* rules that share a finding into maximal
-    kill-chains — e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
+    kill-chains - e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
     path. Reports how many raw findings collapse onto how few reachable paths.
     """
     configure_logging(verbose)
@@ -2245,7 +2245,7 @@ async def _notify_cmd(
 
     selected = at_or_above(rows, min_severity)
     if not selected:
-        console.print(f"[orthrus.muted]No findings at or above '{min_severity}' — nothing to notify.[/]")
+        console.print(f"[orthrus.muted]No findings at or above '{min_severity}' - nothing to notify.[/]")
         return
 
     if slack_webhook:
@@ -2287,7 +2287,7 @@ async def _notify_cmd(
 @click.option("--json", "as_json", is_flag=True, help="Emit machine-readable JSON instead of Markdown.")
 @click.option("--verbose", "-v", default="warning", help="Log level.")
 def runbook(scan_id: str, min_severity: str, output: str | None, as_json: bool, verbose: str) -> None:
-    """Consolidated remediation runbook — the few fixes that retire a scan's risk.
+    """Consolidated remediation runbook - the few fixes that retire a scan's risk.
 
     Collapses findings that share a fix into one prioritised action, ordered so the
     highest-leverage change (one that breaks a correlated attack path) is first.
@@ -2305,7 +2305,7 @@ def runbook(scan_id: str, min_severity: str, output: str | None, as_json: bool, 
     if output:
         with open(output, "w", encoding="utf-8") as fh:
             fh.write(markdown)
-        console.print(f"[status.completed]Runbook written to {output}[/] — {report.summary()}")
+        console.print(f"[status.completed]Runbook written to {output}[/] - {report.summary()}")
     else:
         click.echo(markdown)
 
@@ -2374,7 +2374,7 @@ def patch(
     if output:
         with open(output, "w", encoding="utf-8") as fh:
             fh.write(markdown)
-        console.print(f"[status.completed]Patches written to {output}[/] — {report.summary()}")
+        console.print(f"[status.completed]Patches written to {output}[/] - {report.summary()}")
     else:
         click.echo(markdown)
 
@@ -2430,7 +2430,7 @@ async def _patch_load(
 @cli.command(name="ai-report")
 @click.option("--scan-id", required=True, help="Scan identifier to report on.")
 @click.option("--llm", "llm_spec", default="anthropic",
-              help="Model spec 'provider:model' — anthropic / openai / openai-compatible / ollama "
+              help="Model spec 'provider:model' - anthropic / openai / openai-compatible / ollama "
                    "(e.g. 'ollama:llama3.1', 'openai:gpt-4o'). Keys/base-url from env.")
 @click.option("--model", default=None, help="Override the model id.")
 @click.option("--output", "-o", default="orthrus_ai_report", help="Output file (extension set by --format).")
@@ -2451,7 +2451,7 @@ def ai_report(
     group: bool, min_severity: str | None, max_detailed: int, temperature: float,
     dry_run: bool, verbose: str,
 ) -> None:
-    """Generate a Big-Four-grade consultant report — deterministic evidence + AI narrative.
+    """Generate a Big-Four-grade consultant report - deterministic evidence + AI narrative.
 
     Every finding, CVSS score, and recorded request/response is rendered verbatim; a language
     model writes the consultant prose around those facts (executive summary, per-finding
@@ -2473,20 +2473,20 @@ def ai_report(
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(markdown)
         console.print(
-            f"[status.completed]Consultant report written to {path}[/] — "
+            f"[status.completed]Consultant report written to {path}[/] - "
             f"{len(markdown):,} chars, {markdown.count(chr(10)) + 1} lines."
         )
         return
 
     from orthrus.ai.render import markdown_to_html
-    html = markdown_to_html(markdown, title=f"Penetration Test Report — {scan_id}")
+    html = markdown_to_html(markdown, title=f"Penetration Test Report - {scan_id}")
     html_path = stem + ".html"
     with open(html_path, "w", encoding="utf-8") as fh:
         fh.write(html)
 
     if output_format == "html":
         console.print(f"[status.completed]Consultant report written to {html_path}[/] "
-                      f"— {len(html):,} chars.")
+                      f"- {len(html):,} chars.")
         return
 
     # pdf: render the HTML we just wrote through the headless-Chromium pipeline
@@ -2498,7 +2498,7 @@ def ai_report(
                       f"(styled HTML kept at {html_path}).")
     else:
         console.print(
-            f"[status.error]PDF rendering unavailable[/] — kept the HTML deliverable at "
+            f"[status.error]PDF rendering unavailable[/] - kept the HTML deliverable at "
             f"{html_path}. Install the browser extra (`pip install -e .[browser]` then "
             f"`playwright install chromium`) to emit PDF."
         )
@@ -2526,7 +2526,7 @@ async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed,
         cfg = resolve_config(llm_spec, model=model, temperature=temperature)
         if cfg.provider in ("anthropic", "openai", "openai-compatible") and not cfg.api_key:
             logger.error(
-                "model '%s' needs an API key — set ORTHRUS_LLM_API_KEY (or ANTHROPIC_API_KEY / "
+                "model '%s' needs an API key - set ORTHRUS_LLM_API_KEY (or ANTHROPIC_API_KEY / "
                 "OPENAI_API_KEY), use a local model (--llm ollama:<model>), or --dry-run",
                 cfg.provider,
             )
@@ -2549,7 +2549,7 @@ async def _ai_report_build(scan_id, llm_spec, model, min_severity, max_detailed,
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def surface(scan_id: str, output: str, verbose: str) -> None:
     """Render a scan's recon (hosts / ports / technologies / endpoints) as an
-    interactive attack-surface graph — a self-contained HTML page."""
+    interactive attack-surface graph - a self-contained HTML page."""
     configure_logging(verbose)
     markup = asyncio.run(_surface_build(scan_id))
     if markup is None:
@@ -2557,7 +2557,7 @@ def surface(scan_id: str, output: str, verbose: str) -> None:
     path = output if output.endswith((".html", ".htm")) else output + ".html"
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(markup)
-    console.print(f"[status.completed]Attack-surface map written to {path}[/] — open it in a browser.")
+    console.print(f"[status.completed]Attack-surface map written to {path}[/] - open it in a browser.")
 
 
 async def _surface_build(scan_id: str) -> str | None:
@@ -2600,7 +2600,7 @@ def replay(
     method: str | None, headers: tuple[str, ...], body: str | None, scope_str: str | None,
     scheme: str, repeat: int, follow_redirects: bool, show_body: bool, verbose: str,
 ) -> None:
-    """Resend a recorded request with optional tweaks — the mini-Repeater.
+    """Resend a recorded request with optional tweaks - the mini-Repeater.
 
     Source the request from a finding (`--scan-id --finding-id`), a raw request
     file (`--request-file`), or an ad-hoc `--url`; tweak it with `--method`,
@@ -2713,8 +2713,8 @@ def hosts(
 ) -> None:
     """Gather and list the host footprint for a TARGET (or a stored scan).
 
-    Casts a passive net — Certificate Transparency, reverse-IP / co-hosting, a
-    /24 reverse-DNS sweep, and Wayback — and folds the results into one
+    Casts a passive net - Certificate Transparency, reverse-IP / co-hosting, a
+    /24 reverse-DNS sweep, and Wayback - and folds the results into one
     deduplicated inventory. In-scope hosts are listed first; co-hosted hosts
     that fall outside scope are shown (flagged) for situational awareness but are
     never scanned. Use --scan-id to instead list the hosts a prior scan stored.
@@ -2765,7 +2765,7 @@ async def _gather_hosts_cmd(
         host = _host_of(target)
         scope_cfg = build_scope(scope_str, target, exclude_paths)
         _log_scope(scope_cfg)
-        logger.warning("gathering hosts for %s — this queries CT/Wayback/reverse-IP and sweeps a /24…", host)
+        logger.warning("gathering hosts for %s - this queries CT/Wayback/reverse-IP and sweeps a /24…", host)
         rows = await gather_hosts(
             host, ScopeValidator(scope_cfg),
             reverse_ip=reverse_ip, netblock=netblock, ct_logs=ct_logs, wayback=wayback,
@@ -2804,7 +2804,7 @@ async def _gather_hosts_cmd(
         )
         table.add_row(
             g.fqdn,
-            ", ".join(g.ips) or "[orthrus.muted]—[/]",
+            ", ".join(g.ips) or "[orthrus.muted]-[/]",
             ", ".join(g.sources),
             scope_cell,
         )
@@ -2865,7 +2865,7 @@ def monitor(
 
     Continuous monitoring: each run takes a fresh snapshot, stores it, and diffs
     it against the target's previous snapshot. By default it monitors the
-    *attack surface* (recon only) — hosts that appeared/vanished, new IPs, newly
+    *attack surface* (recon only) - hosts that appeared/vanished, new IPs, newly
     exposed ports. With --deep it runs a full vulnerability scan and also reports
     NEW and RESOLVED findings. Use --watch to run hands-off on an interval (each
     pass auto-diffs against the previous one), --webhook to get paged on change,
@@ -3046,7 +3046,7 @@ def _render_drift(target, baseline_id, current_id, drift, finding_drift, as_json
     _render_finding_drift(finding_drift)
     if drift.is_baseline:
         console.print(
-            f"[orthrus.muted]First snapshot — {drift.current_count} host(s) recorded "
+            f"[orthrus.muted]First snapshot - {drift.current_count} host(s) recorded "
             f"as the baseline for future runs.[/]"
         )
         return
@@ -3059,7 +3059,7 @@ def _render_drift(target, baseline_id, current_id, drift, finding_drift, as_json
         t.add_column("IP(s)")
         t.add_column("Source", style="orthrus.muted")
         for a in drift.new_hosts:
-            t.add_row(a.fqdn, ", ".join(a.ips) or "—", a.discovery_method)
+            t.add_row(a.fqdn, ", ".join(a.ips) or "-", a.discovery_method)
         console.print(t)
     if drift.removed_hosts:
         console.print("[status.running]REMOVED hosts:[/] " + ", ".join(drift.removed_hosts))
@@ -3073,9 +3073,9 @@ def _render_drift(target, baseline_id, current_id, drift, finding_drift, as_json
             removed = ", ".join([*c.removed_ips, *(str(p) for p in c.removed_ports)])
             t.add_row(
                 c.fqdn,
-                ", ".join(c.new_ips) or "—",
-                ", ".join(str(p) for p in c.new_ports) or "—",
-                removed or "—",
+                ", ".join(c.new_ips) or "-",
+                ", ".join(str(p) for p in c.new_ports) or "-",
+                removed or "-",
             )
         console.print(t)
 
@@ -3123,7 +3123,7 @@ def _finding_key(row: object) -> tuple[str, str, str]:
     """Stable cross-scan identity for diffing: what + where + which parameter.
 
     Severity/confidence can change between runs without the underlying issue
-    changing, so they are deliberately excluded from the key — a fixed bug that
+    changing, so they are deliberately excluded from the key - a fixed bug that
     later reappears at a different severity still matches as 'still present'.
     """
     return (row.vuln_type, row.url, row.parameter or "")
@@ -3505,7 +3505,7 @@ def _print_diagnostics(diag: dict) -> None:
         f"[orthrus.muted]Platform:[/] {escape(diag['platform'])}"
     )
     if diag.get("panic_engaged"):
-        console.print("[red bold]■ PANIC engaged[/] — all outbound requests are halted. "
+        console.print("[red bold]■ PANIC engaged[/] - all outbound requests are halted. "
                       "Lift with `orthrus panic --clear`.")
 
     caps = diag["capabilities"]
@@ -3558,7 +3558,7 @@ def update() -> None:
     full EPSS dataset from FIRST.org (both trusted data sources, not the target)
     and rewrites the bundled seeds so CVE findings are flagged when actively
     exploited (KEV) and prioritised by exploit probability (EPSS). Each feed
-    refreshes independently — one failing does not abort the other.
+    refreshes independently - one failing does not abort the other.
     """
     import csv
     import gzip
@@ -3623,7 +3623,7 @@ def serve(host: str, port: int, cockpit: bool) -> None:
     if cockpit:
         if cockpit_dist() is None:
             raise click.ClickException(
-                "cockpit not built — run `npm --prefix cockpit install && "
+                "cockpit not built - run `npm --prefix cockpit install && "
                 "npm --prefix cockpit run build`, then re-run `orthrus serve --cockpit`."
             )
         click.echo(f"ORTHRUS cockpit on http://{host}:{port}/cockpit/")
@@ -3638,20 +3638,20 @@ def panic_cmd(do_clear: bool, reason: str) -> None:
     """Emergency kill switch: halt ALL outbound requests + abort in-flight scans (PRD §8.3).
 
     Engaging writes a flag the scope-enforced HTTP client checks before every
-    request — deny-by-default becomes deny-everything until you `--clear` it.
+    request - deny-by-default becomes deny-everything until you `--clear` it.
     """
     _ensure_utf8_output()
     from orthrus.core import panic
 
     if do_clear:
         lifted = panic.clear()
-        console.print("[bold]panic cleared[/] — scanning re-enabled."
+        console.print("[bold]panic cleared[/] - scanning re-enabled."
                       if lifted else "[orthrus.muted]no panic state was engaged.[/]")
         return
 
     path = panic.engage(reason)
     aborted = asyncio.run(_abort_running_scans())
-    console.print("[red bold]■ PANIC ENGAGED[/] — all outbound requests are now denied.")
+    console.print("[red bold]■ PANIC ENGAGED[/] - all outbound requests are now denied.")
     console.print(f"  flag: [orthrus.muted]{path}[/]")
     console.print(f"  aborted [bold]{aborted}[/] in-flight scan(s).")
     console.print("[orthrus.muted]lift with `orthrus panic --clear`.[/]")
@@ -3675,7 +3675,7 @@ async def _abort_running_scans() -> int:
 def migrate_cmd(dry_run: bool) -> None:
     """Promote existing v0.1 scans/findings into the v2.0 operator graph (PRD §4.2).
 
-    Additive and idempotent — creates a 'Legacy v0.1 import' program and upserts
+    Additive and idempotent - creates a 'Legacy v0.1 import' program and upserts
     every scan's assets/findings into the unified graph without touching the v0.1
     tables, so it's safe to re-run and trivially reversible.
     """
@@ -3748,7 +3748,7 @@ def recon_run(program_name, in_scope, authorization, sources,
             if program is None:
                 if not authorization:
                     raise click.UsageError(
-                        f"program '{program_name}' not found — pass --authorization "
+                        f"program '{program_name}' not found - pass --authorization "
                         "(and --in-scope) to create it.")
                 if not [d for d in in_scope if d.strip()]:
                     raise click.UsageError("creating a program needs at least one --in-scope domain.")
@@ -3765,7 +3765,7 @@ def recon_run(program_name, in_scope, authorization, sources,
             domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
                               if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
             if not domains:
-                raise click.UsageError("program has no in-scope domains — add with --in-scope.")
+                raise click.UsageError("program has no in-scope domains - add with --in-scope.")
             result, notified = await recon_once(
                 graph, program.id, program_name, domains, sources=sources,
                 notify_slack=notify_slack, notify_discord=notify_discord)
@@ -3827,7 +3827,7 @@ def recon_watch(program_name, interval, max_runs, sources, notify_slack, notify_
             program = await graph.get_program_by_name(program_name)
             if program is None:
                 raise click.UsageError(
-                    f"no program '{program_name}' — create it first with "
+                    f"no program '{program_name}' - create it first with "
                     f"`orthrus recon-run --program {program_name} --in-scope … --authorization …`.")
             domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
                               if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
@@ -3852,7 +3852,7 @@ def recon_watch(program_name, interval, max_runs, sources, notify_slack, notify_
     console.print(f"[orthrus.muted]every {interval}s · {cadence}[/]")
     try:
         runs = asyncio.run(_watch())
-        console.print(f"[bold]done[/] — {runs} pass(es).")
+        console.print(f"[bold]done[/] - {runs} pass(es).")
     except KeyboardInterrupt:
         console.print("\n[orthrus.muted]stopped.[/]")
 
@@ -3888,8 +3888,8 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
                    no_scope_filter, as_json) -> None:
     """Import a Burp / Caido / HAR proxy history into a program's operator graph (PRD §7.12).
 
-    Folds the real attack surface you browsed by hand — hosts and their routes,
-    with query/body params and a juicy-score — into the program's assets and
+    Folds the real attack surface you browsed by hand - hosts and their routes,
+    with query/body params and a juicy-score - into the program's assets and
     endpoints, so manual recon flows into the same scan/triage/report pipeline.
     Out-of-scope hosts (third-party CDNs, analytics) are refused by default.
     """
@@ -3909,7 +3909,7 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
         raise click.ClickException(str(exc)) from exc
     if not requests:
         raise click.ClickException(
-            f"no requests parsed from {export_file} as '{fmt}' — check --format.")
+            f"no requests parsed from {export_file} as '{fmt}' - check --format.")
 
     settings = get_settings()
 
@@ -3921,7 +3921,7 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
             if program is None:
                 if not authorization:
                     raise click.UsageError(
-                        f"program '{program_name}' not found — pass --authorization "
+                        f"program '{program_name}' not found - pass --authorization "
                         "(and --in-scope) to create it.")
                 platform = "self" if (authorization or "").strip() == "self-owned-lab" else "direct"
                 program = await graph.create_program(program_name, authorization, platform=platform)
@@ -3946,7 +3946,7 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
                 )
                 if not (scope.domains or scope.ip_ranges):
                     raise click.UsageError(
-                        "program has no in-scope entries to filter against — add --in-scope, "
+                        "program has no in-scope entries to filter against - add --in-scope, "
                         "or pass --no-scope-filter to import everything.")
                 predicate = scope.is_in_scope
 
@@ -3981,7 +3981,7 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
         console.print(f"hosts: {listing}")
     if result.skipped_out_of_scope:
         console.print(f"[orthrus.muted]⊘ {result.skipped_out_of_scope} request(s) refused "
-                      f"(out of scope) — use --no-scope-filter to include them.[/]")
+                      f"(out of scope) - use --no-scope-filter to include them.[/]")
     if result.skipped_no_host:
         console.print(f"[orthrus.muted]{result.skipped_no_host} request(s) had no host.[/]")
 
@@ -3998,7 +3998,7 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
     Bridges recon → scan → triage queue: takes the live assets the recon engine
     discovered, runs the full scan+confirm pipeline over them, and folds the bugs
     into the program's ProgramFinding queue (deduped, priority-scored, ScanRun-
-    linked) — where the cockpit Findings tab and triage see them.
+    linked) - where the cockpit Findings tab and triage see them.
     """
     _ensure_utf8_output()
     from uuid import uuid4
@@ -4017,7 +4017,7 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
             program = await graph.get_program_by_name(program_name)
             if program is None:
                 raise click.UsageError(
-                    f"no program '{program_name}' — create it with "
+                    f"no program '{program_name}' - create it with "
                     f"`orthrus recon-run --program {program_name} …` first.")
             assets = await graph.list_assets(program.id, alive_only=True)
             seeds = []
@@ -4057,7 +4057,7 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
     _program, run_row, counts, n_assets = asyncio.run(_run())
     section(console, f"PROGRAM-SCAN · {program_name}")
     if n_assets == 0:
-        console.print("[orthrus.muted]no live in-scope assets — run "
+        console.print("[orthrus.muted]no live in-scope assets - run "
                       f"`orthrus recon-run --program {program_name} --in-scope … --authorization …` first.[/]")
         return
     console.print(f"scanned [bold]{n_assets}[/] live asset(s) · promoted [bold]{counts['new']}[/] new "
@@ -4123,7 +4123,7 @@ def plan_cmd(program_name, as_json) -> None:
 
     A deterministic, no-hallucination planner: it reads the program's assets,
     endpoints, findings, scan history and scope, then prints a priority-ranked
-    list of the concrete `orthrus` commands to run next — each with the count it's
+    list of the concrete `orthrus` commands to run next - each with the count it's
     based on. The honest core of the bounded operator agent.
     """
     _ensure_utf8_output()
@@ -4139,7 +4139,7 @@ def plan_cmd(program_name, as_json) -> None:
             program = await graph.get_program_by_name(program_name)
             if program is None:
                 raise click.UsageError(
-                    f"no program '{program_name}' — create it with "
+                    f"no program '{program_name}' - create it with "
                     f"`orthrus recon-run --program {program_name} …` first.")
             return await next_actions(graph, program.id, program_name=program_name)
         finally:
@@ -4153,10 +4153,10 @@ def plan_cmd(program_name, as_json) -> None:
         return
     section(console, f"PLAN · {program_name}")
     if not actions:
-        console.print("[orthrus.muted]nothing pending — program is in a steady state.[/]")
+        console.print("[orthrus.muted]nothing pending - program is in a steady state.[/]")
         return
     for i, a in enumerate(actions, 1):
-        console.print(f"  [bold]{i}. {a.key}[/] [orthrus.muted]({a.priority:.2f})[/] — {a.reason}")
+        console.print(f"  [bold]{i}. {a.key}[/] [orthrus.muted]({a.priority:.2f})[/] - {a.reason}")
         console.print(f"     [orthrus.accent]{a.command}[/]")
 
 
@@ -4221,7 +4221,7 @@ def team_users() -> None:
     users = asyncio.run(_run())
     section(console, "TEAM · users")
     if not users:
-        console.print("[orthrus.muted]no users yet — add one with `orthrus team add-user`.[/]")
+        console.print("[orthrus.muted]no users yet - add one with `orthrus team add-user`.[/]")
         return
     for u in users:
         flags = " ".join(filter(None, [
@@ -4249,7 +4249,7 @@ def team_key(email) -> None:
 
     key = asyncio.run(_run())
     if key is None:
-        raise click.ClickException(f"no user '{email}' — add with `orthrus team add-user`.")
+        raise click.ClickException(f"no user '{email}' - add with `orthrus team add-user`.")
     section(console, "TEAM · key")
     console.print(f"API key for {email} (shown once): [bold]{key}[/]")
 
@@ -4272,7 +4272,7 @@ def team_grant(program_name, email, role) -> None:
                 raise click.UsageError(f"no program '{program_name}'.")
             user = await graph.get_user_by_email(email)
             if user is None:
-                raise click.UsageError(f"no user '{email}' — add with `orthrus team add-user`.")
+                raise click.UsageError(f"no user '{email}' - add with `orthrus team add-user`.")
             await graph.add_member(program.id, user.id, role)
             await graph.append_audit("member-added", "grant", subject_type="program",
                                      subject_id=program.id,
@@ -4306,7 +4306,7 @@ def team_members(program_name) -> None:
     rows = asyncio.run(_run())
     section(console, f"TEAM · members · {program_name}")
     if not rows:
-        console.print("[orthrus.muted]no members — grant with `orthrus team grant`.[/]")
+        console.print("[orthrus.muted]no members - grant with `orthrus team grant`.[/]")
         return
     for role, user in rows:
         console.print(f"  [bold]{role:7}[/] {user.email if user else '(deleted user)'}")
@@ -4340,7 +4340,7 @@ def team_revoke(program_name, email) -> None:
 
 @cli.command(name="mcp")
 def mcp_cmd() -> None:
-    """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
+    """Run the ORTHRUS MCP server (stdio) - expose scans/findings as agent tools.
 
     Lets an MCP-capable AI agent query ORTHRUS results (list_scans, get_scan,
     get_findings, list_modules). Needs the [mcp] extra.
@@ -4360,7 +4360,7 @@ def mcp_cmd() -> None:
 @click.option("--port", default=8080, type=int, help="Local port to listen on.")
 @click.option("--host", default="127.0.0.1", help="Local bind address.")
 @click.option("--scope", "scope_str", default=None,
-              help="Authorized scope: comma-separated domains / CIDRs (required — deny by default).")
+              help="Authorized scope: comma-separated domains / CIDRs (required - deny by default).")
 @click.option("--scan-id", default=None, help="Persist captured endpoints into this existing scan.")
 @click.option("--allow-out-of-scope", is_flag=True,
               help="Pass through (don't block) out-of-scope requests; they are never captured.")
@@ -4410,7 +4410,7 @@ async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
     server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope)
     srv = await server.serve(host, port)
     section(console, f"PROXY · {host}:{port}")
-    console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] — set your client's HTTP proxy to it.")
+    console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] - set your client's HTTP proxy to it.")
     scope_desc = ", ".join(scope.domains + scope.ip_ranges) or "auto"
     console.print(
         f"[orthrus.muted]scope: {scope_desc} · out-of-scope: "
@@ -4458,7 +4458,7 @@ def agent_cmd(
 
     The agent reasons over the target and findings-so-far and picks the next batch
     of ORTHRUS's own scanners to run, up to --max-steps. Its action space is a hard
-    allow-list of registered modules — no shells, no arbitrary code — and every
+    allow-list of registered modules - no shells, no arbitrary code - and every
     request still passes the deny-by-default scope check and non-destructive
     doctrine. Use --dry-run to see the plan without running anything.
     """
@@ -4524,7 +4524,7 @@ async def _agent_cmd(
     if report.plan:
         console.print("[orthrus.accent]Plan:[/]")
         for a in report.plan:
-            console.print(f"  • {a.tool}[orthrus.muted] — {a.rationale}[/]")
+            console.print(f"  • {a.tool}[orthrus.muted] - {a.rationale}[/]")
     for i, step in enumerate(report.steps, 1):
         console.print(
             f"\n[orthrus.accent]Step {i}:[/] ran {', '.join(step.modules)} "
@@ -4594,8 +4594,8 @@ def cloud_cmd(
 ) -> None:
     """Assess cloud security posture (CSPM/IAM) from a snapshot or read-only collection.
 
-    Consumes a normalized inventory JSON (SNAPSHOT) — or, with --live, collects one
-    read-only from the provider using your own credentials — and reports public /
+    Consumes a normalized inventory JSON (SNAPSHOT) - or, with --live, collects one
+    read-only from the provider using your own credentials - and reports public /
     unencrypted / over-privileged resources plus the CRITICAL *toxic combinations*
     an attacker would chain (internet-reachable workload + privileged role, admin
     user without MFA, PassRole escalation). Read-only: it never modifies anything.

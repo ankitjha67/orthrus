@@ -2,16 +2,16 @@
 
 Annotates CVE findings with two high-value signals for prioritisation:
 
-* **CISA KEV** — the vulnerability is on the Known Exploited Vulnerabilities
+* **CISA KEV** - the vulnerability is on the Known Exploited Vulnerabilities
   catalog (actively exploited in the wild). KEV membership escalates severity to
   at least HIGH: a "medium" CVSS that is being exploited right now outranks a
   theoretical "high".
-* **EPSS** — the Exploit Prediction Scoring System probability (0–1) that the CVE
+* **EPSS** - the Exploit Prediction Scoring System probability (0-1) that the CVE
   will be exploited in the next 30 days.
 
 Data ships as an offline seed (a snapshot of well-known entries) so enrichment
 works with no network; ``refresh_kev()`` re-pulls the full CISA feed (a trusted
-source, not the target) when online — wired to ``orthrus update``.
+source, not the target) when online - wired to ``orthrus update``.
 """
 
 from __future__ import annotations
@@ -75,7 +75,7 @@ def epss_for_text(text: str) -> float | None:
     """Highest EPSS probability among any CVE ids mentioned in ``text``.
 
     Lets report/triage rank a finding by exploit probability without a dedicated
-    schema field — the CVE id already appears in the finding's title/description.
+    schema field - the CVE id already appears in the finding's title/description.
     """
     scores = [s for cid in cve_ids_in(text) if (s := _EPSS.get(cid)) is not None]
     return max(scores) if scores else None
@@ -89,10 +89,10 @@ def escalate_severity(base: Severity, intel: CveIntel) -> Severity:
 
 
 def summary(intel: CveIntel) -> str:
-    """Short human tag, e.g. '[CISA KEV — actively exploited; EPSS 0.97]'. Empty if none."""
+    """Short human tag, e.g. '[CISA KEV - actively exploited; EPSS 0.97]'. Empty if none."""
     parts: list[str] = []
     if intel.kev:
-        parts.append("CISA KEV — actively exploited")
+        parts.append("CISA KEV - actively exploited")
     if intel.epss is not None:
         parts.append(f"EPSS {intel.epss:.2f}")
     return f"[{'; '.join(parts)}]" if parts else ""

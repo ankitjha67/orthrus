@@ -1,10 +1,10 @@
-"""Toxic-combination analysis — the cloud "attack graph".
+"""Toxic-combination analysis - the cloud "attack graph".
 
 A single misconfiguration is often only medium risk; the danger is the
 *combination*. An internet-reachable instance is fine until it carries an
 admin role; an admin policy is fine until it's on a user without MFA. This
 module correlates a resource's exposure with the privilege it can reach and
-emits the few CRITICAL/HIGH *paths* an attacker would actually walk — the
+emits the few CRITICAL/HIGH *paths* an attacker would actually walk - the
 cloud analogue of ``attack_graph``'s kill-chains. Each path is emitted as a
 Finding referencing every resource in the chain, so it flows into the report,
 runbook, and notify layers.
@@ -69,7 +69,7 @@ def toxic_combinations(inventory: CloudInventory) -> list[Finding]:
     findings: list[Finding] = []
     roles = [r for r in inventory.resources if r.type in ("iam-role", "iam-instance-profile", "iam-policy")]
 
-    # T1 — internet-reachable compute carrying a privileged role.
+    # T1 - internet-reachable compute carrying a privileged role.
     for c in inventory.resources:
         if c.type not in _COMPUTE:
             continue
@@ -86,13 +86,13 @@ def toxic_combinations(inventory: CloudInventory) -> list[Finding]:
             c, [c, *priv_roles],
             f"'{c.label}' is reachable from the internet ({how}) and carries a role with broad "
             "privileges. Compromising the workload (RCE, SSRF to the metadata service, a dependency "
-            "CVE) yields those cloud permissions directly — request forgery becomes account compromise.",
+            "CVE) yields those cloud permissions directly - request forgery becomes account compromise.",
             "Remove the privileged role or scope it to least privilege; enforce IMDSv2; take the "
             "workload off the public internet (private subnet + load balancer / bastion).",
             "CWE-269",
         ))
 
-    # T4 — full-admin human user without MFA.
+    # T4 - full-admin human user without MFA.
     for u in inventory.by_type("iam-user"):
         if u.mfa_enabled is False and _privileged(u.permissions):
             findings.append(_combo(
@@ -104,12 +104,12 @@ def toxic_combinations(inventory: CloudInventory) -> list[Finding]:
                 "CWE-308",
             ))
 
-    # T5 — privilege-escalation permission combination (PassRole + create).
+    # T5 - privilege-escalation permission combination (PassRole + create).
     for p in inventory.resources:
         if p.type not in _IAM_PRINCIPAL and p.type != "iam-policy":
             continue
         low = [a.lower() for a in p.permissions]
-        # A bare "*" is already flagged as wildcard-admin by posture — T5 targets the
+        # A bare "*" is already flagged as wildcard-admin by posture - T5 targets the
         # non-obvious escalation combo (explicit PassRole + an explicit create action).
         has_pass = any("iam:passrole" in a or a == "iam:*" for a in low)
         has_create = any(
@@ -120,7 +120,7 @@ def toxic_combinations(inventory: CloudInventory) -> list[Finding]:
                 f"IAM privilege-escalation path on '{p.label}'", Severity.HIGH, p, [p],
                 "The principal can both pass an IAM role and create a compute resource (or holds '*'). "
                 "That combination lets it pass a more-privileged role to a new instance/function and "
-                "escalate to that role — a classic IAM privilege-escalation primitive.",
+                "escalate to that role - a classic IAM privilege-escalation primitive.",
                 "Separate iam:PassRole from resource-creation permissions; constrain PassRole to "
                 "specific low-privilege roles via a resource condition.",
                 "CWE-269",

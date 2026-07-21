@@ -1,7 +1,7 @@
 """Per-scanner execution metrics (PRD §11 observability).
 
 A production scanner needs to answer "which module found what, how much traffic
-did it cost, and how long did it take?" — for tuning, for spotting a module that
+did it cost, and how long did it take?" - for tuning, for spotting a module that
 hammers the target for nothing, and for catching a scanner that silently
 crashed. The orchestrator records one :class:`ScannerMetric` per module that
 actually ran; everything here is pure so the aggregation is unit-testable.

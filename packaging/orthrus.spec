@@ -1,4 +1,4 @@
-# PyInstaller spec — one-file `orthrus` CLI binary.
+# PyInstaller spec - one-file `orthrus` CLI binary.
 #   pyinstaller packaging/orthrus.spec
 # Produces dist/orthrus (or dist/orthrus.exe on Windows). The dynamic scanner /
 # exploit / recon registries are populated by static imports in each package's

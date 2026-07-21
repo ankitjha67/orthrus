@@ -3,18 +3,18 @@
 When an app's build declares a dependency on a package name that is **not
 claimed on the public registry**, an attacker can register that name on npm /
 PyPI. The next build resolves the public package instead of the intended private
-one and runs the attacker's install scripts — remote code execution inside the
+one and runs the attacker's install scripts - remote code execution inside the
 build/CI pipeline (the 2021 Alex Birsan "dependency confusion" attack).
 
 This scanner looks for dependency manifests the target accidentally exposes
 (``package.json``, ``requirements.txt`` at the web root or in discovered
-endpoints — a common misdeploy), extracts the declared dependency names, and
+endpoints - a common misdeploy), extracts the declared dependency names, and
 checks each against the public registry. A declared dependency that returns 404
 is **claimable by anyone** and flagged; a scoped npm package (``@org/pkg``) whose
 scope is unclaimed is the textbook high-confidence case.
 
 Manifest fetches go through the scope-enforced HttpClient. Registry look-ups go
-to registry.npmjs.org / pypi.org (verified TLS) — they query *about* a package
+to registry.npmjs.org / pypi.org (verified TLS) - they query *about* a package
 name and never touch the target.
 """
 
@@ -101,7 +101,7 @@ def _registry_url(name: str, ecosystem: str) -> str:
 
 
 async def is_unclaimed(client: httpx.AsyncClient, name: str, ecosystem: str) -> bool | None:
-    """True if ``name`` is absent (404) from the public registry — claimable.
+    """True if ``name`` is absent (404) from the public registry - claimable.
 
     Returns None on a network/registry error so the caller can skip rather than
     false-positive.
@@ -115,7 +115,7 @@ async def is_unclaimed(client: httpx.AsyncClient, name: str, ecosystem: str) -> 
         return True
     if resp.status_code == 200:
         return False
-    return None  # rate-limited / unexpected — don't guess
+    return None  # rate-limited / unexpected - don't guess
 
 
 def _root_of(target: str) -> str:
@@ -189,7 +189,7 @@ class DependencyConfusionScanner(BaseScanner):
                 f"The dependency manifest at {source_url} declares '{name}', which is **not "
                 f"registered on the public {registry} registry**. An attacker can publish a "
                 f"package under that exact name; the next build/CI run may resolve the public "
-                f"package instead of the intended private one and execute its install scripts — "
+                f"package instead of the intended private one and execute its install scripts - "
                 f"remote code execution in the build pipeline (dependency confusion). "
                 + (
                     "The npm scope is unclaimed, which is the classic high-impact case."

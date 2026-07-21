@@ -4,7 +4,7 @@ A program scope like ``*.example.com`` authorizes every subdomain, but you have
 to *find* them. This module reuses ORTHRUS's subdomain enumeration (Certificate
 Transparency via crt.sh + a DNS brute list, with catch-all wildcard suppression)
 to discover live subdomains, then keeps only those that are in scope, not
-excluded, and not on the high-sensitivity kill-list — turning ``*.example.com``
+excluded, and not on the high-sensitivity kill-list - turning ``*.example.com``
 into a concrete seed list for the campaign.
 
 crt.sh and DNS are OSINT lookups (not requests to the target), so they run
@@ -70,7 +70,7 @@ def in_scope_seeds(hosts: list[str], program) -> list[str]:
     """Pure filter: keep in-scope hosts, drop out-of-scope and high-sensitivity ones.
 
     Discovered hosts that land on the kill-list (gov/mil/edu/health/sanctioned) are
-    *silently skipped* — they are never auto-added; the operator must scope them in
+    *silently skipped* - they are never auto-added; the operator must scope them in
     explicitly and attest authorization. Returns ``https://`` seed URLs, deduped.
     """
     out: list[str] = []

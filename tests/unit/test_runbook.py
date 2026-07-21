@@ -1,6 +1,6 @@
 """Consolidated remediation runbook (`orthrus runbook`).
 
-The builder is pure — it collapses findings into shared fix actions and ranks a
+The builder is pure - it collapses findings into shared fix actions and ranks a
 path-breaking fix above an isolated one. Tests cover the grouping, the ordering,
 the Markdown, and the CLI.
 """
@@ -64,7 +64,7 @@ def test_path_breaking_action_sorts_first_even_below_peak_severity():
     rows = [
         _f("ssrf", Severity.HIGH, "http://t/fetch"),
         _f("exposed-service", Severity.HIGH, "http://t/admin"),
-        # A lone critical with no chain — higher severity, but breaks no path.
+        # A lone critical with no chain - higher severity, but breaks no path.
         _f("cmd-injection", Severity.CRITICAL, "http://other/x"),
     ]
     rb = build_runbook(rows)
@@ -94,9 +94,9 @@ def test_markdown_has_title_summary_actions_and_affected():
     rows = [_f("sqli", Severity.CRITICAL, "http://t/a", title="SQL injection",
                remediation="Use parameterised queries.")]
     md = build_runbook(rows, target="http://t").to_markdown()
-    assert md.startswith("# Remediation Runbook — http://t")
+    assert md.startswith("# Remediation Runbook - http://t")
     assert "1 finding(s) collapse into 1 fix action(s)" in md
-    assert "## 1. SQL injection — CRITICAL" in md
+    assert "## 1. SQL injection - CRITICAL" in md
     assert "Use parameterised queries." in md
     assert "`http://t/a`" in md
 
@@ -150,7 +150,7 @@ def test_cli_runbook_prints_markdown(tmp_path, monkeypatch):
     monkeypatch.setenv("ORTHRUS_DB_URL", _db_url(tmp_path))
     r = CliRunner().invoke(main.cli, ["--no-banner", "runbook", "--scan-id", "s"])
     assert r.exit_code == 0, r.output
-    assert "# Remediation Runbook — http://t" in r.output
+    assert "# Remediation Runbook - http://t" in r.output
     assert "SQL injection" in r.output
 
 

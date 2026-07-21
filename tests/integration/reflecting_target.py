@@ -140,7 +140,7 @@ GRAPHQL_INTROSPECTION = {
     }}
 }
 
-# field(arg: "value") — captures the field name and its (double-quoted) string arg.
+# field(arg: "value") - captures the field name and its (double-quoted) string arg.
 _GQL_ARG_RE = re.compile(r'(\w+)\s*\(\s*\w+\s*:\s*"((?:[^"\\]|\\.)*)"')
 _GQL_ALIAS_RE = re.compile(r"(\w+)\s*:\s*__typename")
 
@@ -149,7 +149,7 @@ def graphql_execute(body: str) -> str:
     """A deliberately-vulnerable mini GraphQL executor (introspection + injection sinks).
 
     Supports: introspection, query batching (JSON array), alias overloading, and
-    three injectable resolvers — userByName (SQLi), renderTemplate (SSTI),
+    three injectable resolvers - userByName (SQLi), renderTemplate (SSTI),
     systemDiagnostics (OS command). Injection is proven *in band* so a scanner can
     detect it from the response alone.
     """
@@ -479,7 +479,7 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._html("<html><body>items list</body></html>")
         elif parts.path == "/graphql":
-            # GraphQL executable over GET (?query=...) — the CSRF / introspection vector.
+            # GraphQL executable over GET (?query=...) - the CSRF / introspection vector.
             self._html(graphql_execute(json.dumps({"query": first("query")})))
         elif parts.path == "/nosql":
             user = first("user")

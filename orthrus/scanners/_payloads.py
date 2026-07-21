@@ -2,7 +2,7 @@
 
 Each injection scanner imports the corpus it needs from here, so the payloads
 are versioned in one place, easy to review/extend, and unit-testable as pure
-data. Payloads are deliberately *detection-grade* — small, high-signal sets
+data. Payloads are deliberately *detection-grade* - small, high-signal sets
 paired with precise response detectors (DBMS error signatures, file content
 markers, reflected canaries, timing) rather than blind fuzz lists. A handful of
 well-chosen variants per technique gives broad coverage (multiple DBMS / OSes /
@@ -180,7 +180,7 @@ def ssti_templates(expr: str) -> list[tuple[str, str]]:
 SSRF_METADATA: tuple[str, ...] = (
     # AWS IMDS. (No /latest/dynamic/instance-identity/ URL here: it would
     # contain the "instance-id" signature token and so false-positive on mere
-    # reflection — detect_metadata_leak requires signatures absent from payloads.)
+    # reflection - detect_metadata_leak requires signatures absent from payloads.)
     "http://169.254.169.254/latest/meta-data/",
     "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
     # AWS link-local via IP-obfuscation bypasses

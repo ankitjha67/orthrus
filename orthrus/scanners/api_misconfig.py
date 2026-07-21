@@ -3,11 +3,11 @@
 Two deterministic, low-false-positive probes per origin (no payload reflection,
 no status-code-only heuristics):
 
-1. **Cross-Site Tracing (TRACE/XST)** — send a TRACE request carrying a unique
+1. **Cross-Site Tracing (TRACE/XST)** - send a TRACE request carrying a unique
    custom header. A server with TRACE enabled echoes the whole request back in
    the body, so seeing the nonce in a 200 response proves the method is on. With
    TRACE, an attacker can read ``HttpOnly`` cookies and auth headers via XSS.
-2. **Dangerous methods advertised** — send OPTIONS and read the ``Allow`` /
+2. **Dangerous methods advertised** - send OPTIONS and read the ``Allow`` /
    ``Access-Control-Allow-Methods`` header. If the server advertises write or
    otherwise risky verbs (PUT/DELETE/PATCH/TRACE/CONNECT) they are reported so an
    operator can confirm they are intended and properly authorized.

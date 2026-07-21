@@ -1,4 +1,4 @@
-"""Operator-graph REST API (FastAPI) — Programs/scope/assets/findings CRUD."""
+"""Operator-graph REST API (FastAPI) - Programs/scope/assets/findings CRUD."""
 
 from __future__ import annotations
 

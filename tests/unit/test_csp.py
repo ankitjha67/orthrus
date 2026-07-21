@@ -25,7 +25,7 @@ def test_parse_csp_splits_directives_lowercased() -> None:
 
 
 def test_analyze_csp_missing_policy_is_silent() -> None:
-    # The headers scanner owns "missing CSP" — this analyzer must stay quiet.
+    # The headers scanner owns "missing CSP" - this analyzer must stay quiet.
     assert analyze_csp(None) == []
     assert analyze_csp("") == []
     assert analyze_csp("   ") == []

@@ -1,13 +1,13 @@
 """Unauthenticated non-HTTP service exposure scanner (native, no external tools).
 
-Web scanners miss data-tier services left open with no authentication — exactly
+Web scanners miss data-tier services left open with no authentication - exactly
 the Redis-on-:6379 case a live test surfaced. This scanner speaks the services'
 own wire protocols over a raw socket and flags ones that answer privileged
 commands without auth: an open Redis or Memcached is a direct path to data
 theft, cache poisoning, DoS amplification, and frequently RCE.
 
 It probes the *explicit* host:port pairs in scope (the target and any discovered
-endpoints with a non-web port) — it does not port-sweep, so it stays inside the
+endpoints with a non-web port) - it does not port-sweep, so it stays inside the
 declared engagement. Raw sockets are used by necessity (these aren't HTTP);
 scope is checked before every connection. AGGRESSIVE-gated.
 """
@@ -96,7 +96,7 @@ class ServiceExposureScanner(BaseScanner):
             for service, probe, detector, severity, cwe, impact in SERVICE_PROBES:
                 data = await self._probe(host, port, probe)
                 if data is None:
-                    break  # port closed / filtered — no service here
+                    break  # port closed / filtered - no service here
                 if detector(data):
                     yield self._finding(host, port, service, severity, cwe, impact, data)
                     break

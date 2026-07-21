@@ -28,7 +28,7 @@ def render() -> str:
     out = [
         "# ORTHRUS CLI reference",
         "",
-        "_Auto-generated from the Click command tree — regenerate with_ "
+        "_Auto-generated from the Click command tree - regenerate with_ "
         "`python scripts/gen_cli_docs.py`_._",
         "",
         "## `orthrus`",

@@ -6,7 +6,7 @@ accepted ``.php``/``.svg``/``.html`` upload is a common path to RCE (web shell)
 or stored XSS.
 
 This probe is **mutating** (it creates a resource), so it only runs under
-``--aggressive`` and uploads a clearly-benign, inert marker file — never an
+``--aggressive`` and uploads a clearly-benign, inert marker file - never an
 actual web shell payload.
 """
 
@@ -35,7 +35,7 @@ _UPLOAD_HINTS = (
     "/photo", "/image", "/document", "/file", "profilepic",
 )
 
-# Benign, inert marker — NOT a working web shell. The filename/extension is the
+# Benign, inert marker - NOT a working web shell. The filename/extension is the
 # dangerous part being tested; the content is harmless.
 _MARKER = "ORTHRUS_UPLOAD_OK"
 _DANGEROUS_FILES = (
@@ -123,7 +123,7 @@ class FileUploadScanner(BaseScanner):
                 f"The upload endpoint {path} accepted a file with a dangerous '.{ext}' extension. "
                 "If uploaded files are served from the web root or interpreted by the server, an "
                 "attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe "
-                "uploaded a harmless inert marker, not a working payload — confirm where the file "
+                "uploaded a harmless inert marker, not a working payload - confirm where the file "
                 "lands and whether it executes."
             ),
             remediation=(

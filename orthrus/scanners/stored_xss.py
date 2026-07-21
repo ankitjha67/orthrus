@@ -41,7 +41,7 @@ class StoredXssScanner(BaseScanner):
 
     def _review_urls(self, ctx: ScanContext, forms: list) -> list[str]:
         # Prioritize each form's own page + the target (where stored content is
-        # most likely rendered), then other HTML pages — before the cap.
+        # most likely rendered), then other HTML pages - before the cap.
         priority = [f.url.split("#", 1)[0] for f in forms] + [ctx.config.target]
         others = [
             ep.url.split("#", 1)[0]

@@ -1,4 +1,4 @@
-"""Tests for the deny-by-default scope validator — the core safety control."""
+"""Tests for the deny-by-default scope validator - the core safety control."""
 
 from __future__ import annotations
 

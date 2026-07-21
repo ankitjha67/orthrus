@@ -2,7 +2,7 @@
 
 Sends LDAP-filter-breaking payloads (unbalanced parentheses, stray backslash,
 wildcard/operator fragments) into every injection point and flags responses that
-leak an LDAP/directory error — the same low-false-positive, error-based approach
+leak an LDAP/directory error - the same low-false-positive, error-based approach
 the SQLi and NoSQL scanners use. A baseline is checked first so endpoints that
 error on *any* input are skipped.
 

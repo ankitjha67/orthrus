@@ -1,4 +1,4 @@
-"""`orthrus program-scan` guard paths (no network — no live assets to scan)."""
+"""`orthrus program-scan` guard paths (no network - no live assets to scan)."""
 
 from __future__ import annotations
 
