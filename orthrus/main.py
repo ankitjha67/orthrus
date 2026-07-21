@@ -2819,6 +2819,90 @@ def intruder(request_file, payloads, mode, scope_str, match, url_encode,
         console.print(f"[orthrus.muted]{len(errs)} request(s) errored (e.g. {errs[0].error}).[/]")
 
 
+@cli.command(name="ws")
+@click.option("--url", required=True, help="WebSocket endpoint (ws:// or wss://).")
+@click.option("--scope", "scope_str", default=None,
+              help="Scope token(s); defaults to the endpoint host. Out-of-scope is refused.")
+@click.option("--send", "messages", multiple=True,
+              help="Message to send (repeatable). In --payloads mode, the template (use § as the "
+                   "injection marker).")
+@click.option("--payloads", "payloads_file", default=None, type=click.Path(exists=True, dir_okay=False),
+              help="Fuzz: send the --send template once per payload line in this file.")
+@click.option("--origin", default=None, help="Origin header (test cross-site WS hijacking / CSWSH).")
+@click.option("--header", "headers", multiple=True, help="Add a header 'Name: value' (repeatable).")
+@click.option("--match", "match", default=None, help="Flag responses containing this string.")
+@click.option("--recv-wait", default=1.0, type=float, show_default=True,
+              help="Seconds to wait for reply frames after each send.")
+@click.option("--timeout", default=8.0, type=float, show_default=True, help="Connect timeout.")
+@click.option("--json", "as_json", is_flag=True, help="Emit results as JSON.")
+@click.option("--verbose", "-v", default="warning", help="Log level.")
+def ws_cmd(url, scope_str, messages, payloads_file, origin, headers, match,
+           recv_wait, timeout, as_json, verbose) -> None:
+    """WebSocket Repeater + fuzzer: connect, send frames, observe replies (scope-enforced).
+
+    Repeater: `orthrus ws --url wss://h/socket --scope h --send '{"a":1}'`.
+    Fuzz: mark the template with § and give a wordlist:
+    `orthrus ws --url wss://h/s --scope h --send '{"id":§}' --payloads ids.txt --match error`.
+    Use --origin to test cross-site WebSocket hijacking (CSWSH).
+    """
+    configure_logging(verbose)
+    from pathlib import Path
+    from urllib.parse import urlsplit
+
+    from orthrus.proxy.ws import ws_exchange, ws_fuzz
+    from orthrus.utils.scope import ScopeValidator
+
+    host = urlsplit(url).hostname or ""
+    scope = build_scope(scope_str or host, url.replace("wss://", "https://").replace("ws://", "http://"),
+                        None)
+    validator = ScopeValidator(scope)
+    hdrs = {}
+    for raw in headers:
+        name, sep, value = raw.partition(":")
+        if sep:
+            hdrs[name.strip()] = value.strip()
+    msgs = list(messages) or [""]
+    # read the wordlist here (sync) so the async worker never blocks on file I/O.
+    payloads = ([ln.rstrip("\n") for ln in
+                 Path(payloads_file).read_text(encoding="utf-8", errors="replace").splitlines()
+                 if ln.strip()] if payloads_file else None)
+
+    async def _run():
+        if payloads is not None:
+            return "fuzz", await ws_fuzz(url, msgs[0], payloads, validator, match=match,
+                                         origin=origin, headers=hdrs or None,
+                                         timeout=timeout, recv_each=recv_wait)
+        return "repeat", await ws_exchange(url, msgs, validator, origin=origin,
+                                           headers=hdrs or None, timeout=timeout, recv_each=recv_wait)
+
+    mode, result = asyncio.run(_run())
+    if as_json:
+        if mode == "fuzz":
+            click.echo(json.dumps([{"payload": p, "received": ex.received, "matched": hit,
+                                    "error": ex.error} for p, ex, hit in result], indent=2))
+        else:
+            click.echo(json.dumps({"sent": result.sent, "received": result.received,
+                                   "elapsed_ms": result.elapsed_ms, "error": result.error}, indent=2))
+        return
+    section(console, f"WS · {url}")
+    if mode == "repeat":
+        if result.error:
+            console.print(f"[status.error]{result.error}[/]")
+            return
+        console.print(f"[orthrus.muted]sent {len(result.sent)} · received {len(result.received)} "
+                      f"frame(s) · {result.elapsed_ms} ms[/]")
+        for frame in result.received[:40]:
+            console.print(f"  [orthrus.accent]<[/] {frame[:400]}")
+    else:
+        hits = [(p, ex) for p, ex, hit in result if hit]
+        errs = [(p, ex) for p, ex, hit in result if ex.error]
+        console.print(f"[orthrus.muted]{len(result)} payload(s) · {len(hits)} match · "
+                      f"{len(errs)} errored[/]")
+        for p, ex in (hits or [(p, ex) for p, ex, _ in result])[:40]:
+            first = ex.received[0][:200] if ex.received else (ex.error or "(no reply)")
+            console.print(f"  [orthrus.accent]{p}[/] -> {first}")
+
+
 @cli.command(name="hosts")
 @click.argument("target", required=False)
 @click.option("--scope", "scope_str", default=None, help="Scope token(s); defaults to the target host (+subdomains).")

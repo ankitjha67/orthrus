@@ -205,6 +205,7 @@ orthrus bounty-status                   # one-view cockpit
 | Intercept HTTPS (MITM) | `orthrus proxy --intercept-tls --scope <host> --scan-id <id>` (export/install the CA first) |
 | Match & Replace | `orthrus proxy --intercept-tls --rewrite rules.json --scope <host>` |
 | Repeater (resend + tweak) | `orthrus replay --request-file req.txt --scope <host>` |
+| WebSocket workbench (send/fuzz frames) | `orthrus ws --url wss://host/socket --scope host --send '{"a":1}'` |
 | The cockpit UI (incl. Workbench: Repeater + Intruder) | `orthrus serve --cockpit` -> http://127.0.0.1:8000/cockpit |
 
 ## Intruder - fuzzing a request
