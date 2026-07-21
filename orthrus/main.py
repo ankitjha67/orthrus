@@ -4590,29 +4590,51 @@ def mcp_cmd() -> None:
 @click.option("--allow-out-of-scope", is_flag=True,
               help="Pass through (don't block) out-of-scope requests; they are never captured.")
 @click.option("--exclude-paths", default=None, help="Comma-separated regex paths to never forward.")
+@click.option("--intercept-tls", is_flag=True,
+              help="MITM HTTPS for in-scope hosts (terminate TLS + capture bodies). "
+                   "Install the CA first: `orthrus proxy --export-ca orthrus-ca.crt`.")
+@click.option("--export-ca", "export_ca", default=None, metavar="PATH",
+              help="Write the interception CA certificate to PATH (to install in your browser) "
+                   "and exit.")
 @click.option("--verbose", "-v", default="info", help="Log level.")
 def proxy_cmd(
     port: int, host: str, scope_str: str | None, scan_id: str | None,
-    allow_out_of_scope: bool, exclude_paths: str | None, verbose: str,
+    allow_out_of_scope: bool, exclude_paths: str | None,
+    intercept_tls: bool, export_ca: str | None, verbose: str,
 ) -> None:
     """Run a scope-aware capturing proxy to feed the scanner from a manual browse.
 
     Point your browser / HTTP client at http://HOST:PORT and browse the authorized
     target; every in-scope request's endpoint + parameters are captured (into a
     scan with --scan-id). Deny-by-default: out-of-scope requests are blocked unless
-    --allow-out-of-scope is set (pass-through traffic is never captured). HTTPS is
-    tunneled opaquely (no TLS interception).
+    --allow-out-of-scope is set (pass-through traffic is never captured). With
+    --intercept-tls, HTTPS for in-scope hosts is MITM'd (TLS terminated, bodies
+    captured) using ORTHRUS's own CA; without it, HTTPS is tunneled opaquely.
     """
     configure_logging(verbose)
+    from pathlib import Path
+
+    from orthrus.proxy.ca import CertAuthority
+
+    ca = CertAuthority(Path(get_settings().data_dir))
+    if export_ca:
+        ca.ensure()
+        Path(export_ca).write_bytes(ca.ca_cert_path.read_bytes())
+        section(console, "PROXY · export-ca")
+        console.print(f"CA certificate written to [bold]{export_ca}[/].")
+        console.print("[orthrus.muted]Install it in your browser/OS trust store, then run "
+                      "`orthrus proxy --intercept-tls --scope <host>`.[/]")
+        return
     if not scope_str:
         raise click.UsageError(
             "--scope is required (deny by default): pass the authorized host(s)/CIDR(s)"
         )
     scope = build_scope(scope_str, "", exclude_paths, block_third_party=not allow_out_of_scope)
-    asyncio.run(_proxy_cmd(host, port, scope, scan_id, allow_out_of_scope))
+    asyncio.run(_proxy_cmd(host, port, scope, scan_id, allow_out_of_scope,
+                           ca if intercept_tls else None))
 
 
-async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
+async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope, ca) -> None:
     from orthrus.proxy import ProxyServer
 
     settings = get_settings()
@@ -4632,10 +4654,14 @@ async def _proxy_cmd(host, port, scope, scan_id, allow_out_of_scope) -> None:
             except Exception as exc:  # noqa: BLE001 - a capture failure must not kill the proxy
                 logger.debug("capture persist failed: %s", exc)
 
-    server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope)
+    server = ProxyServer(scope, on_capture=on_capture, allow_out_of_scope=allow_out_of_scope,
+                         ca=ca, intercept_tls=ca is not None)
     srv = await server.serve(host, port)
     section(console, f"PROXY · {host}:{port}")
     console.print(f"[orthrus.accent]Listening on http://{host}:{port}[/] - set your client's HTTP proxy to it.")
+    if ca is not None:
+        console.print("[orthrus.muted]TLS interception ON for in-scope hosts "
+                      "(install the CA: `orthrus proxy --export-ca orthrus-ca.crt`).[/]")
     scope_desc = ", ".join(scope.domains + scope.ip_ranges) or "auto"
     console.print(
         f"[orthrus.muted]scope: {scope_desc} · out-of-scope: "
