@@ -4005,6 +4005,7 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
 
     from orthrus.bounty.campaign import run_campaign
     from orthrus.bounty.scope_intake import ProgramScope
+    from orthrus.model.chains import correlate_program_chains
     from orthrus.model.promote import promote_findings
     from orthrus.model.store import ProgramGraph
 
@@ -4028,7 +4029,7 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
                     seeds.append(a.canonical_value)
             seeds = seeds[:max_assets]
             if not seeds:
-                return program, None, {"seen": 0, "new": 0, "duplicate": 0}, 0
+                return program, None, {"seen": 0, "new": 0, "duplicate": 0}, 0, 0
             domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
                               if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
             scope = ProgramScope(seeds=seeds, domains=domains or [
@@ -4048,13 +4049,15 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
                                         min_confidence=min_confidence)
             counts = await promote_findings(
                 graph, program.id, [g.lead for g in result.report.groups], scan_run_id=run_row.id)
+            new_chains = await correlate_program_chains(graph, program.id)
             await graph.finish_scan_run(run_row.id, status="completed", stats={
-                "assets": len(seeds), "findings_seen": counts["seen"], "findings_new": counts["new"]})
-            return program, run_row, counts, len(seeds)
+                "assets": len(seeds), "findings_seen": counts["seen"],
+                "findings_new": counts["new"], "chains_new": len(new_chains)})
+            return program, run_row, counts, len(seeds), len(new_chains)
         finally:
             await graph.close()
 
-    _program, run_row, counts, n_assets = asyncio.run(_run())
+    _program, run_row, counts, n_assets, n_chains = asyncio.run(_run())
     section(console, f"PROGRAM-SCAN · {program_name}")
     if n_assets == 0:
         console.print("[orthrus.muted]no live in-scope assets - run "
@@ -4062,8 +4065,65 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
         return
     console.print(f"scanned [bold]{n_assets}[/] live asset(s) · promoted [bold]{counts['new']}[/] new "
                   f"finding(s) (of {counts['seen']}; {counts['duplicate']} dup) into the graph.")
+    if n_chains:
+        console.print(f"correlated [bold]{n_chains}[/] new attack-chain edge(s) "
+                      "(`orthrus program-chains`).")
     console.print(f"[orthrus.muted]scan run {run_row.id} · see the cockpit Findings tab / "
                   "`orthrus bounty-status`.[/]")
+
+
+@cli.command(name="program-chains")
+@click.option("--program", "program_name", required=True, help="Operator-graph program.")
+@click.option("--correlate", is_flag=True, help="(Re-)run rule-based correlation before listing.")
+@click.option("--json", "as_json", is_flag=True, help="Emit chains as JSON.")
+def program_chains(program_name, correlate, as_json) -> None:
+    """List a program's attack-chain edges (SSRF enables metadata read, ...) (PRD §7.8).
+
+    Persistent, per-program kill-chain edges between findings. `--correlate` runs the
+    curated rule catalog over the current findings first, materializing new edges.
+    """
+    _ensure_utf8_output()
+    from orthrus.model.chains import correlate_program_chains
+    from orthrus.model.store import ProgramGraph
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(f"no program '{program_name}'.")
+            new = await correlate_program_chains(graph, program.id) if correlate else []
+            chains = await graph.list_finding_chains(program.id)
+            findings = {f.id: f for f in await graph.list_findings(program.id)}
+            return chains, findings, len(new)
+        finally:
+            await graph.close()
+
+    chains, findings, n_new = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps([{
+            "id": c.id, "from": c.from_finding_id, "to": c.to_finding_id,
+            "relationship": c.relationship, "confidence": c.confidence,
+            "proposed_by": c.proposed_by, "accepted": c.accepted_by_user,
+        } for c in chains], indent=2))
+        return
+    section(console, f"CHAINS · {program_name}")
+    if correlate:
+        console.print(f"[orthrus.muted]correlation added {n_new} new edge(s).[/]")
+    if not chains:
+        console.print("[orthrus.muted]no attack-chain edges - run with --correlate "
+                      "after a scan finds chainable bugs.[/]")
+        return
+    for c in chains:
+        src = findings.get(c.from_finding_id)
+        dst = findings.get(c.to_finding_id)
+        conf = f"{c.confidence:.2f}" if c.confidence is not None else "  - "
+        console.print(f"  [bold]{conf}[/]  {(src.vuln_class if src else '?')} "
+                      f"[orthrus.accent]{c.relationship}[/] {(dst.vuln_class if dst else '?')}")
+    console.print(f"[orthrus.muted]{len(chains)} edge(s).[/]")
 
 
 @cli.command(name="program-findings")

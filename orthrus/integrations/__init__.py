@@ -6,6 +6,7 @@ pipeline. Importing this package registers the built-in adapters.
 from orthrus.integrations import checkov as _checkov  # noqa: F401  (registration side-effect)
 from orthrus.integrations import dalfox as _dalfox  # noqa: F401  (registration side-effect)
 from orthrus.integrations import ffuf as _ffuf  # noqa: F401  (registration side-effect)
+from orthrus.integrations import mobsfscan as _mobsfscan  # noqa: F401  (registration side-effect)
 from orthrus.integrations import nikto as _nikto  # noqa: F401  (registration side-effect)
 from orthrus.integrations import nuclei as _nuclei  # noqa: F401  (registration side-effect)
 from orthrus.integrations import semgrep as _semgrep  # noqa: F401  (registration side-effect)

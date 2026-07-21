@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from orthrus.db.models import Base
 from orthrus.model.entities import (
     ASSET_KINDS,
+    CHAIN_RELATIONSHIPS,
     FINDING_CONFIDENCES,
     FINDING_STATUSES,
     PLATFORMS,
@@ -33,6 +34,7 @@ from orthrus.model.entities import (
     AuditLogRow,
     CostLedgerRow,
     Evidence,
+    FindingChain,
     Membership,
     Note,
     Program,
@@ -543,6 +545,70 @@ class ProgramGraph:
             await session.commit()
             await session.refresh(finding)
         return finding
+
+    # --------------------------------------------------------- finding chains
+    async def add_finding_chain(
+        self, from_finding_id: str, to_finding_id: str, relationship: str, *,
+        narrative_md: str | None = None, confidence: float | None = None,
+        proposed_by: str = "rules",
+    ) -> tuple[FindingChain, bool]:
+        """Create or dedup a directed attack-chain edge; return (edge, is_new).
+
+        The operator-graph attack graph (PRD §7.8): a persistent kill-chain edge
+        between two program findings (e.g. SSRF ``enables`` cloud-metadata read),
+        deduped on (from, to, relationship).
+        """
+        if relationship not in CHAIN_RELATIONSHIPS:
+            raise ValueError(f"relationship must be one of {CHAIN_RELATIONSHIPS}")
+        if from_finding_id == to_finding_id:
+            raise ValueError("a finding cannot chain to itself")
+        async with self._session() as session:
+            existing = (await session.execute(
+                select(FindingChain).where(
+                    FindingChain.from_finding_id == from_finding_id,
+                    FindingChain.to_finding_id == to_finding_id,
+                    FindingChain.relationship == relationship,
+                ).limit(1)
+            )).scalar_one_or_none()
+            if existing is not None:
+                return existing, False
+            edge = FindingChain(
+                from_finding_id=from_finding_id, to_finding_id=to_finding_id,
+                relationship=relationship, narrative_md=narrative_md,
+                confidence=confidence, proposed_by=proposed_by,
+            )
+            session.add(edge)
+            await session.commit()
+            await session.refresh(edge)
+            return edge, True
+
+    async def list_finding_chains(self, program_id: str) -> list[FindingChain]:
+        """All chain edges whose source finding belongs to this program."""
+        async with self._session() as session:
+            result = await session.execute(
+                select(FindingChain)
+                .join(ProgramFinding, FindingChain.from_finding_id == ProgramFinding.id)
+                .where(ProgramFinding.program_id == program_id)
+                .order_by(FindingChain.confidence.desc().nullslast())
+            )
+            return list(result.scalars().all())
+
+    async def accept_finding_chain(self, chain_id: str) -> FindingChain | None:
+        async with self._session() as session:
+            edge = await session.get(FindingChain, chain_id)
+            if edge is None:
+                return None
+            edge.accepted_by_user = True
+            await session.commit()
+            await session.refresh(edge)
+            return edge
+
+    async def remove_finding_chain(self, chain_id: str) -> bool:
+        async with self._session() as session:
+            result = await session.execute(
+                delete(FindingChain).where(FindingChain.id == chain_id))
+            await session.commit()
+        return (result.rowcount or 0) > 0
 
     # -------------------------------------------------------------- evidence
     async def add_evidence(
