@@ -181,4 +181,23 @@ orthrus bounty-status                   # one-view cockpit
 | What to do next | `orthrus plan --program 1win` |
 | AI consultant report | `orthrus ai-report --scan-id ID --llm openai-compatible:meta/llama-3.1-8b-instruct -o r.md` |
 | H1 submission reports | `orthrus bounty-report --program 1win --platform hackerone -o h1/` |
+| Fuzz a request (Intruder) | `orthrus intruder --request-file req.txt --payloads words.txt --scope <host> --match SQL` |
+| Repeater (resend + tweak) | `orthrus replay --request-file req.txt --scope <host>` |
 | The cockpit UI | `orthrus serve --cockpit` -> http://127.0.0.1:8000/cockpit |
+
+## Intruder - fuzzing a request
+
+Mark injection points with `§...§` in a saved raw request, then attack them:
+
+```powershell
+# mark the id: "GET /account?id=§1§ HTTP/1.1 ..."  saved as req.txt
+orthrus intruder --request-file req.txt --payloads ids.txt --mode sniper `
+  --scope 1win.com --match "error"
+```
+
+- **Modes:** `sniper` (one position at a time), `batteringram` (same payload everywhere),
+  `pitchfork` (one list per position, lockstep), `clusterbomb` (every combination).
+- `--payloads` takes a file (one per line) or an inline `a,b,c`; repeat it for
+  pitchfork/clusterbomb (one list per position).
+- Responses are ranked so the **anomaly** (a different status/length) and any
+  `--match` hits float to the top. Every request is scope-checked before it is sent.
