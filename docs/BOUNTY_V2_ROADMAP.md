@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1337 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1338 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
@@ -52,6 +52,7 @@ the native Rust core (the cockpit ships as Tauri + FastAPI, per the hybrid decis
 | Triage engine (§7.5) | ✅ + 🛠 | Composite **priority scoring** (`bounty/triage.py`), a **submission gate** (`bounty/submission_gate.py` + `orthrus submission-gate`) that predicts submit / prove-impact-first / hold so reports lead with payable findings and drop header/CORS-no-cred/cookie-flag noise, cross-run history recall (`bounty/history.py`), LLM FP-judge (`orthrus triage --llm`), and per-program **mute rules** (`bounty/suppress.py` + `orthrus suppress`/`suppressions`). Next: cross-program near-dup clustering. |
 | **Authenticated critical pipeline** | ✅ | `authz-matrix` escalates cross-identity access to **CRITICAL** with redacted PII/payment evidence (`utils/sensitivity.py`), an anonymous control kills public-page false positives, and unauthenticated sensitive exposure is flagged CWE-306. Run it via [docs/BOUNTY_AUTHENTICATED_RUNBOOK.md](BOUNTY_AUTHENTICATED_RUNBOOK.md) - two identities against the real authenticated API, where the criticals live. |
 | **Auth capture from HAR** | ✅ | `orthrus capture-auth --har A.har --host <h> --name userA --out identities.json` (`core/auth_capture.py`) pulls the live session (cf_clearance + cookies + UA + bearer) out of the HAR you already export for `--import-spec`, so one browser export yields both the API surface and a two-identity file. No DevTools cURL-copy. |
+| **Money-flow tampering severity** | ✅ | `business-logic` parameter tampering now escalates a **monetary** field to evidence-backed **HIGH/firm** when the tampered amount is reflected back as a money value in the response (reuses `utils/sensitivity.py`), plus a scientific-notation bypass vector - so a negative/zero amount that is actually carried downstream outranks a bare missing-validation MEDIUM. |
 | Reporting engine (§7.6) | ✅ + 🛠 | Submission-ready per-bug reports, **platform-native templates** (H1/BC/Intigriti/YWH/Immunefi via `--platform`), cross-run duplicate flagging (♻), and a machine-readable **`findings.json`** (ranked queue + counts + `prior_seen`, for automation/diffing) written alongside the Markdown. Live submission APIs are 🔑 (your platform tokens). |
 | AI copilot / RAG (§7.7) | 🟡→🛠 | AI report is grounded in evidence. A RAG copilot over your own findings/notes + vendored corpora (HackTricks/PayloadsAllTheThings) is build-now (LanceDB or sqlite-vec). |
 | Attack graph (§7.8) | ✅ + 🛠 | `chains`/`graph` exist. Next: wire the SSRF→metadata and JWT→BOLA chains as first-class. |
