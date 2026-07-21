@@ -8,6 +8,7 @@ from orthrus.integrations.base import TOOL_REGISTRY
 from orthrus.integrations.checkov import parse_checkov_json
 from orthrus.integrations.dalfox import parse_dalfox_json
 from orthrus.integrations.ffuf import parse_ffuf_json
+from orthrus.integrations.mobsfscan import parse_mobsfscan_json
 from orthrus.integrations.nikto import parse_nikto_json
 from orthrus.integrations.semgrep import parse_semgrep_json
 from orthrus.integrations.slither import parse_slither_json
@@ -17,7 +18,7 @@ from orthrus.integrations.wpscan import parse_wpscan_json
 
 def test_adapters_registered():
     for name in ("nuclei", "dalfox", "testssl", "ffuf", "nikto", "wpscan",
-                 "slither", "checkov", "semgrep"):
+                 "slither", "checkov", "semgrep", "mobsfscan"):
         assert name in TOOL_REGISTRY
 
 
@@ -192,3 +193,24 @@ def test_semgrep_maps_results_and_cwe():
     warn = next(f for f in findings if f.url == "app/conf.py:3")
     assert warn.severity == Severity.MEDIUM and warn.cwe is None       # WARNING -> MEDIUM
     assert parse_semgrep_json("not json", "app/") == []
+
+
+MOBSFSCAN = """{"results":{
+  "android_insecure_random":{"metadata":{"severity":"WARNING","cwe":"CWE-330: Insufficient Randomness",
+    "description":"The App uses an insecure Random Number Generator.","owasp-mobile":"M5","masvs":"MSTG-CRYPTO-6"},
+   "files":[{"file_path":"app/src/Crypto.java","match_lines":[42,42]}]},
+  "android_world_writable":{"metadata":{"severity":"ERROR","description":"World-writable file.","cwe":"CWE-276"},
+   "files":[{"file_path":"app/src/Store.java","match_lines":[10]}]}
+}}"""
+
+
+def test_mobsfscan_maps_rules_and_severity():
+    findings = parse_mobsfscan_json(MOBSFSCAN, "app/")
+    assert len(findings) == 2
+    rng = next(f for f in findings if "insecure_random" in f.title)
+    assert rng.vuln_type == "mobile-sast" and rng.severity == Severity.MEDIUM   # WARNING
+    assert rng.url == "app/src/Crypto.java:42" and rng.cwe.startswith("CWE-330")
+    assert rng.scanner == "mobsfscan"
+    ww = next(f for f in findings if "world_writable" in f.title)
+    assert ww.severity == Severity.HIGH                                         # ERROR -> HIGH
+    assert parse_mobsfscan_json("not json", "app/") == []

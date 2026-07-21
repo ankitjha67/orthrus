@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1254 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1259 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
@@ -28,8 +28,9 @@ The tables further down are kept as the historical plan; here is what actually l
 | 1 - Continuous recon | Adapter framework + pure-Python sources (crt.sh/certspotter/DNS/wayback) + subfinder/amass; wildcard-DNS detection; new-asset diff; Slack/Discord alerts; `recon-run`/`recon-watch` | `orthrus/recon_engine/` |
 | 2 - Scan -> graph | `promote_findings` bridge (cross-tool dedup signature, priority score, ScanRun-linked); `orthrus program-scan` | `orthrus/model/promote.py` |
 | 3 - Triage + reports | Finding status/assign lifecycle; platform-native report renderer; cockpit Findings tab | `orthrus/model/report.py` |
+| 3b - Attack chains (§7.8) | Persistent operator-graph `FindingChain` edges, rule-based correlation over the curated kill-chain catalog, auto-run after `program-scan`; `orthrus program-chains` + REST | `orthrus/model/chains.py`, `orthrus/model/store.py` |
 | 4 - Copilot + notes | Operator-graph Notes (entity/DAL/REST) + grounded BM25 copilot over findings+notes (cites, never invents); cockpit Copilot tab | `orthrus/model/copilot.py`, `orthrus/model/entities.py` |
-| 5 - Multi-domain adapters | slither (web3) / checkov (cloud-IaC) / semgrep (SAST) external-tool adapters, self-skip if binary absent | `orthrus/integrations/` |
+| 5 - Multi-domain adapters | slither (web3) / checkov (cloud-IaC) / semgrep (SAST) / mobsfscan (mobile) external-tool adapters, self-skip if binary absent; LLM covered natively by the `llm-prompt-injection` scanner | `orthrus/integrations/`, `orthrus/scanners/llm.py` |
 | 6 - Traffic bridge + planner | Burp XML / Caido JSON / HAR import into the graph (XXE-guarded, deny-by-default on import); deterministic `orthrus plan` next-action engine | `orthrus/bridges/`, `orthrus/model/planner.py` |
 | 7 - Team + deploy | User/Membership RBAC (owner/member/viewer), per-user API keys, `orthrus team` CLI + REST gating; `docker-compose.operator.yml` (API + cockpit over Postgres) | `orthrus/model/store.py`, `docker/` |
 

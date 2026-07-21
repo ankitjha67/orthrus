@@ -150,6 +150,15 @@ def endpoint_dict(e) -> dict[str, Any]:
     }
 
 
+def chain_dict(c) -> dict[str, Any]:
+    return {
+        "id": c.id, "from_finding_id": c.from_finding_id, "to_finding_id": c.to_finding_id,
+        "relationship": c.relationship, "narrative_md": c.narrative_md,
+        "confidence": c.confidence, "proposed_by": c.proposed_by,
+        "accepted_by_user": c.accepted_by_user,
+    }
+
+
 def user_dict(u) -> dict[str, Any]:
     return {
         "id": u.id, "email": u.email, "name": u.name, "is_active": u.is_active,
@@ -436,6 +445,23 @@ async def program_plan(request: Request, program_id: str) -> dict[str, Any]:
     actions = await next_actions(_graph(request), program_id, program_name=program.name)
     return {"actions": [{"key": a.key, "priority": a.priority,
                          "reason": a.reason, "command": a.command} for a in actions]}
+
+
+# ------------------------------------------------------------- attack chains
+@router.get("/programs/{program_id}/chains")
+async def list_chains(request: Request, program_id: str) -> list[dict[str, Any]]:
+    """Persistent attack-chain edges between the program's findings (PRD §7.8)."""
+    await _require_program(request, program_id)
+    return [chain_dict(c) for c in await _graph(request).list_finding_chains(program_id)]
+
+
+@router.post("/programs/{program_id}/chains/correlate", dependencies=[Depends(require_write)])
+async def correlate_chains(request: Request, program_id: str) -> dict[str, Any]:
+    """Re-run rule-based correlation, materializing new chain edges; return the new ones."""
+    await _require_program(request, program_id)
+    from orthrus.model.chains import correlate_program_chains
+    created = await correlate_program_chains(_graph(request), program_id)
+    return {"created": len(created), "chains": [chain_dict(c) for c in created]}
 
 
 # ----------------------------------------------------------------- team / RBAC

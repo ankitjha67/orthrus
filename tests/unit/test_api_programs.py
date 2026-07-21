@@ -114,6 +114,25 @@ def test_endpoints_and_plan_endpoints(client, tmp_path):
     assert client.get("/api/programs/nope/plan").status_code == 404
 
 
+def test_attack_chains_endpoints(client, tmp_path):
+    pid = _make_program(client).json()["id"]
+    # seed a chainable pair (SSRF + exposed-service) via a separate graph on the same DB
+    async def _seed():
+        g = ProgramGraph(f"sqlite+aiosqlite:///{tmp_path / 'graph_api.sqlite3'}")
+        await g.init()
+        await g.record_finding(pid, "ssrf", "SSRF", "high", "s-ssrf")
+        await g.record_finding(pid, "exposed-service", "Exposed", "high", "s-exp")
+        await g.close()
+    asyncio.run(_seed())
+
+    assert client.get(f"/api/programs/{pid}/chains").json() == []
+    corr = client.post(f"/api/programs/{pid}/chains/correlate").json()
+    assert corr["created"] == 1
+    chains = client.get(f"/api/programs/{pid}/chains").json()
+    assert len(chains) == 1 and chains[0]["relationship"] == "enables"
+    assert chains[0]["proposed_by"] == "rules"
+
+
 def test_write_gate_requires_token_when_configured(client, monkeypatch):
     monkeypatch.setenv("ORTHRUS_API_TOKEN", "s3cret")
     # mutation without the token is refused

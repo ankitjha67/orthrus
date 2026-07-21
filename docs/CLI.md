@@ -49,6 +49,7 @@ Commands:
   panic             Emergency kill switch: halt ALL outbound requests +...
   patch             Generate concrete remediation patches (config/code)...
   plan              Suggest the next steps for a program, grounded in its...
+  program-chains    List a program's attack-chain edges (SSRF enables...
   program-findings  List a program's operator-graph findings (the triage...
   program-policy    Set a program's traffic policy: a rate ceiling and an...
   program-scan      Scan a program's live in-scope assets → promote...
@@ -73,7 +74,7 @@ Commands:
   update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
 
 ## `orthrus agent`
 
@@ -808,6 +809,25 @@ Usage: orthrus plan [OPTIONS]
 Options:
   --program TEXT  Operator-graph program to plan for.  [required]
   --json          Emit the ranked action list as JSON.
+  --help          Show this message and exit.
+```
+
+## `orthrus program-chains`
+
+```text
+Usage: orthrus program-chains [OPTIONS]
+
+  List a program's attack-chain edges (SSRF enables metadata read, ...) (PRD
+  §7.8).
+
+  Persistent, per-program kill-chain edges between findings. `--correlate`
+  runs the curated rule catalog over the current findings first, materializing
+  new edges.
+
+Options:
+  --program TEXT  Operator-graph program.  [required]
+  --correlate     (Re-)run rule-based correlation before listing.
+  --json          Emit chains as JSON.
   --help          Show this message and exit.
 ```
 
