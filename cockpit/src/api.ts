@@ -112,8 +112,15 @@ export const api = {
     req<ScopeEntry>(`/api/programs/${id}/scope`, { method: "POST", body: JSON.stringify(body) }),
   listAssets: (id: string) => req<Asset[]>(`/api/programs/${id}/assets`),
   listFindings: (id: string) => req<Finding[]>(`/api/programs/${id}/findings`),
+  updateFinding: (id: string, fid: string, body: { status?: string; assigned_to?: string }) =>
+    req<Finding>(`/api/programs/${id}/findings/${fid}`, { method: "PATCH", body: JSON.stringify(body) }),
   cost: (id: string) => req<CostSummary>(`/api/programs/${id}/cost`),
 };
+
+export const FINDING_STATUSES = [
+  "new", "triaging", "confirmed", "duplicate", "not_reproducible", "filed",
+  "accepted", "rewarded", "closed", "verified_fixed", "regressed", "out_of_scope",
+];
 
 export const SEV_CLASS: Record<string, string> = {
   critical: "sev-critical",

@@ -405,6 +405,25 @@ class ProgramGraph:
             )
             return list(result.scalars().all())
 
+    async def get_finding(self, finding_id: str) -> ProgramFinding | None:
+        async with self._session() as session:
+            return await session.get(ProgramFinding, finding_id)
+
+    async def update_finding(self, finding_id: str, **fields) -> ProgramFinding | None:
+        """Update triage/ownership fields (status uses set_finding_status for stamping)."""
+        allowed = {"assigned_to", "hunter_notes_md", "bounty_amount", "currency",
+                   "llm_fp_confidence", "duplicate_of", "priority_score"}
+        async with self._session() as session:
+            finding = await session.get(ProgramFinding, finding_id)
+            if finding is None:
+                return None
+            for key, value in fields.items():
+                if key in allowed:
+                    setattr(finding, key, value)
+            await session.commit()
+            await session.refresh(finding)
+        return finding
+
     async def set_finding_status(self, finding_id: str, status: str) -> ProgramFinding | None:
         if status not in FINDING_STATUSES:
             raise ValueError(f"status must be one of {FINDING_STATUSES}")

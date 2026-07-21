@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, Finding, Program, SEV_CLASS } from "../api";
+import { api, FINDING_STATUSES, Finding, Program, SEV_CLASS } from "../api";
 
 export default function Findings({ program }: { program: Program | null }) {
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -16,6 +16,16 @@ export default function Findings({ program }: { program: Program | null }) {
       .then(setFindings)
       .catch((e) => setErr((e as Error).message));
   }, [program]);
+
+  const changeStatus = async (fid: string, status: string) => {
+    if (!program) return;
+    try {
+      const updated = await api.updateFinding(program.id, fid, { status });
+      setFindings((fs) => fs.map((f) => (f.id === fid ? updated : f)));
+    } catch (e) {
+      setErr((e as Error).message);
+    }
+  };
 
   if (!program) return <div className="empty">Select a program on the Programs tab.</div>;
 
@@ -47,7 +57,17 @@ export default function Findings({ program }: { program: Program | null }) {
                 <td>{f.title}</td>
                 <td>{f.confidence}</td>
                 <td>
-                  <span className="tag">{f.status}</span>
+                  <select
+                    value={f.status}
+                    onChange={(e) => changeStatus(f.id, e.target.value)}
+                    style={{ padding: "3px 6px", fontSize: 12 }}
+                  >
+                    {FINDING_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                 </td>
                 <td className="faint">{f.found_by_tool}</td>
               </tr>
