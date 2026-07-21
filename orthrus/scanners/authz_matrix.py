@@ -36,6 +36,7 @@ from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.logger import get_logger
 from orthrus.utils.scope import ScopeViolation
+from orthrus.utils.sensitivity import SensitiveHit, describe, has_high_value, scan_sensitive
 
 logger = get_logger("scanner.authz-matrix")
 
@@ -86,6 +87,20 @@ def authz_verdict(base_status: int, base_body: str, other_status: int, other_bod
     return "ambiguous"
 
 
+def is_public(anon_status: int, anon_body: str, base_status: int, base_body: str) -> bool:
+    """True if an anonymous (no-auth) request gets an equivalent successful response.
+
+    A public template/marketing page returns the same body to everyone, so a
+    cross-identity "match" there is not an authorization boundary at all. Ruling
+    this out is what stops the scanner flagging public pages as BOLA.
+    """
+    if anon_status >= 400 or 300 <= anon_status < 400:
+        return False
+    if any(marker in (anon_body or "").lower() for marker in _DENY_MARKERS):
+        return False
+    return anon_status == base_status and _similar(base_body, anon_body)
+
+
 def is_object_ref(url: str, params: object) -> bool:
     """True if the endpoint references a specific object (numeric/UUID id) → BOLA."""
     if _OBJECT_PATH.search(urlsplit(url).path):
@@ -108,13 +123,18 @@ class AuthorizationMatrixScanner(BaseScanner):
         if len(identities) < 2:
             # Need a privileged baseline plus at least one identity to compare.
             return
-        baseline, others = identities[0], identities[1:]
+        baseline = identities[0]
+        # Only authenticated principals act as the "attacker"; a supplied anonymous
+        # identity is folded into the public-page control below.
+        others = [ident for ident in identities[1:] if ident.is_authenticated]
 
         timeout = getattr(ctx.config, "timeout", 30.0)
         clients = {
             ident.name: httpx.AsyncClient(verify=False, timeout=timeout, follow_redirects=False)
             for ident in identities
         }
+        anon = Identity("anonymous")
+        anon_client = httpx.AsyncClient(verify=False, timeout=timeout, follow_redirects=False)
         seen: set[tuple[str, str]] = set()
         emitted: set[tuple[str, str]] = set()
         try:
@@ -125,19 +145,35 @@ class AuthorizationMatrixScanner(BaseScanner):
                 if endpoint.method not in (HttpMethod.GET, HttpMethod.HEAD):
                     continue  # read-only only: never replay state-changing methods
                 url = endpoint.url
-                key = (endpoint.method.value, urlsplit(url).path)
+                method = endpoint.method.value
+                key = (method, urlsplit(url).path)
                 if key in seen or not ctx.scope.is_allowed(url):
                     continue
                 seen.add(key)
                 count += 1
 
-                base_resp = await self._send(clients[baseline.name], endpoint.method.value, url,
-                                             baseline)
+                base_resp = await self._send(clients[baseline.name], method, url, baseline)
                 if base_resp is None or base_resp.status_code >= 400:
                     continue  # baseline can't access it → nothing to compare
 
+                hits = scan_sensitive(base_resp.text)
+
+                # Public-page control: does an anonymous request get the same body?
+                anon_resp = await self._send(anon_client, method, url, anon)
+                public = anon_resp is not None and is_public(
+                    anon_resp.status_code, anon_resp.text, base_resp.status_code, base_resp.text
+                )
+                if public:
+                    # A public template is not an authz boundary - unless it hands
+                    # sensitive data to an unauthenticated client, which is its own bug.
+                    dedup = (urlsplit(url).path, "anonymous")
+                    if has_high_value(hits) and dedup not in emitted:
+                        emitted.add(dedup)
+                        yield self._finding(endpoint, url, baseline, anon, hits, unauth=True)
+                    continue
+
                 for other in others:
-                    resp = await self._send(clients[other.name], endpoint.method.value, url, other)
+                    resp = await self._send(clients[other.name], method, url, other)
                     if resp is None:
                         continue
                     if authz_verdict(
@@ -148,10 +184,11 @@ class AuthorizationMatrixScanner(BaseScanner):
                     if dedup in emitted:
                         continue
                     emitted.add(dedup)
-                    yield self._finding(endpoint, url, baseline, other)
+                    yield self._finding(endpoint, url, baseline, other, hits, unauth=False)
         finally:
             for client in clients.values():
                 await client.aclose()
+            await anon_client.aclose()
 
     async def _send(
         self, client: httpx.AsyncClient, method: str, url: str, identity: Identity
@@ -164,34 +201,59 @@ class AuthorizationMatrixScanner(BaseScanner):
             return None
 
     def _finding(
-        self, endpoint: object, url: str, baseline: Identity, other: Identity
+        self, endpoint: object, url: str, baseline: Identity, other: Identity,
+        hits: list[SensitiveHit] | None = None, *, unauth: bool = False,
     ) -> Finding:
+        hits = hits or []
+        path = urlsplit(url).path
         bola = is_object_ref(url, getattr(endpoint, "params", []))
         kind = "object-level (BOLA)" if bola else "function-level (BFLA)"
         cwe = "CWE-639" if bola else "CWE-285"
-        # A different *authenticated* user reaching the resource is a firm bypass;
-        # an anonymous match could be a legitimately public endpoint → tentative.
-        confidence = Confidence.FIRM if other.is_authenticated else Confidence.TENTATIVE
-        anon_note = (
-            ""
-            if other.is_authenticated
-            else " (anonymous access - confirm the endpoint is meant to require auth)"
-        )
-        return Finding(
-            vuln_type="broken-authorization",
-            title=f"Broken {kind} authorization: '{other.name}' reached '{baseline.name}'s resource",
-            severity=Severity.HIGH,
-            confidence=confidence,
-            url=url,
-            description=(
+        # A leak of high-value data (PII / payment / tokens) is CRITICAL; a bare
+        # authorization bypass with no sensitive body observed is HIGH.
+        sensitive = has_high_value(hits)
+        severity = Severity.CRITICAL if sensitive else Severity.HIGH
+        data_note = f" Accessible data included: {describe(hits)}." if hits else ""
+        if unauth:
+            cwe = "CWE-306"  # missing authentication for a critical function
+            title = f"Sensitive data reachable without authentication at {path}"
+            description = (
+                f"The resource returned an equivalent successful response to an anonymous "
+                f"(no-credential) request as to the authenticated baseline '{baseline.name}'. An "
+                f"unauthenticated attacker can read it directly.{data_note}"
+            )
+            match = f"anonymous == {baseline.name}"
+            notes = (
+                f"anonymous request received the same successful response as the authenticated "
+                f"baseline '{baseline.name}'"
+            )
+        else:
+            title = (
+                f"Broken {kind} authorization: '{other.name}' reached '{baseline.name}'s resource"
+            )
+            description = (
                 f"The resource was accessible to the privileged baseline identity "
                 f"'{baseline.name}' and returned an equivalent successful response to identity "
-                f"'{other.name}', which should not have access{anon_note}. This indicates the "
-                f"endpoint enforces authentication but not per-{('object' if bola else 'function')} "
-                "authorization - a client can reach another principal's "
-                f"{'data' if bola else 'functionality'} by replaying the request with their own "
-                "session."
-            ),
+                f"'{other.name}', which should not have access; an anonymous request was denied, so "
+                f"the endpoint enforces authentication but not per-"
+                f"{'object' if bola else 'function'} authorization - a client can reach another "
+                f"principal's {'data' if bola else 'functionality'} by replaying the request with "
+                f"their own session.{data_note}"
+            )
+            match = f"{other.name} == {baseline.name}"
+            notes = (
+                f"identity '{other.name}' received the same successful response as the privileged "
+                f"baseline '{baseline.name}'"
+            )
+        if hits:
+            notes += f"; sensitive data exposed: {describe(hits)}"
+        return Finding(
+            vuln_type="broken-authorization",
+            title=title,
+            severity=severity,
+            confidence=Confidence.FIRM,
+            url=url,
+            description=description,
             remediation=(
                 "Enforce authorization on every request server-side: check that the authenticated "
                 "principal owns or is permitted the specific object/function (not just that they "
@@ -201,12 +263,9 @@ class AuthorizationMatrixScanner(BaseScanner):
             cwe=cwe,
             scanner=SCANNER_NAME,
             evidence=Evidence(
-                request_raw=f"{endpoint.method.value} {urlsplit(url).path}  (replayed as {other.name})",
-                matched_at=f"{other.name} == {baseline.name}",
-                notes=(
-                    f"identity '{other.name}' received the same successful response as the "
-                    f"privileged baseline '{baseline.name}'"
-                ),
+                request_raw=f"{endpoint.method.value} {path}  (replayed as {other.name})",
+                matched_at=match,
+                notes=notes,
             ),
         )
 
