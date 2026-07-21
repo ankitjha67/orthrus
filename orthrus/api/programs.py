@@ -72,6 +72,19 @@ class FindingUpdate(BaseModel):
     llm_fp_confidence: float | None = None
 
 
+class NoteCreate(BaseModel):
+    title: str
+    markdown: str = ""
+    tags: list = Field(default_factory=list)
+    finding_id: str | None = None
+    asset_id: str | None = None
+
+
+class CopilotQuery(BaseModel):
+    query: str
+    k: int = 5
+
+
 # --------------------------------------------------------------- serialization
 def _dt(value) -> str | None:
     return value.isoformat() if value else None
@@ -105,6 +118,14 @@ def asset_dict(a) -> dict[str, Any]:
         "fingerprint": a.fingerprint, "metadata": a.metadata_json,
         "discovered_by": a.discovered_by,
         "first_seen_at": _dt(a.first_seen_at), "last_seen_at": _dt(a.last_seen_at),
+    }
+
+
+def note_dict(n) -> dict[str, Any]:
+    return {
+        "id": n.id, "title": n.title, "markdown": n.markdown, "tags": n.tags,
+        "program_id": n.program_id, "asset_id": n.asset_id, "finding_id": n.finding_id,
+        "created_at": _dt(n.created_at), "updated_at": _dt(n.updated_at),
     }
 
 
@@ -280,6 +301,51 @@ async def finding_report(request: Request, program_id: str, finding_id: str,
 async def program_cost(request: Request, program_id: str) -> dict[str, Any]:
     await _require_program(request, program_id)
     return await _graph(request).cost_summary(program_id)
+
+
+# ---------------------------------------------------------------------- notes
+@router.get("/programs/{program_id}/notes")
+async def list_notes(request: Request, program_id: str, q: str | None = None) -> list[dict[str, Any]]:
+    await _require_program(request, program_id)
+    graph = _graph(request)
+    notes = (await graph.search_notes(q, program_id=program_id) if q
+             else await graph.list_notes(program_id=program_id))
+    return [note_dict(n) for n in notes]
+
+
+@router.post("/programs/{program_id}/notes", status_code=201,
+             dependencies=[Depends(require_write)])
+async def create_note(request: Request, program_id: str, body: NoteCreate) -> dict[str, Any]:
+    await _require_program(request, program_id)
+    try:
+        note = await _graph(request).add_note(
+            body.title, body.markdown, program_id=program_id, tags=body.tags,
+            finding_id=body.finding_id, asset_id=body.asset_id, created_by="api")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return note_dict(note)
+
+
+@router.delete("/programs/{program_id}/notes/{note_id}", dependencies=[Depends(require_write)])
+async def delete_note(request: Request, program_id: str, note_id: str) -> dict[str, Any]:
+    await _require_program(request, program_id)
+    if not await _graph(request).delete_note(note_id):
+        raise HTTPException(status_code=404, detail=f"note '{note_id}' not found")
+    return {"deleted": note_id}
+
+
+# -------------------------------------------------------------------- copilot
+@router.post("/programs/{program_id}/copilot")
+async def copilot(request: Request, program_id: str, body: CopilotQuery) -> dict[str, Any]:
+    """Grounded retrieval over the program's OWN findings + notes (cites, never invents)."""
+    await _require_program(request, program_id)
+    from orthrus.model.copilot import retrieve
+    hits = await retrieve(_graph(request), program_id, body.query, k=body.k)
+    return {
+        "query": body.query,
+        "hits": [{"source": h.source, "title": h.title, "snippet": h.snippet, "score": h.score}
+                 for h in hits],
+    }
 
 
 # --------------------------------------------------------------------- audit

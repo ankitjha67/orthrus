@@ -71,3 +71,14 @@ def test_finding_404_when_not_in_program(client_ids):
     assert r.status_code == 404
     r2 = c.get(f"/api/programs/{ids['program']}/findings/nope/report")
     assert r2.status_code == 404
+
+
+def test_copilot_retrieves_from_own_findings(client_ids):
+    c, ids = client_ids
+    r = c.post(f"/api/programs/{ids['program']}/copilot", json={"query": "SQL injection"})
+    assert r.status_code == 200
+    hits = r.json()["hits"]
+    assert hits and hits[0]["source"].startswith("finding:")
+    # grounded: an unrelated query returns nothing rather than inventing
+    empty = c.post(f"/api/programs/{ids['program']}/copilot", json={"query": "zzqx-not-a-thing"})
+    assert empty.json()["hits"] == []
