@@ -33,6 +33,7 @@ docs/*.html
 # Secrets / config
 .env
 .env.*
+!.env.example
 config.local.*
 *.key
 
