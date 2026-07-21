@@ -45,6 +45,7 @@ from orthrus.scanners.base_scanner import BaseScanner
 from orthrus.scanners.registry import register
 from orthrus.utils.encoding import with_duplicate_query_param
 from orthrus.utils.scope import ScopeViolation
+from orthrus.utils.sensitivity import describe, scan_sensitive
 
 SCANNER_NAME = "business-logic"
 
@@ -146,6 +147,7 @@ def tamper_values(value: str) -> list[tuple[str, str]]:
         ("zero", "0"),
         ("fractional", "0.0001"),
         ("overflow", "999999999999"),
+        ("scientific", "1e9"),  # parses as a huge float past naive int() validators
     ]
     original = value.strip()
     return [(label, v) for label, v in candidates if v != original]
@@ -248,7 +250,9 @@ class BusinessLogicScanner(BaseScanner):
         if control is None:
             return None
 
+        monetary = is_monetary(point.param)
         accepted: list[str] = []
+        money_evidence = ""
         for label, tampered in tamper_values(value):
             resp = await send(ctx, point, tampered)
             if resp is None:
@@ -261,17 +265,42 @@ class BusinessLogicScanner(BaseScanner):
                 resp.text,
             ):
                 accepted.append(f"{label}={tampered}")
+                # Impact signal: the accepted response echoes a money/balance value, so the
+                # tampered amount was not just accepted but reflected downstream.
+                if monetary and not money_evidence:
+                    money = [h for h in scan_sensitive(resp.text) if h.kind == "money"]
+                    if money:
+                        money_evidence = describe(money[:3])
 
         if not accepted:
             return None
 
         shown = ", ".join(accepted)
-        monetary = is_monetary(point.param)
+        # A monetary field whose tampered value comes back as an amount/balance is a
+        # demonstrated financial-impact bug (HIGH, firm); a monetary field that merely
+        # accepts the value is a MEDIUM precursor; a non-monetary field is LOW.
+        if monetary and money_evidence:
+            severity, confidence = Severity.HIGH, Confidence.FIRM
+        elif monetary:
+            severity, confidence = Severity.MEDIUM, Confidence.TENTATIVE
+        else:
+            severity, confidence = Severity.LOW, Confidence.TENTATIVE
+        impact = (
+            f" The response reflected a monetary value ({money_evidence}) for the tampered "
+            "input, so the amount is carried downstream - confirm the charge/credit."
+            if money_evidence else ""
+        )
+        notes = (
+            f"garbage value '{CONTROL_GARBAGE}' was rejected but {shown} returned 2xx "
+            "without a validation error"
+        )
+        if money_evidence:
+            notes += f"; tampered response reflected money: {money_evidence}"
         return Finding(
             vuln_type="parameter-tampering",
             title=f"Missing numeric validation on '{point.param}' (parameter tampering)",
-            severity=Severity.MEDIUM if monetary else Severity.LOW,
-            confidence=Confidence.TENTATIVE,
+            severity=severity,
+            confidence=confidence,
             url=used_url(point, "-1"),
             parameter=point.param,
             param_location=point.location,
@@ -280,7 +309,7 @@ class BusinessLogicScanner(BaseScanner):
                 f"validate) yet accepts out-of-band values [{shown}]. A negative price, a "
                 "zero/oversized quantity, or a fractional amount slipping past server-side "
                 "checks is a common precursor to business-logic abuse (free or discounted "
-                "orders, inventory/limit bypass). Manually confirm the value is honored "
+                f"orders, inventory/limit bypass).{impact} Manually confirm the value is honored "
                 "downstream (cart total, charged amount, fulfilled quantity)."
             ),
             remediation=(
@@ -292,10 +321,7 @@ class BusinessLogicScanner(BaseScanner):
             scanner=SCANNER_NAME,
             evidence=Evidence(
                 request_raw=f"{point.param} tampered: {shown}",
-                notes=(
-                    f"garbage value '{CONTROL_GARBAGE}' was rejected but {shown} returned 2xx "
-                    "without a validation error"
-                ),
+                notes=notes,
             ),
         )
 

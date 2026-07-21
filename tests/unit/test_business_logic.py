@@ -9,7 +9,14 @@ from __future__ import annotations
 from types import SimpleNamespace
 from urllib.parse import parse_qsl, urlsplit
 
-from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation, Severity
+from orthrus.core.schemas import (
+    Confidence,
+    Endpoint,
+    HttpMethod,
+    Param,
+    ParamLocation,
+    Severity,
+)
 from orthrus.scanners.business_logic import (
     CONTROL_GARBAGE,
     BusinessLogicScanner,
@@ -50,7 +57,7 @@ def test_is_monetary_classifies_severity_input() -> None:
 
 def test_tamper_values_are_out_of_band_and_drop_the_original() -> None:
     labels = {label for label, _ in tamper_values("5")}
-    assert {"negative", "zero", "fractional", "overflow"} == labels
+    assert {"negative", "zero", "fractional", "overflow", "scientific"} == labels
     # the original value never appears as one of its own tamper variants
     assert all(v != "0" for label, v in tamper_values("0"))
     assert "zero" not in {label for label, _ in tamper_values("0")}
@@ -138,9 +145,33 @@ async def test_scanner_flags_tampering_when_field_validates_but_accepts_negative
     findings = [f async for f in BusinessLogicScanner().scan(_ctx([ep], TamperHttp()))]
     tamper = [f for f in findings if f.vuln_type == "parameter-tampering"]
     assert len(tamper) == 1
-    assert tamper[0].severity == Severity.MEDIUM  # 'price' is monetary
+    assert tamper[0].severity == Severity.MEDIUM  # 'price' is monetary, no money reflected
     assert tamper[0].parameter == "price"
     assert tamper[0].cwe == "CWE-472"
+
+
+class MoneyReflectHttp:
+    """Validates type but not sign, AND reflects a money total in the accepted body."""
+
+    async def request(self, method: str, url: str, **kwargs: object) -> FakeResp:
+        qs = dict(parse_qsl(urlsplit(url).query, keep_blank_values=True))
+        if qs.get("amount") == CONTROL_GARBAGE:
+            return FakeResp(400, "Invalid input")
+        return FakeResp(200, "Order accepted. New total: USD 0.00 charged to your wallet.")
+
+
+async def test_monetary_tampering_with_money_reflection_escalates_to_high() -> None:
+    ep = Endpoint(
+        url="http://h/pay?amount=50",
+        method=HttpMethod.GET,
+        params=[Param(name="amount", location=ParamLocation.QUERY, value="50")],
+    )
+    findings = [f async for f in BusinessLogicScanner().scan(_ctx([ep], MoneyReflectHttp()))]
+    tamper = [f for f in findings if f.vuln_type == "parameter-tampering"]
+    assert len(tamper) == 1
+    assert tamper[0].severity == Severity.HIGH       # money reflected -> real financial impact
+    assert tamper[0].confidence == Confidence.FIRM
+    assert "reflected money" in (tamper[0].evidence.notes or "")
 
 
 async def test_scanner_no_tampering_when_endpoint_accepts_garbage() -> None:
