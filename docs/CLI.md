@@ -63,6 +63,7 @@ Commands:
   runbook           Consolidated remediation runbook - the few fixes that...
   scan              Run the full pipeline: recon -> scan -> exploit ->...
   scans             List previous scans (id, status, phase, findings) for...
+  scope-report      Write a personalised pre-engagement briefing from a...
   serve             Run the ORTHRUS REST API (scans/findings +...
   submission        Record or update a bug-bounty submission (status,...
   submissions       List tracked submissions and roll up earnings.
@@ -74,7 +75,7 @@ Commands:
   update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
 
 ## `orthrus agent`
 
@@ -1235,6 +1236,27 @@ Options:
   --limit INTEGER     Maximum number of scans to list.
   -v, --verbose TEXT  Log level.
   --help              Show this message and exit.
+```
+
+## `orthrus scope-report`
+
+```text
+Usage: orthrus scope-report [OPTIONS] SCOPE_CSV
+
+  Write a personalised pre-engagement briefing from a program's scope export.
+
+  Parses a HackerOne scope CSV
+  (identifier/asset_type/instruction/eligibility/CIA/ max-severity) and
+  renders a Markdown briefing: in/out-of-scope assets, the components to test,
+  availability, the severity + CIA bar, and a suggested ORTHRUS testing focus
+  mapped from the scope's own language. Reads the scope only - no requests are
+  sent to any target.
+
+Options:
+  --program TEXT     Program name for the briefing title (default: primary in-
+                     scope host).
+  -o, --output TEXT  Write the Markdown briefing here (default: stdout).
+  --help             Show this message and exit.
 ```
 
 ## `orthrus serve`
