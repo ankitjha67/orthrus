@@ -61,6 +61,16 @@ EVIDENCE_KINDS = (
     "request", "response", "screenshot", "dom_snapshot", "har", "video", "log",
     "network_trace", "replay_bundle", "oast_callback",
 )
+# team-mode roles, most-privileged first (PRD §9 team & collaboration).
+# owner: manage the program + its members; member: read + write findings/notes/assets;
+# viewer: read-only. Enforced at the API boundary; higher role implies the lower ones.
+TEAM_ROLES = ("owner", "member", "viewer")
+_ROLE_RANK = {"owner": 3, "member": 2, "viewer": 1}
+
+
+def role_allows(role: str | None, minimum: str) -> bool:
+    """True if ``role`` meets or exceeds ``minimum`` in the privilege order."""
+    return _ROLE_RANK.get(role or "", 0) >= _ROLE_RANK.get(minimum, 99)
 
 
 def _utcnow() -> datetime:
@@ -383,6 +393,49 @@ class Note(Base):
     created_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
 
 
+class User(Base):
+    """A team member who operates programs (PRD §9 team & collaboration).
+
+    Identified by email; authenticates to the REST API with a bearer key whose
+    SHA-256 hash is stored here (never the raw key). Program access is granted per
+    program via :class:`Membership`, so one user can be owner of one program and a
+    viewer of another.
+    """
+
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    api_key_hash: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)  # cross-program superuser
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    memberships: Mapped[list[Membership]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class Membership(Base):
+    """A user's role on one program (PRD §9). Unique per (program, user)."""
+
+    __tablename__ = "memberships"
+    __table_args__ = (UniqueConstraint("program_id", "user_id", name="uq_membership"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=new_id)
+    program_id: Mapped[str] = mapped_column(
+        ForeignKey("programs.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    role: Mapped[str] = mapped_column(String(16), default="viewer")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
+
+    user: Mapped[User] = relationship(back_populates="memberships")
+
+
 class CostLedgerRow(Base):
     """One spend line — LLM/STT/OAST/compute/API (PRD §6.1/§10)."""
 
@@ -413,6 +466,8 @@ __all__ = [
     "AuditLogRow",
     "CostLedgerRow",
     "Note",
+    "User",
+    "Membership",
     "PLATFORMS",
     "SCOPE_ENTRY_TYPES",
     "SCOPE_KINDS",
@@ -422,5 +477,7 @@ __all__ = [
     "FINDING_CONFIDENCES",
     "CHAIN_RELATIONSHIPS",
     "EVIDENCE_KINDS",
+    "TEAM_ROLES",
+    "role_allows",
     "new_id",
 ]
