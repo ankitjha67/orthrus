@@ -30,3 +30,13 @@ def test_program_scan_no_assets_is_clean_noop(tmp_path, monkeypatch):
     r = CliRunner().invoke(main.cli, ["--no-banner", "program-scan", "--program", "lab"])
     assert r.exit_code == 0, r.output
     assert "no live in-scope assets" in r.output   # nothing scanned, no network
+
+
+def test_is_ip_or_cidr_routing():
+    # IP/CIDR scope entries must be recognised so program-scan routes them to
+    # ip_ranges (the scope-enforced client checks IP targets against ip_ranges,
+    # not domains) - otherwise an IP/CIDR-scoped program scans nothing.
+    for ip in ("127.0.0.1", "10.0.0.5", "192.168.1.0/24", "2001:db8::1", "::1"):
+        assert main._is_ip_or_cidr(ip) is True
+    for host in ("example.com", "api.acme.com", "*.acme.com", "", "not-an-ip"):
+        assert main._is_ip_or_cidr(host) is False
