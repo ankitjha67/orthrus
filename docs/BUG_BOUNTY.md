@@ -191,6 +191,24 @@ orthrus program-findings --program acme --status new
 | `orthrus plan --program NAME` | A priority-ranked, grounded to-do list of the exact next commands to run. |
 | `orthrus program-findings --program NAME` | The operator-graph triage queue (filter `--status`), priority-first. |
 
+### Team mode
+
+For a shared, multi-operator deployment, run the platform behind Postgres with the
+API + cockpit image and grant per-program roles (owner/member/viewer):
+
+```bash
+ORTHRUS_API_TOKEN=$(openssl rand -hex 24) \
+  docker compose -f docker/docker-compose.operator.yml up -d --build
+
+# seed the first admin (implicit owner everywhere), then grant teammates
+orthrus team add-user you@org.test --admin --with-key
+orthrus team grant --program acme --user teammate@org.test --role member
+```
+
+RBAC engages once `ORTHRUS_API_TOKEN` is set: mutations need the shared token **or**
+a sufficient per-user API key (managing members needs `owner`, reading needs `viewer`).
+With no token and no members, a program stays single-user, exactly as before.
+
 ## Notes
 
 - **Reduce triager noise:** submit `--min-confidence confirmed` first — those come

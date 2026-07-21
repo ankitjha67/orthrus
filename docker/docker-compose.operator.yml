@@ -1,0 +1,65 @@
+# ORTHRUS v2.0 operator platform (PRD §9) — API + cockpit over Postgres.
+#
+#   ORTHRUS_API_TOKEN=$(openssl rand -hex 24) \
+#     docker compose -f docker/docker-compose.operator.yml up -d --build
+#
+# Then open http://localhost:8000/cockpit and seed the first team owner:
+#   docker compose -f docker/docker-compose.operator.yml exec api \
+#     orthrus team add-user you@org.test --admin --with-key
+#
+# Team RBAC engages once ORTHRUS_API_TOKEN is set: mutations need the shared token
+# OR a sufficient per-user API key (owner to manage members, viewer to read).
+# Leave the token empty for a trusted single-user deployment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: orthrus
+      POSTGRES_USER: orthrus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orthrus}
+    volumes:
+      - orthrus-operator-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orthrus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # one-shot: bring the graph schema to head (Alembic) before the API starts.
+  migrate:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.operator
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment: &operator-env
+      ORTHRUS_DB_URL: postgresql+asyncpg://orthrus:${POSTGRES_PASSWORD:-orthrus}@postgres:5432/orthrus
+      ORTHRUS_API_TOKEN: ${ORTHRUS_API_TOKEN:-}
+      ORTHRUS_DATA_DIR: /data
+    volumes:
+      - orthrus-operator-data:/data
+    entrypoint: ["alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.operator
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment: *operator-env
+    ports:
+      - "${ORTHRUS_BIND:-127.0.0.1:8000}:8000"
+    volumes:
+      - orthrus-operator-data:/data
+    restart: unless-stopped
+
+volumes:
+  orthrus-operator-pgdata:
+  orthrus-operator-data:
