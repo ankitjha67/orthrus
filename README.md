@@ -40,14 +40,14 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1259-test / lint-clean quality gates.
+1313-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
 reproducible in one command via [`demo.sh`](demo.sh).
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) - the granular,
-implemented-system PRD: every subsystem (59 scanners, 19 confirmers, 18 recon
+implemented-system PRD: every subsystem (59 scanners, 28 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -633,7 +633,7 @@ orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    59 scanners + base interface + registry
-  exploits/    19 confirmation modules + base interface + registry
+  exploits/    28 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei/dalfox/slither/checkov/semgrep, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
   iac/         Infrastructure-as-Code misconfig analyzer (Dockerfile/compose/Terraform)
