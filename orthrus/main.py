@@ -4136,6 +4136,109 @@ def import_traffic(export_file, program_name, fmt, in_scope, authorization,
         console.print(f"[orthrus.muted]{result.skipped_no_host} request(s) had no host.[/]")
 
 
+@cli.command(name="import-findings")
+@click.argument("findings_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--program", "program_name", required=True, help="Operator-graph program to import into.")
+@click.option("--format", "fmt", type=click.Choice(
+                  ["auto", "sarif", "burp", "caido", "orthrus", "generic", "csv"]),
+              default="auto", show_default=True, help="Findings export format.")
+@click.option("--in-scope", "in_scope", multiple=True,
+              help="In-scope domain(s); creates the program if new, else adds to its scope.")
+@click.option("--authorization", default=None,
+              help="Authorization source (required to create a new program).")
+@click.option("--no-scope-filter", is_flag=True,
+              help="Import findings for every host, even out-of-scope (default: refuse out-of-scope).")
+@click.option("--json", "as_json", is_flag=True, help="Emit the import result as JSON.")
+def import_findings(findings_file, program_name, fmt, in_scope, authorization,
+                    no_scope_filter, as_json) -> None:
+    """Import findings from Caido / Burp / SARIF / ORTHRUS-JSON / generic into a program (PRD §7.12).
+
+    Folds a tool's flagged findings (not just traffic) into the program's deduped,
+    priority-ranked ProgramFinding queue - so a manual Caido/Burp session, a semgrep
+    SARIF, or any findings JSON lands where the cockpit and triage see it.
+    """
+    _ensure_utf8_output()
+    from pathlib import Path
+
+    from orthrus.bounty.scope_intake import ProgramScope
+    from orthrus.bridges.burp import UnsafeXmlError
+    from orthrus.bridges.findings_import import PARSERS, detect_findings_format, fold_findings
+    from orthrus.model.store import ProgramGraph
+
+    text = Path(findings_file).read_text(encoding="utf-8", errors="replace")
+    fmt = detect_findings_format(text, findings_file) if fmt == "auto" else fmt
+    try:
+        findings = PARSERS[fmt](text)
+    except UnsafeXmlError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if not findings:
+        raise click.ClickException(
+            f"no findings parsed from {findings_file} as '{fmt}' - check --format.")
+
+    settings = get_settings()
+
+    async def _run():
+        graph = ProgramGraph(settings.db_url)
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                if not authorization:
+                    raise click.UsageError(
+                        f"program '{program_name}' not found - pass --authorization "
+                        "(and --in-scope) to create it.")
+                platform = "self" if (authorization or "").strip() == "self-owned-lab" else "direct"
+                program = await graph.create_program(program_name, authorization, platform=platform)
+                await graph.append_audit("program-created", "create", subject_type="program",
+                                         subject_id=program.id,
+                                         details={"name": program_name, "via": "import-findings"})
+            existing = {se.value for se in await graph.scope_entries(program.id)}
+            for d in in_scope:
+                if d.strip() and d.strip() not in existing:
+                    await graph.add_scope_entry(program.id, d.strip(), entry_type="in",
+                                                kind="domain", added_by="import-findings")
+
+            entries = await graph.scope_entries(program.id)
+            predicate = None
+            if not no_scope_filter:
+                scope = ProgramScope(
+                    domains=[se.value for se in entries
+                             if se.entry_type == "in" and se.kind in ("domain", "wildcard")],
+                    ip_ranges=[se.value for se in entries
+                               if se.entry_type == "in" and se.kind in ("cidr", "ip")],
+                    out_of_scope=[se.value for se in entries if se.entry_type == "out"],
+                )
+                if scope.domains or scope.ip_ranges:
+                    predicate = scope.is_in_scope
+
+            result = await fold_findings(graph, program.id, findings, source=f"import:{fmt}",
+                                         in_scope=predicate)
+            await graph.append_audit(
+                "findings-imported", "import", subject_type="program", subject_id=program.id,
+                details={"format": fmt, "file": Path(findings_file).name, "total": result.total,
+                         "new": result.new, "skipped_out_of_scope": result.skipped_out_of_scope})
+            return program, result
+        finally:
+            await graph.close()
+
+    _program, result = asyncio.run(_run())
+    if as_json:
+        click.echo(json.dumps({
+            "format": fmt, "total": result.total, "new": result.new, "seen": result.seen,
+            "skipped_out_of_scope": result.skipped_out_of_scope,
+        }, indent=2))
+        return
+    section(console, f"IMPORT-FINDINGS · {program_name}")
+    console.print(f"[orthrus.muted]{result.total} finding(s) from {Path(findings_file).name} "
+                  f"as '{fmt}'[/]")
+    console.print(f"promoted [bold]✚{result.new}[/] new finding(s) into the graph "
+                  f"({result.seen} already seen).")
+    if result.skipped_out_of_scope:
+        console.print(f"[orthrus.muted]⊘ {result.skipped_out_of_scope} finding(s) refused "
+                      f"(out of scope) - use --no-scope-filter to include them.[/]")
+    console.print(f"[orthrus.muted]see `orthrus program-findings --program {program_name}`.[/]")
+
+
 @cli.command(name="program-scan")
 @click.option("--program", "program_name", required=True, help="Operator-graph program to scan.")
 @click.option("--min-confidence", type=click.Choice(["confirmed", "firm", "tentative"]),

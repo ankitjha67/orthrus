@@ -97,6 +97,15 @@ Or export from Burp/Caido and import the file (Path B, step 3):
 - **Caido:** export the request list as JSON.
 - **Browser only:** DevTools > Network > *Save all as HAR*.
 
+Already flagged **findings** in your tool? Import those directly (not just traffic) -
+Caido Findings JSON, Burp scanner-issues XML, SARIF (semgrep/codeql), an ORTHRUS
+`findings.json`, or a generic JSON/CSV list:
+```powershell
+orthrus import-findings caido-findings.json --program 1win    # --format auto-detects
+orthrus import-findings semgrep.sarif        --program 1win
+```
+They land in the same deduped, priority-ranked queue (`orthrus program-findings`).
+
 ### Path C - you already have a `findings.json` or a scan DB
 Use them directly (steps 4-6).
 
@@ -184,7 +193,8 @@ orthrus bounty-status                   # one-view cockpit
 | Goal | Command |
 |---|---|
 | Scope briefing from the CSV | `orthrus scope-report scope.csv -o brief.md` |
-| Import Burp/Caido/HAR | `orthrus import-traffic FILE --program 1win` |
+| Import traffic (Burp/Caido/HAR) | `orthrus import-traffic FILE --program 1win` |
+| Import findings (Caido/Burp/SARIF/JSON) | `orthrus import-findings FILE --program 1win` |
 | Scan + promote + correlate | `orthrus program-scan --program 1win` |
 | Triage queue | `orthrus program-findings --program 1win` |
 | Attack chains | `orthrus program-chains --program 1win` |
