@@ -96,6 +96,25 @@ class MemberAdd(BaseModel):
     role: str = "viewer"
 
 
+class ReplayRequest(BaseModel):
+    raw_request: str            # a raw HTTP request (Burp-style paste)
+    scope: str                  # authorized scope token(s); deny-by-default
+    scheme: str = "https"
+    follow_redirects: bool = False
+
+
+class IntruderRequest(BaseModel):
+    raw_request: str            # raw request with §positions§ marked
+    payloads: list[list[str]]   # one list per payload set
+    mode: str = "sniper"
+    scope: str
+    match: str | None = None
+    url_encode: bool = False
+    scheme: str = "https"
+    concurrency: int = 10
+    max_requests: int = 5000
+
+
 # --------------------------------------------------------------- serialization
 def _dt(value) -> str | None:
     return value.isoformat() if value else None
@@ -462,6 +481,66 @@ async def correlate_chains(request: Request, program_id: str) -> dict[str, Any]:
     from orthrus.model.chains import correlate_program_chains
     created = await correlate_program_chains(_graph(request), program_id)
     return {"created": len(created), "chains": [chain_dict(c) for c in created]}
+
+
+# ---------------------------------------------------------- tools (workbench)
+def _validator_from_scope(scope_str: str):
+    """Build a deny-by-default ScopeValidator from a comma-separated scope string."""
+    import ipaddress
+
+    from orthrus.core.config import ScopeConfig
+    from orthrus.utils.scope import ScopeValidator
+    domains: list[str] = []
+    ips: list[str] = []
+    for tok in (scope_str or "").split(","):
+        tok = tok.strip()
+        if not tok:
+            continue
+        try:
+            ipaddress.ip_network(tok, strict=False)
+            ips.append(tok if "/" in tok else f"{tok}/32")
+        except ValueError:
+            domains.append(tok)
+    sc = ScopeConfig(domains=domains, ip_ranges=ips)
+    sc.block_third_party = True
+    return ScopeValidator(sc)
+
+
+@router.post("/tools/replay", dependencies=[Depends(require_write)])
+async def tool_replay(body: ReplayRequest) -> dict[str, Any]:
+    """Repeater: resend a raw request, scope-enforced; return the response."""
+    from orthrus.proxy.replay import parse_raw_http
+    from orthrus.proxy.replay import replay as do_replay
+    try:
+        spec = parse_raw_http(body.raw_request, default_scheme=body.scheme)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    res = await do_replay(spec, _validator_from_scope(body.scope),
+                          follow_redirects=body.follow_redirects)
+    return {
+        "method": res.method, "url": res.url, "status": res.status, "reason": res.reason,
+        "headers": res.headers, "body": res.body[:200_000], "elapsed_ms": res.elapsed_ms,
+        "error": res.error,
+    }
+
+
+@router.post("/tools/intruder", dependencies=[Depends(require_write)])
+async def tool_intruder(body: IntruderRequest) -> dict[str, Any]:
+    """Intruder: fuzz a request's §positions§; return ranked results."""
+    from orthrus.proxy.intruder import run_intruder
+    try:
+        report = await run_intruder(
+            body.raw_request, body.payloads, body.mode, _validator_from_scope(body.scope),
+            match=body.match, url_encode=body.url_encode, scheme=body.scheme,
+            concurrency=body.concurrency, max_requests=body.max_requests)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {
+        "mode": report.mode, "total": report.total, "baseline": report.baseline,
+        "results": [{"payloads": r.payloads, "status": r.status, "length": r.length,
+                     "elapsed_ms": r.elapsed_ms, "matched": r.matched,
+                     "anomaly": r.anomaly, "error": r.error} for r in report.results],
+    }
 
 
 # ----------------------------------------------------------------- team / RBAC

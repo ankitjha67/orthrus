@@ -5,14 +5,16 @@ import Assets from "./tabs/Assets";
 import Findings from "./tabs/Findings";
 import Reports from "./tabs/Reports";
 import Copilot from "./tabs/Copilot";
+import Workbench from "./tabs/Workbench";
 
-type Tab = "programs" | "assets" | "findings" | "reports" | "copilot";
+type Tab = "programs" | "assets" | "findings" | "reports" | "copilot" | "workbench";
 const TABS: { id: Tab; label: string }[] = [
   { id: "programs", label: "Programs" },
   { id: "assets", label: "Assets" },
   { id: "findings", label: "Findings" },
   { id: "reports", label: "Reports" },
   { id: "copilot", label: "Copilot" },
+  { id: "workbench", label: "Workbench" },
 ];
 
 export default function App() {
@@ -91,6 +93,7 @@ export default function App() {
         {tab === "findings" && <Findings program={current} />}
         {tab === "reports" && <Reports program={current} />}
         {tab === "copilot" && <Copilot program={current} />}
+        {tab === "workbench" && <Workbench program={current} />}
       </main>
     </div>
   );

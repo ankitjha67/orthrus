@@ -128,3 +128,30 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .statlabel { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.4px; }
 .badge-lab { color: #3ecf6b; }
 h2 { font-size: 15px; margin: 0 0 12px; }
+
+/* --- Workbench (Repeater + Intruder) ------------------------------------- */
+.panel { display: flex; flex-direction: column; gap: 14px; }
+.subtabs { display: flex; gap: 8px; }
+.chip { background: var(--elevated); color: var(--muted); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 13px; }
+.chip.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.wb { display: flex; flex-direction: column; gap: 12px; }
+.wb .raw { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 12px;
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px; resize: vertical; }
+.wb .raw.sm { max-width: 340px; }
+.wb .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.wb .in { background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 6px; padding: 7px 10px; font-size: 13px; }
+.wb .lbl { color: var(--faint); font-size: 12px; align-self: flex-start; padding-top: 8px; }
+.wb .resp { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; overflow-x: auto; }
+.wb .respline { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.wb .body { font-family: ui-monospace, monospace; font-size: 12px; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; max-height: 420px; overflow: auto; margin: 0; }
+.wb .err { color: var(--sev-critical); font-size: 13px; }
+.wb .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.wb .tbl th { text-align: left; color: var(--faint); border-bottom: 1px solid var(--border); padding: 6px 8px; }
+.wb .tbl td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.wb .tbl tr.hit td { background: rgba(224, 18, 18, 0.14); }
+.wb .tbl tr.anom td { background: var(--elevated); }
