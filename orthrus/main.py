@@ -3714,6 +3714,21 @@ def _apex(value: str) -> str:
     return (value or "").strip().lstrip("*.").lower().rstrip(".")
 
 
+def _is_ip_or_cidr(value: str) -> bool:
+    """True if the string is an IP literal or a CIDR range (vs. a hostname)."""
+    import ipaddress
+    val = (value or "").strip()
+    try:
+        ipaddress.ip_network(val, strict=False)
+        return True
+    except ValueError:
+        try:
+            ipaddress.ip_address(val)
+            return True
+        except ValueError:
+            return False
+
+
 @cli.command(name="recon-run")
 @click.option("--program", "program_name", required=True, help="Operator-graph program to recon.")
 @click.option("--in-scope", "in_scope", multiple=True,
@@ -4030,10 +4045,25 @@ def program_scan(program_name, min_confidence, max_assets, aggressive) -> None:
             seeds = seeds[:max_assets]
             if not seeds:
                 return program, None, {"seen": 0, "new": 0, "duplicate": 0}, 0, 0
-            domains = sorted({_apex(se.value) for se in await graph.scope_entries(program.id)
-                              if se.entry_type == "in" and se.kind == "domain" and _apex(se.value)})
-            scope = ProgramScope(seeds=seeds, domains=domains or [
-                h for s in seeds if (h := urlsplit(s).hostname)])
+            in_entries = [se for se in await graph.scope_entries(program.id)
+                          if se.entry_type == "in"]
+            # route IP-literal / CIDR scope entries to ip_ranges; hostnames to domains,
+            # so an IP- or CIDR-scoped program (internal pentest, loopback lab) is
+            # allowed by the scope-enforced client (which checks IPs against ip_ranges).
+            domains, ip_ranges = [], []
+            for se in in_entries:
+                val = (se.value or "").strip()
+                if not val:
+                    continue
+                if se.kind == "ip_cidr" or _is_ip_or_cidr(val):
+                    ip_ranges.append(val if "/" in val else f"{val}/32")
+                elif se.kind == "domain" and _apex(val):
+                    domains.append(_apex(val))
+            domains = sorted(set(domains))
+            ip_ranges = sorted(set(ip_ranges))
+            if not domains and not ip_ranges:
+                domains = [h for s in seeds if (h := urlsplit(s).hostname)]
+            scope = ProgramScope(seeds=seeds, domains=domains, ip_ranges=ip_ranges)
             run_row = await graph.start_scan_run(
                 program.id, triggered_by="manual",
                 config={"seeds": len(seeds), "min_confidence": min_confidence})
