@@ -16,12 +16,14 @@ import httpx
 from orthrus.core import schemas
 from orthrus.core.context import ScanContext
 from orthrus.recon.base import BaseRecon
+from orthrus.recon.permutation import permutations, sub_labels
 from orthrus.utils.logger import get_logger
 
 logger = get_logger("recon.subdomain")
 
 CRTSH = "https://crt.sh/"
 MAX_BRUTE = 60
+MAX_PERMUTATIONS = 150  # altdns-style mutations of CT-discovered labels
 
 SUB_WORDLIST = [
     "www", "api", "dev", "staging", "stage", "test", "admin", "mail", "blog",
@@ -102,7 +104,10 @@ class SubdomainEnum(BaseRecon):
     async def _candidates(self, ctx: ScanContext, domain: str) -> list[str]:
         brute = [f"{p}.{domain}" for p in SUB_WORDLIST[:MAX_BRUTE]]
         ct = await self._crtsh(domain)
-        return list(dict.fromkeys([*ct, *brute]))
+        # Widen the surface: mutate the labels CT actually revealed (api -> api-dev,
+        # staging-api, api2, ...) and let the resolver keep the ones that answer.
+        perms = permutations(sub_labels(ct, domain), domain, cap=MAX_PERMUTATIONS)
+        return list(dict.fromkeys([*ct, *brute, *perms]))
 
     async def _crtsh(self, domain: str) -> list[str]:
         try:
