@@ -85,6 +85,17 @@ class CopilotQuery(BaseModel):
     k: int = 5
 
 
+class UserCreate(BaseModel):
+    email: str
+    name: str | None = None
+    is_admin: bool = False
+
+
+class MemberAdd(BaseModel):
+    user_id: str
+    role: str = "viewer"
+
+
 # --------------------------------------------------------------- serialization
 def _dt(value) -> str | None:
     return value.isoformat() if value else None
@@ -139,6 +150,23 @@ def endpoint_dict(e) -> dict[str, Any]:
     }
 
 
+def user_dict(u) -> dict[str, Any]:
+    return {
+        "id": u.id, "email": u.email, "name": u.name, "is_active": u.is_active,
+        "is_admin": u.is_admin, "has_api_key": bool(u.api_key_hash),
+        "created_at": _dt(u.created_at),
+    }
+
+
+def member_dict(m, user=None) -> dict[str, Any]:
+    out = {"id": m.id, "program_id": m.program_id, "user_id": m.user_id,
+           "role": m.role, "created_at": _dt(m.created_at)}
+    if user is not None:
+        out["email"] = user.email
+        out["name"] = user.name
+    return out
+
+
 def finding_dict(f) -> dict[str, Any]:
     return {
         "id": f.id, "vuln_class": f.vuln_class, "title": f.title,
@@ -150,6 +178,11 @@ def finding_dict(f) -> dict[str, Any]:
 
 
 # ------------------------------------------------------------------ auth gate
+def _bearer(request: Request) -> str:
+    header = request.headers.get("authorization", "")
+    return header[7:] if header.startswith("Bearer ") else ""
+
+
 def require_write(request: Request) -> None:
     """Gate mutations behind a bearer token when ORTHRUS_API_TOKEN is configured."""
     token = os.environ.get("ORTHRUS_API_TOKEN")
@@ -157,6 +190,33 @@ def require_write(request: Request) -> None:
         return  # local single-user dev: open
     if request.headers.get("authorization", "") != f"Bearer {token}":
         raise HTTPException(status_code=401, detail="missing or invalid API token")
+
+
+async def _current_user(request: Request):
+    """Resolve the active team user for the presented bearer key, or None."""
+    key = _bearer(request)
+    return await _graph(request).get_user_by_api_key(key) if key else None
+
+
+async def _require_program_role(request: Request, program_id: str, minimum: str):
+    """Owner/member/viewer gate for a program.
+
+    Mirrors ``require_write``: with no ``ORTHRUS_API_TOKEN`` configured the server is
+    in trusted single-user mode and this is open (so the first owner can be seeded).
+    Once a token is configured, the shared token is always accepted (admin/bootstrap
+    + backward compat); otherwise the presented user key must hold at least
+    ``minimum`` on the program."""
+    token = os.environ.get("ORTHRUS_API_TOKEN")
+    if not token:
+        return  # local single-user dev: open (matches require_write)
+    if _bearer(request) == token:
+        return  # shared admin token
+    user = await _current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="a valid user API key is required")
+    if not await _graph(request).user_can(program_id, user.id, minimum):
+        raise HTTPException(
+            status_code=403, detail=f"'{user.email}' lacks '{minimum}' on this program")
 
 
 def _graph(request: Request):
@@ -376,6 +436,78 @@ async def program_plan(request: Request, program_id: str) -> dict[str, Any]:
     actions = await next_actions(_graph(request), program_id, program_name=program.name)
     return {"actions": [{"key": a.key, "priority": a.priority,
                          "reason": a.reason, "command": a.command} for a in actions]}
+
+
+# ----------------------------------------------------------------- team / RBAC
+@router.get("/me")
+async def whoami(request: Request) -> dict[str, Any]:
+    """Resolve the team user for the presented API key (401 if unknown)."""
+    user = await _current_user(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="no user for this API key")
+    return user_dict(user)
+
+
+@router.get("/users", dependencies=[Depends(require_write)])
+async def list_users(request: Request) -> list[dict[str, Any]]:
+    return [user_dict(u) for u in await _graph(request).list_users()]
+
+
+@router.post("/users", status_code=201, dependencies=[Depends(require_write)])
+async def create_user(request: Request, body: UserCreate) -> dict[str, Any]:
+    try:
+        user = await _graph(request).create_user(
+            body.email, name=body.name, is_admin=body.is_admin)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return user_dict(user)
+
+
+@router.post("/users/{user_id}/api-key", dependencies=[Depends(require_write)])
+async def mint_api_key(request: Request, user_id: str) -> dict[str, Any]:
+    """Mint a fresh bearer key — the raw value is returned ONCE and never stored."""
+    key = await _graph(request).generate_api_key(user_id)
+    if key is None:
+        raise HTTPException(status_code=404, detail=f"user '{user_id}' not found")
+    return {"user_id": user_id, "api_key": key}
+
+
+@router.get("/programs/{program_id}/members")
+async def list_members(request: Request, program_id: str) -> list[dict[str, Any]]:
+    await _require_program(request, program_id)
+    await _require_program_role(request, program_id, "viewer")
+    graph = _graph(request)
+    out = []
+    for m in await graph.list_members(program_id):
+        out.append(member_dict(m, await graph.get_user(m.user_id)))
+    return out
+
+
+@router.post("/programs/{program_id}/members", status_code=201)
+async def add_member(request: Request, program_id: str, body: MemberAdd) -> dict[str, Any]:
+    await _require_program(request, program_id)
+    await _require_program_role(request, program_id, "owner")
+    graph = _graph(request)
+    if await graph.get_user(body.user_id) is None:
+        raise HTTPException(status_code=404, detail=f"user '{body.user_id}' not found")
+    try:
+        member = await graph.add_member(program_id, body.user_id, body.role)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await graph.append_audit("member-added", "grant", subject_type="program",
+                             subject_id=program_id,
+                             details={"user_id": body.user_id, "role": body.role})
+    return member_dict(member, await graph.get_user(body.user_id))
+
+
+@router.delete("/programs/{program_id}/members/{user_id}")
+async def remove_member(request: Request, program_id: str, user_id: str) -> dict[str, Any]:
+    await _require_program(request, program_id)
+    await _require_program_role(request, program_id, "owner")
+    removed = await _graph(request).remove_member(program_id, user_id)
+    if not removed:
+        raise HTTPException(status_code=404, detail="membership not found")
+    return {"removed": user_id}
 
 
 # --------------------------------------------------------------------- audit

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import secrets
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
@@ -28,9 +29,11 @@ from orthrus.model.entities import (
     SCAN_RUN_STATUSES,
     SCOPE_ENTRY_TYPES,
     SCOPE_KINDS,
+    TEAM_ROLES,
     AuditLogRow,
     CostLedgerRow,
     Evidence,
+    Membership,
     Note,
     Program,
     ProgramAsset,
@@ -38,7 +41,9 @@ from orthrus.model.entities import (
     ProgramFinding,
     ScanRun,
     ScopeEntry,
+    User,
     _utcnow,
+    role_allows,
 )
 
 
@@ -700,6 +705,134 @@ class ProgramGraph:
             result = await session.execute(delete(Note).where(Note.id == note_id))
             await session.commit()
         return (result.rowcount or 0) > 0
+
+    # --------------------------------------------------------- team / RBAC (§9)
+    @staticmethod
+    def _hash_key(raw_key: str) -> str:
+        return hashlib.sha256((raw_key or "").encode()).hexdigest()
+
+    async def create_user(
+        self, email: str, *, name: str | None = None, is_admin: bool = False,
+    ) -> User:
+        """Create a team member (unique email). Grant program access via add_member."""
+        email = (email or "").strip().lower()
+        if not email or "@" not in email:
+            raise ValueError("a valid email is required")
+        async with self._session() as session:
+            dupe = (await session.execute(
+                select(User).where(User.email == email).limit(1))).scalar_one_or_none()
+            if dupe is not None:
+                raise ValueError(f"user '{email}' already exists")
+            user = User(email=email, name=name, is_admin=is_admin)
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+    async def generate_api_key(self, user_id: str) -> str | None:
+        """Mint a fresh bearer key for a user, store only its hash, return the raw key ONCE."""
+        raw = secrets.token_urlsafe(32)
+        async with self._session() as session:
+            user = await session.get(User, user_id)
+            if user is None:
+                return None
+            user.api_key_hash = self._hash_key(raw)
+            await session.commit()
+        return raw
+
+    async def get_user(self, user_id: str) -> User | None:
+        async with self._session() as session:
+            return await session.get(User, user_id)
+
+    async def get_user_by_email(self, email: str) -> User | None:
+        async with self._session() as session:
+            return (await session.execute(
+                select(User).where(User.email == (email or "").strip().lower()).limit(1)
+            )).scalar_one_or_none()
+
+    async def get_user_by_api_key(self, raw_key: str) -> User | None:
+        """Resolve an active user from a presented bearer key (constant-time-ish by hash)."""
+        if not (raw_key or "").strip():
+            return None
+        async with self._session() as session:
+            user = (await session.execute(
+                select(User).where(User.api_key_hash == self._hash_key(raw_key)).limit(1)
+            )).scalar_one_or_none()
+            return user if (user and user.is_active) else None
+
+    async def list_users(self) -> list[User]:
+        async with self._session() as session:
+            result = await session.execute(select(User).order_by(User.email))
+            return list(result.scalars().all())
+
+    async def set_user_active(self, user_id: str, active: bool) -> User | None:
+        async with self._session() as session:
+            user = await session.get(User, user_id)
+            if user is None:
+                return None
+            user.is_active = active
+            await session.commit()
+            await session.refresh(user)
+            return user
+
+    async def add_member(self, program_id: str, user_id: str, role: str = "viewer") -> Membership:
+        """Grant (or update) a user's role on a program; upserts on (program, user)."""
+        if role not in TEAM_ROLES:
+            raise ValueError(f"role must be one of {TEAM_ROLES}, got {role!r}")
+        async with self._session() as session:
+            existing = (await session.execute(
+                select(Membership).where(
+                    Membership.program_id == program_id,
+                    Membership.user_id == user_id,
+                ).limit(1)
+            )).scalar_one_or_none()
+            if existing is not None:
+                existing.role = role
+                await session.commit()
+                await session.refresh(existing)
+                return existing
+            member = Membership(program_id=program_id, user_id=user_id, role=role)
+            session.add(member)
+            await session.commit()
+            await session.refresh(member)
+            return member
+
+    async def get_membership(self, program_id: str, user_id: str) -> Membership | None:
+        async with self._session() as session:
+            return (await session.execute(
+                select(Membership).where(
+                    Membership.program_id == program_id,
+                    Membership.user_id == user_id,
+                ).limit(1)
+            )).scalar_one_or_none()
+
+    async def list_members(self, program_id: str) -> list[Membership]:
+        async with self._session() as session:
+            result = await session.execute(
+                select(Membership).where(Membership.program_id == program_id)
+                .order_by(Membership.role, Membership.created_at))
+            return list(result.scalars().all())
+
+    async def remove_member(self, program_id: str, user_id: str) -> bool:
+        async with self._session() as session:
+            result = await session.execute(delete(Membership).where(
+                Membership.program_id == program_id, Membership.user_id == user_id))
+            await session.commit()
+        return (result.rowcount or 0) > 0
+
+    async def effective_role(self, program_id: str, user_id: str) -> str | None:
+        """A user's role on a program — platform admins are implicit owners everywhere."""
+        user = await self.get_user(user_id)
+        if user is None or not user.is_active:
+            return None
+        if user.is_admin:
+            return "owner"
+        membership = await self.get_membership(program_id, user_id)
+        return membership.role if membership else None
+
+    async def user_can(self, program_id: str, user_id: str, minimum_role: str) -> bool:
+        """True if the user's effective role on the program meets ``minimum_role``."""
+        return role_allows(await self.effective_role(program_id, user_id), minimum_role)
 
 
 __all__ = ["ProgramGraph"]

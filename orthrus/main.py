@@ -4160,6 +4160,184 @@ def plan_cmd(program_name, as_json) -> None:
         console.print(f"     [orthrus.accent]{a.command}[/]")
 
 
+@cli.group(name="team")
+def team() -> None:
+    """Manage team members + per-program roles on the operator graph (PRD §9).
+
+    Team mode is opt-in: with no members a program behaves single-user as before.
+    Add users, mint their API keys, and grant per-program roles (owner/member/viewer);
+    the REST API then enforces those roles once a program has members.
+    """
+
+
+def _team_graph():
+    from orthrus.model.store import ProgramGraph
+    return ProgramGraph(get_settings().db_url)
+
+
+@team.command(name="add-user")
+@click.argument("email")
+@click.option("--name", default=None, help="Display name.")
+@click.option("--admin", is_flag=True, help="Cross-program superuser (implicit owner everywhere).")
+@click.option("--with-key", is_flag=True, help="Also mint an API key and print it once.")
+def team_add_user(email, name, admin, with_key) -> None:
+    """Create a team USER (by email)."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            user = await graph.create_user(email, name=name, is_admin=admin)
+            key = await graph.generate_api_key(user.id) if with_key else None
+            return user, key
+        finally:
+            await graph.close()
+
+    try:
+        user, key = asyncio.run(_run())
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    section(console, "TEAM · add-user")
+    console.print(f"created [bold]{user.email}[/] (id {user.id})"
+                  + (" · [orthrus.accent]admin[/]" if user.is_admin else ""))
+    if key:
+        console.print(f"API key (shown once): [bold]{key}[/]")
+
+
+@team.command(name="users")
+def team_users() -> None:
+    """List team members."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            return await graph.list_users()
+        finally:
+            await graph.close()
+
+    users = asyncio.run(_run())
+    section(console, "TEAM · users")
+    if not users:
+        console.print("[orthrus.muted]no users yet — add one with `orthrus team add-user`.[/]")
+        return
+    for u in users:
+        flags = " ".join(filter(None, [
+            "admin" if u.is_admin else "", "key" if u.api_key_hash else "",
+            "" if u.is_active else "inactive"]))
+        console.print(f"  {u.email:32} [orthrus.muted]{u.id}[/]  {flags}")
+
+
+@team.command(name="key")
+@click.argument("email")
+def team_key(email) -> None:
+    """Mint a fresh API key for EMAIL (invalidates the previous one)."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            user = await graph.get_user_by_email(email)
+            if user is None:
+                return None
+            return await graph.generate_api_key(user.id)
+        finally:
+            await graph.close()
+
+    key = asyncio.run(_run())
+    if key is None:
+        raise click.ClickException(f"no user '{email}' — add with `orthrus team add-user`.")
+    section(console, "TEAM · key")
+    console.print(f"API key for {email} (shown once): [bold]{key}[/]")
+
+
+@team.command(name="grant")
+@click.option("--program", "program_name", required=True, help="Program to grant access on.")
+@click.option("--user", "email", required=True, help="Member email.")
+@click.option("--role", type=click.Choice(["owner", "member", "viewer"]), default="viewer",
+              show_default=True)
+def team_grant(program_name, email, role) -> None:
+    """Grant (or change) a USER's ROLE on a PROGRAM."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(f"no program '{program_name}'.")
+            user = await graph.get_user_by_email(email)
+            if user is None:
+                raise click.UsageError(f"no user '{email}' — add with `orthrus team add-user`.")
+            await graph.add_member(program.id, user.id, role)
+            await graph.append_audit("member-added", "grant", subject_type="program",
+                                     subject_id=program.id,
+                                     details={"user": email, "role": role, "via": "cli"})
+        finally:
+            await graph.close()
+
+    asyncio.run(_run())
+    section(console, "TEAM · grant")
+    console.print(f"[bold]{email}[/] is now [orthrus.accent]{role}[/] on {program_name}.")
+
+
+@team.command(name="members")
+@click.option("--program", "program_name", required=True, help="Program to list members of.")
+def team_members(program_name) -> None:
+    """List a PROGRAM's members and their roles."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(f"no program '{program_name}'.")
+            members = await graph.list_members(program.id)
+            return [(m.role, (await graph.get_user(m.user_id))) for m in members]
+        finally:
+            await graph.close()
+
+    rows = asyncio.run(_run())
+    section(console, f"TEAM · members · {program_name}")
+    if not rows:
+        console.print("[orthrus.muted]no members — grant with `orthrus team grant`.[/]")
+        return
+    for role, user in rows:
+        console.print(f"  [bold]{role:7}[/] {user.email if user else '(deleted user)'}")
+
+
+@team.command(name="revoke")
+@click.option("--program", "program_name", required=True, help="Program to revoke access on.")
+@click.option("--user", "email", required=True, help="Member email.")
+def team_revoke(program_name, email) -> None:
+    """Revoke a USER's access to a PROGRAM."""
+    _ensure_utf8_output()
+
+    async def _run():
+        graph = _team_graph()
+        try:
+            await graph.init()
+            program = await graph.get_program_by_name(program_name)
+            if program is None:
+                raise click.UsageError(f"no program '{program_name}'.")
+            user = await graph.get_user_by_email(email)
+            if user is None:
+                raise click.UsageError(f"no user '{email}'.")
+            return await graph.remove_member(program.id, user.id)
+        finally:
+            await graph.close()
+
+    removed = asyncio.run(_run())
+    section(console, "TEAM · revoke")
+    console.print(f"{'revoked' if removed else 'no membership for'} {email} on {program_name}.")
+
+
 @cli.command(name="mcp")
 def mcp_cmd() -> None:
     """Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
