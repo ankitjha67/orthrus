@@ -28,7 +28,7 @@ export default function Copilot({ program }: { program: Program | null }) {
       <div className="card">
         <h2>Copilot</h2>
         <p className="muted">
-          Grounded in <b>{program.name}</b>'s own findings and notes — it retrieves and cites,
+          Grounded in <b>{program.name}</b>'s own findings and notes - it retrieves and cites,
           never invents. (LLM synthesis + vendored knowledge land with the embeddings backend.)
         </p>
         <div className="row">
@@ -49,7 +49,7 @@ export default function Copilot({ program }: { program: Program | null }) {
         <div className="card">
           <h2>{hits.length} result(s)</h2>
           {hits.length === 0 ? (
-            <div className="empty">Nothing in your data matches — the copilot won't make something up.</div>
+            <div className="empty">Nothing in your data matches - the copilot won't make something up.</div>
           ) : (
             hits.map((h, i) => (
               <div key={i} style={{ padding: "10px 0", borderBottom: "1px solid var(--border)" }}>

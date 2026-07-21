@@ -4,13 +4,13 @@ Identifies OAuth/OIDC *authorization* endpoints (``/authorize`` and friends, or
 any endpoint carrying ``response_type`` + ``client_id`` + ``redirect_uri``) and
 checks the flow for the classic, high-impact mistakes:
 
-* **Missing ``state``** — no CSRF protection on the authorization request
+* **Missing ``state``** - no CSRF protection on the authorization request
   (authorization-code injection / login CSRF). CWE-352.
-* **Authorization-code flow without PKCE** — ``response_type=code`` with no
+* **Authorization-code flow without PKCE** - ``response_type=code`` with no
   ``code_challenge``; public clients are open to code interception. CWE-287.
-* **Implicit flow** — ``response_type=token``; the access token is exposed in the
+* **Implicit flow** - ``response_type=token``; the access token is exposed in the
   URL fragment (referrer/history/log leakage). CWE-522.
-* **redirect_uri weak validation (active)** — replay the request with a tampered
+* **redirect_uri weak validation (active)** - replay the request with a tampered
   ``redirect_uri`` pointing at an attacker host; if the server 302-redirects
   there, authorization codes / tokens can be exfiltrated. CWE-601 (HIGH).
 
@@ -61,7 +61,7 @@ def oauth_static_issues(params: dict[str, str]) -> list[tuple[Severity, str, str
             Severity.MEDIUM,
             "OAuth authorization request without 'state' (CSRF)",
             "No 'state' parameter is present, so the authorization response is not bound to the "
-            "user's session — enabling login CSRF / authorization-code injection.",
+            "user's session - enabling login CSRF / authorization-code injection.",
             "CWE-352",
         ))
     if "token" in response_type:

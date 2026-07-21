@@ -5,15 +5,15 @@ platform has its own field set and severity language. These renderers shape a bu
 the way HackerOne / Bugcrowd / Intigriti / YesWeHack / Immunefi expect it, so you
 paste it straight into their form:
 
-* **HackerOne** — Weakness (CWE) + severity rating; Summary / Steps / Impact.
-* **Bugcrowd** — Priority **P1–P5** + a VRT hint; Description / Steps / Impact.
-* **Intigriti** — severity tier + type; Description / PoC / Impact / Recommendation.
-* **YesWeHack** — bug type + CVSS; Description / Steps / Impact.
-* **Immunefi** — severity + a reminder that the PoC must be a public gist.
+* **HackerOne** - Weakness (CWE) + severity rating; Summary / Steps / Impact.
+* **Bugcrowd** - Priority **P1-P5** + a VRT hint; Description / Steps / Impact.
+* **Intigriti** - severity tier + type; Description / PoC / Impact / Recommendation.
+* **YesWeHack** - bug type + CVSS; Description / Steps / Impact.
+* **Immunefi** - severity + a reminder that the PoC must be a public gist.
 
 Where a platform uses a taxonomy ORTHRUS can't infer exactly (Bugcrowd VRT,
 Intigriti type), the template gives the CWE and tells you to pick the matching
-category — it never fabricates one.
+category - it never fabricates one.
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ _IMPACT = {
     "high": "A remote attacker can seriously abuse this against users or data.",
     "medium": "Exploitable under realistic conditions with meaningful impact.",
     "low": "Limited impact; still weakens the asset's security posture.",
-    "info": "Informational — a hardening opportunity.",
+    "info": "Informational - a hardening opportunity.",
 }
 
 
@@ -104,13 +104,13 @@ def render(group: BugGroup, *, platform: str = "generic", program_name: str = ""
     body = [f"# {title}", ""]
     if prior_seen > 0:
         runs = "run" if prior_seen == 1 else "runs"
-        body += [f"> ♻ **Seen before** — matches a finding from {prior_seen} earlier {runs}; "
+        body += [f"> ♻ **Seen before** - matches a finding from {prior_seen} earlier {runs}; "
                  "verify it isn't already reported before filing.", ""]
 
     if platform == "hackerone":
         body += [
             prog + f"**Weakness:** {f.cwe or 'n/a'}",
-            f"**Severity:** {sev.capitalize()} — CVSS {_cvss(f)}",
+            f"**Severity:** {sev.capitalize()} - CVSS {_cvss(f)}",
             f"**Asset:** {f.url}{_proof_note(f)}",
             "", "## Summary", f.description or f"A {f.vuln_type} issue on the affected asset.",
             *_affected(group),
@@ -161,13 +161,13 @@ def render(group: BugGroup, *, platform: str = "generic", program_name: str = ""
 
     elif platform == "immunefi":
         body += [
-            prog + f"**Severity:** {sev.capitalize()} — CVSS {_cvss(f)}",
+            prog + f"**Severity:** {sev.capitalize()} - CVSS {_cvss(f)}",
             f"**Vulnerability type:** {f.cwe or 'n/a'}",
             f"**Asset:** {f.url}{_proof_note(f)}",
             "", "## Description", f.description or f"A {f.vuln_type} issue on the affected asset.",
             "", "## Impact", _IMPACT.get(sev, "See summary."),
             "", "## Proof of Concept",
-            "> Immunefi requires the PoC as a **public GitHub gist** — paste the steps below into a "
+            "> Immunefi requires the PoC as a **public GitHub gist** - paste the steps below into a "
             "gist and link it here.", "", *_repro(f),
             "", "## Recommendation", f.remediation or "Apply standard mitigations for this class.",
         ]

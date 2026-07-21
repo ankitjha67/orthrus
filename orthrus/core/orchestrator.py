@@ -137,7 +137,7 @@ class Orchestrator:
                 await browser.start()
                 self.ctx.browser = browser
                 logger.info(
-                    "browser engine ready — XSS/DOM confirmation will execute payloads in a "
+                    "browser engine ready - XSS/DOM confirmation will execute payloads in a "
                     "real headless browser"
                 )
             except Exception:
@@ -145,7 +145,7 @@ class Orchestrator:
         elif self.config.use_browser:
             logger.info(
                 "Playwright not installed ([browser] extra); XSS confirmation falls back to "
-                "reflection heuristics — install with `pip install orthrus-framework[browser] "
+                "reflection heuristics - install with `pip install orthrus-framework[browser] "
                 "&& playwright install chromium` for execution-proven XSS"
             )
 
@@ -288,7 +288,7 @@ class Orchestrator:
         mid-scan.
         """
         result = await self._run_login(http, session)
-        # Never log the credentials or the token value — only the outcome.
+        # Never log the credentials or the token value - only the outcome.
         status_msg = f"status={result.status} token={'set' if result.token_set else 'none'}"
         if result.ok:
             logger.info("authentication succeeded (%s)", status_msg)
@@ -385,7 +385,7 @@ class Orchestrator:
             modules.append(WafDetect())
         if which is None or "api" in which:
             modules.append(ApiDiscovery())
-        # robots.txt / sitemap.xml + /.well-known/ — cheap, high-signal endpoint
+        # robots.txt / sitemap.xml + /.well-known/ - cheap, high-signal endpoint
         # discovery from the target's own advertised surface.
         if which is None or "robots" in which:
             modules.append(RobotsSitemap())
@@ -547,7 +547,7 @@ class Orchestrator:
             vendors = ", ".join(summary["vendors"]) or "a WAF/anti-automation layer"
             logger.warning(
                 "scan reliability degraded: %.0f%% of requests (%d/%d) were blocked by %s "
-                "— some vulnerabilities may have been masked",
+                "- some vulnerabilities may have been masked",
                 summary["block_rate"] * 100,
                 summary["blocked"],
                 summary["total"],
@@ -750,7 +750,7 @@ class Orchestrator:
 
         Computes triage clustering and attack-path correlation over the in-memory
         findings, so every scan ends with "here are the paths an attacker would
-        walk" — not just a flat list — without a separate command or the report.
+        walk" - not just a flat list - without a separate command or the report.
         """
         if self.ctx is None or not self.ctx.findings:
             return
@@ -771,7 +771,7 @@ class Orchestrator:
         section(console, "ATTACK PATHS")
         console.print(
             f"[orthrus.muted]{len(chains)} attacker-walkable path(s) "
-            f"({crit} critical) — prioritise breaking these:[/]\n"
+            f"({crit} critical) - prioritise breaking these:[/]\n"
         )
         for c in chains:
             style = severity_style(c.severity)

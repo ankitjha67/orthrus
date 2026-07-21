@@ -9,7 +9,7 @@ redistribute the code.
 
 ## You may, without asking
 
-- Use the name **ORTHRUS** to refer to this project truthfully — in articles,
+- Use the name **ORTHRUS** to refer to this project truthfully - in articles,
   talks, tutorials, comparisons, package descriptions, and "works with ORTHRUS"
   or "built on ORTHRUS" statements.
 - Fork the repository and keep the name in attribution and history (e.g. "a fork
@@ -21,20 +21,20 @@ redistribute the code.
 
 - Use **ORTHRUS** (or a confusingly similar name) as the name of a **modified**
   distribution, a competing product, or a commercial/hosted service in a way that
-  implies it is the official project or is endorsed by it — e.g. shipping a fork as
+  implies it is the official project or is endorsed by it - e.g. shipping a fork as
   "Enterprise ORTHRUS", "ORTHRUS Pro", or "ORTHRUS Cloud".
 - Use the Marks in a company name, product name, domain name, or logo that could
   cause confusion about the source or official status.
 - Alter the Marks and present the result as the ORTHRUS brand.
 
 If you distribute a **modified** version, please give it your own name and state
-that it is "based on ORTHRUS" — this keeps the ORTHRUS name meaningful for
+that it is "based on ORTHRUS" - this keeps the ORTHRUS name meaningful for
 everyone and avoids confusion about what the upstream project actually ships.
 
 ## Naming a fork
 
 A good pattern: pick your own product name, and describe the lineage in prose.
-✅ "Falkor — a web-app scanner based on ORTHRUS." ✗ "ORTHRUS Enterprise Edition."
+✅ "Falkor - a web-app scanner based on ORTHRUS." ✗ "ORTHRUS Enterprise Edition."
 
 ## Commercial use of the software
 

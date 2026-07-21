@@ -1,8 +1,8 @@
-"""Declarative template schema — a pragmatic subset of the Nuclei format.
+"""Declarative template schema - a pragmatic subset of the Nuclei format.
 
 A template describes one or more HTTP requests plus *matchers* that decide
 whether a response indicates the issue. This lets operators (and the community)
-add detections as data files instead of Python code (PRD §6.1 — extensibility).
+add detections as data files instead of Python code (PRD §6.1 - extensibility).
 
 Supported matcher types: ``word``, ``regex``, ``status``, ``size``. Supported
 extractor types: ``regex``, ``kval``. Nuclei's full DSL/expression matchers are

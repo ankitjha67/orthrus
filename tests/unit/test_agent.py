@@ -1,4 +1,4 @@
-"""Autonomous agent orchestrator (`orthrus agent`) — planner + bounded runner.
+"""Autonomous agent orchestrator (`orthrus agent`) - planner + bounded runner.
 
 The safety-critical property under test: the agent can only ever act through the
 allow-list of registered scanners. A hallucinated/off-list tool is dropped by the
@@ -182,7 +182,7 @@ def test_runner_live_requires_executor():
         pass
 
 
-# --- CLI (dry-run, deterministic — no network) ---------------------------
+# --- CLI (dry-run, deterministic - no network) ---------------------------
 
 def test_cli_agent_dry_run_shows_plan():
     r = CliRunner().invoke(main.cli, [

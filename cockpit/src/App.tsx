@@ -28,7 +28,7 @@ export default function App() {
       setPrograms(ps);
       setSelected((s) => (s && ps.some((p) => p.id === s) ? s : ps[0]?.id ?? null));
     } catch {
-      /* backend offline — surfaced in the Programs tab */
+      /* backend offline - surfaced in the Programs tab */
     }
   }, []);
 

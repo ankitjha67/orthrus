@@ -127,7 +127,7 @@ class WebCacheDeceptionScanner(BaseScanner):
     ) -> str | None:
         """Body of a random bogus path on this host (cached), or None.
 
-        Only treated as a catch-all signal when it returns 200 — a distinct 404
+        Only treated as a catch-all signal when it returns 200 - a distinct 404
         page means the host does not blanket-200, so no suppression is needed.
         """
         netloc = parts.netloc  # type: ignore[attr-defined]

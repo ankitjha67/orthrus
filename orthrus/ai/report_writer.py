@@ -1,15 +1,15 @@
 """Big-Four-grade AI penetration-test report writer.
 
-The report is a **hybrid**: every fact — findings, CVSS, CWE/OWASP/ATT&CK
+The report is a **hybrid**: every fact - findings, CVSS, CWE/OWASP/ATT&CK
 mappings, and the *verbatim recorded evidence* (request/response, exploitation
-proof) — is rendered deterministically from the scan, while a language model
+proof) - is rendered deterministically from the scan, while a language model
 writes the consultant narrative *around* those facts (executive summary,
 per-finding technical description / business impact / likelihood / exploitation
 walkthrough / remediation, attack-chain stories, and a phased remediation
 roadmap).
 
 Because the findings are fixed and the evidence is quoted verbatim, the model
-**cannot invent a vulnerability** — it can only explain and contextualise what
+**cannot invent a vulnerability** - it can only explain and contextualise what
 the tool already proved. Narrative generation is best-effort: if the model is
 unavailable, each section falls back to the deterministic content so the report
 always completes. ``--dry-run`` produces the full scaffold with the evidence and
@@ -37,15 +37,15 @@ _SEV_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
 SYSTEM_PROMPT = (
     "You are a Principal Security Consultant at a Big Four professional-services firm, "
     "authoring a formal penetration-test report for an enterprise client. Write in precise, "
-    "formal, third-person consultant prose — thorough, specific, and evidence-anchored.\n"
+    "formal, third-person consultant prose - thorough, specific, and evidence-anchored.\n"
     "Rules:\n"
     "- Ground every statement ONLY in the facts provided; never invent findings, values, CVEs, "
     "or evidence not present in the input.\n"
-    "- Be comprehensive and detailed — prefer complete, multi-paragraph explanations over "
+    "- Be comprehensive and detailed - prefer complete, multi-paragraph explanations over "
     "terse notes; this is a premium deliverable.\n"
     "- Reference the concrete evidence given (parameters, URLs, payloads, response indicators).\n"
     "- Use formal English; no marketing language, no hedging filler, no meta-commentary.\n"
-    "- Output GitHub-flavoured Markdown for the requested section ONLY — no preamble, no "
+    "- Output GitHub-flavoured Markdown for the requested section ONLY - no preamble, no "
     "'As an AI', no restating the prompt."
 )
 
@@ -59,7 +59,7 @@ def _cell(text: str | None, cap: int = 200) -> str:
     """Clean single-line value for a Markdown table cell (word-boundary elision)."""
     text = " ".join((text or "").split()).replace("|", "/")
     if not text:
-        return "—"
+        return "-"
     return text if len(text) <= cap else text[:cap].rsplit(" ", 1)[0] + " …"
 
 
@@ -81,11 +81,11 @@ def _cover(ctx: dict) -> str:
         (scope.get("domains") or []) + (scope.get("ip_ranges") or [])
     ) or "as authorised for the engagement"
     return (
-        f"# Penetration Test Report — {scan.get('target') or 'Target Application'}\n\n"
-        "**Classification:** CONFIDENTIAL — for the intended recipient only  \n"
+        f"# Penetration Test Report - {scan.get('target') or 'Target Application'}\n\n"
+        "**Classification:** CONFIDENTIAL - for the intended recipient only  \n"
         "**Assessment type:** Automated Dynamic Application Security Testing (DAST) with "
         "exploitation confirmation  \n"
-        f"**Target:** {scan.get('target') or '—'}  \n"
+        f"**Target:** {scan.get('target') or '-'}  \n"
         f"**Authorised scope:** {scope_str}  \n"
         f"**Scan reference:** {scan.get('id')}  \n"
         f"**Report date:** {ctx.get('generated_at')}  \n"
@@ -99,12 +99,12 @@ def _cover(ctx: dict) -> str:
         "### Document Control\n\n"
         "| Version | Date | Status | Author |\n|---|---|---|---|\n"
         f"| 1.0 | {ctx.get('generated_at')} | Draft for review | ORTHRUS Assessment Platform |\n\n"
-        "**Distribution:** the intended recipient(s) only. **Handling:** CONFIDENTIAL — this "
+        "**Distribution:** the intended recipient(s) only. **Handling:** CONFIDENTIAL - this "
         "document contains sensitive security information; store, transmit, and dispose of it "
         "accordingly, and do not redistribute without the issuer's consent.\n\n"
         "> **Basis of report.** Findings are produced by automated scanning and, where marked "
         "*confirmed*, re-proven by non-destructive exploitation. The narrative in this document "
-        "is AI-generated and grounded strictly in the recorded evidence — it explains and "
+        "is AI-generated and grounded strictly in the recorded evidence - it explains and "
         "contextualises findings but does not create them. This deliverable should be reviewed by "
         "a qualified assessor before release to the client.\n"
     )
@@ -115,27 +115,27 @@ def _methodology(ctx: dict) -> str:
     return (
         "## 2. Assessment Scope, Approach & Methodology\n\n"
         "### 2.1 Scope & Timeline\n"
-        f"- **Target under test:** {scan.get('target') or '—'}\n"
-        f"- **Assessment window:** {scan.get('started_at') or '—'} to "
-        f"{scan.get('completed_at') or '—'}\n"
+        f"- **Target under test:** {scan.get('target') or '-'}\n"
+        f"- **Assessment window:** {scan.get('started_at') or '-'} to "
+        f"{scan.get('completed_at') or '-'}\n"
         "- **Rules of engagement:** deny-by-default scope enforcement; every request was validated "
         "against the authorised scope before transmission, and exploitation was non-destructive.\n\n"
         "### 2.2 Methodology\n"
         "The assessment followed a four-phase methodology:\n\n"
-        "1. **Reconnaissance** — crawling, technology fingerprinting, content and parameter "
+        "1. **Reconnaissance** - crawling, technology fingerprinting, content and parameter "
         "discovery, and passive intelligence to enumerate the attack surface.\n"
-        "2. **Vulnerability scanning** — active and passive testing across injection, cross-site "
+        "2. **Vulnerability scanning** - active and passive testing across injection, cross-site "
         "scripting, access control, authentication/session, server-side, configuration/transport, "
         "and API classes.\n"
-        "3. **Exploitation confirmation** — the interesting findings were actively re-proven "
+        "3. **Exploitation confirmation** - the interesting findings were actively re-proven "
         "(canary values, out-of-band callbacks, controlled reads) to distinguish *tentative* from "
         "*demonstrably exploitable* conditions.\n"
-        "4. **Reporting** — findings are CVSS-scored (v3.1 and v4.0), mapped to OWASP, CWE, "
+        "4. **Reporting** - findings are CVSS-scored (v3.1 and v4.0), mapped to OWASP, CWE, "
         "PCI-DSS, NIST CSF, and MITRE ATT&CK / D3FEND, correlated into attack chains, and "
         "documented with evidence.\n\n"
         "### 2.3 Risk-Rating Methodology\n"
         "Each finding carries a CVSS base score and a qualitative severity band "
-        "(Critical ≥ 9.0, High 7.0–8.9, Medium 4.0–6.9, Low 0.1–3.9, Informational 0.0). "
+        "(Critical ≥ 9.0, High 7.0-8.9, Medium 4.0-6.9, Low 0.1-3.9, Informational 0.0). "
         "Severity reflects technical impact and exploitability; the business-impact narrative in "
         "each finding contextualises that rating for the client's environment.\n\n"
         "### 2.4 Limitations\n"
@@ -156,10 +156,10 @@ def _overview(ctx: dict) -> str:
         by_type[f["vuln_type"]] = by_type.get(f["vuln_type"], 0) + 1
     cat_rows = "\n".join(
         f"| `{vt}` | {n} |" for vt, n in sorted(by_type.items(), key=lambda x: -x[1])
-    ) or "| — | 0 |"
+    ) or "| - | 0 |"
     owasp_rows = "\n".join(
         f"| {cat} | {n} |" for cat, n in sorted((summ.get("owasp_counts") or {}).items())
-    ) or "| — | 0 |"
+    ) or "| - | 0 |"
     return (
         "## 3. Findings Overview\n\n"
         "### 3.1 Severity Distribution\n\n"
@@ -172,10 +172,10 @@ def _overview(ctx: dict) -> str:
 
 
 def _finding_metadata(f: dict, index: int) -> str:
-    attack = ", ".join(f"{t['id']} {t['name']}" for t in (f.get("attack") or [])) or "—"
-    d3fend = ", ".join(f"{d['id']} {d['name']}" for d in (f.get("d3fend") or [])) or "—"
-    v3 = f"{f.get('cvss_score')} ({f.get('cvss_vector')})" if f.get("cvss_score") is not None else "—"
-    v4 = f"{f.get('cvss_v4_score')} ({f.get('cvss_v4_vector')})" if f.get("cvss_v4_score") is not None else "—"
+    attack = ", ".join(f"{t['id']} {t['name']}" for t in (f.get("attack") or [])) or "-"
+    d3fend = ", ".join(f"{d['id']} {d['name']}" for d in (f.get("d3fend") or [])) or "-"
+    v3 = f"{f.get('cvss_score')} ({f.get('cvss_vector')})" if f.get("cvss_score") is not None else "-"
+    v4 = f"{f.get('cvss_v4_score')} ({f.get('cvss_v4_vector')})" if f.get("cvss_v4_score") is not None else "-"
     return (
         f"### 4.{index} [{_sev_label(f['severity'])}] {f['title']}\n\n"
         "| Attribute | Value |\n|---|---|\n"
@@ -185,13 +185,13 @@ def _finding_metadata(f: dict, index: int) -> str:
         f"| Confidence | {f.get('confidence')} |\n"
         f"| CVSS v3.1 | {v3} |\n"
         f"| CVSS v4.0 | {v4} |\n"
-        f"| EPSS (exploit probability) | {f.get('epss') if f.get('epss') is not None else '—'} |\n"
-        f"| CWE | {f.get('cwe') or '—'} |\n"
-        f"| OWASP 2021 | {f.get('owasp') or '—'} |\n"
+        f"| EPSS (exploit probability) | {f.get('epss') if f.get('epss') is not None else '-'} |\n"
+        f"| CWE | {f.get('cwe') or '-'} |\n"
+        f"| OWASP 2021 | {f.get('owasp') or '-'} |\n"
         f"| MITRE ATT&CK | {attack} |\n"
         f"| MITRE D3FEND | {d3fend} |\n"
-        f"| Affected URL | {f.get('url') or '—'} |\n"
-        f"| Parameter | {f.get('parameter') or '—'} |\n"
+        f"| Affected URL | {f.get('url') or '-'} |\n"
+        f"| Parameter | {f.get('parameter') or '-'} |\n"
         f"| Detected by | `{f.get('scanner')}` |\n"
     )
 
@@ -210,7 +210,7 @@ def _evidence_block(f: dict) -> str:
     for i, ex in enumerate(f.get("exploitations") or [], 1):
         status = "SUCCEEDED" if ex.get("success") else "attempted"
         parts.append(
-            f"**Exploitation confirmation #{i} — {status}**\n\n"
+            f"**Exploitation confirmation #{i} - {status}**\n\n"
             f"- Technique: `{ex.get('technique')}`\n"
             + (f"- Extracted data: `{_trunc(str(ex.get('extracted_data')), 800)}`\n"
                if ex.get("extracted_data") else "")
@@ -244,23 +244,23 @@ def _compliance(ctx: dict) -> str:
 def _appendices(ctx: dict) -> str:
     return (
         "## 9. Appendices\n\n"
-        "### Appendix A — Assessment Platform\n"
+        "### Appendix A - Assessment Platform\n"
         "Findings were produced by the ORTHRUS automated assessment platform: a scope-enforced, "
         "async DAST engine with 58 vulnerability scanners, 16 reconnaissance modules, and 17 "
         "exploitation-confirmation modules, with CVSS v3.1/v4.0 scoring and multi-framework "
         "compliance mapping.\n\n"
-        "### Appendix B — Severity & Confidence Definitions\n"
-        "- **Confidence — confirmed:** re-proven by active, non-destructive exploitation.\n"
-        "- **Confidence — firm:** strong signal from a reliable detector; not separately re-proven.\n"
-        "- **Confidence — tentative:** indicative signal warranting manual verification.\n\n"
-        "### Appendix C — Glossary\n"
-        "CVSS — Common Vulnerability Scoring System · CWE — Common Weakness Enumeration · "
-        "EPSS — Exploit Prediction Scoring System · OOB — out-of-band.\n"
+        "### Appendix B - Severity & Confidence Definitions\n"
+        "- **Confidence - confirmed:** re-proven by active, non-destructive exploitation.\n"
+        "- **Confidence - firm:** strong signal from a reliable detector; not separately re-proven.\n"
+        "- **Confidence - tentative:** indicative signal warranting manual verification.\n\n"
+        "### Appendix C - Glossary\n"
+        "CVSS - Common Vulnerability Scoring System · CWE - Common Weakness Enumeration · "
+        "EPSS - Exploit Prediction Scoring System · OOB - out-of-band.\n"
     )
 
 
 # --------------------------------------------------------------------------
-# Remediation planning (deterministic heuristics — drive the plan table)
+# Remediation planning (deterministic heuristics - drive the plan table)
 # --------------------------------------------------------------------------
 
 _OWNER_APP = "Application Development"
@@ -297,7 +297,7 @@ _REMEDIATION_OWNER = {
     "dependency-confusion": _OWNER_VULN,
 }
 _REMEDIATION_TIMELINE = {
-    "critical": "Immediate (0–7 days)", "high": "Short-term (≤ 30 days)",
+    "critical": "Immediate (0-7 days)", "high": "Short-term (≤ 30 days)",
     "medium": "Planned (≤ 90 days)", "low": "Next release / backlog", "info": "Backlog",
 }
 
@@ -318,7 +318,7 @@ def _norm_title(title: str) -> str:
 
 def _group_findings(findings: list) -> list:
     """Collapse same-root-cause findings (same vuln type + normalised title) into one
-    grouped finding carrying every affected instance — the way a consultant writes up
+    grouped finding carrying every affected instance - the way a consultant writes up
     'Reflected XSS across 7 parameters' rather than seven separate entries.
     """
     groups: dict = {}
@@ -346,7 +346,7 @@ def _group_findings(findings: list) -> list:
 
 def _affected_table(instances: list) -> str:
     rows = "\n".join(
-        f"| {_sev_label(f['severity'])} | {f.get('parameter') or '—'} | "
+        f"| {_sev_label(f['severity'])} | {f.get('parameter') or '-'} | "
         f"{f.get('confidence')} | {_cell(f.get('url'), 90)} |"
         for f in instances
     )
@@ -376,13 +376,13 @@ def _toc() -> str:
 def _key_findings_table(findings: list) -> str:
     rows = []
     for i, f in enumerate(_sorted_findings(findings), 1):
-        cvss = f.get("cvss_score") if f.get("cvss_score") is not None else "—"
-        loc = f"{f['_group_count']} endpoints" if f.get("_group_count") else (f.get("url") or "—")
+        cvss = f.get("cvss_score") if f.get("cvss_score") is not None else "-"
+        loc = f"{f['_group_count']} endpoints" if f.get("_group_count") else (f.get("url") or "-")
         rows.append(
             f"| 4.{i} | {_sev_label(f['severity'])} | {_cell(f['title'], 70)} | {cvss} | "
             f"{f.get('confidence')} | {_cell(loc, 90)} |"
         )
-    body = "\n".join(rows) or "| — | — | — | — | — | — |"
+    body = "\n".join(rows) or "| - | - | - | - | - | - |"
     return (
         "### 3.4 Key Findings Summary\n\n"
         "Every finding at a glance, cross-referenced to its detail in Section 4.\n\n"
@@ -401,7 +401,7 @@ def _remediation_plan_table(findings: list) -> str:
             f"{_REMEDIATION_EFFORT.get(vt, 'Medium')} | {_REMEDIATION_OWNER.get(vt, _OWNER_APP)} | "
             f"{_REMEDIATION_TIMELINE.get(f['severity'], 'Planned')} |"
         )
-    body = "\n".join(rows) or "| — | — | — | — | — | — |"
+    body = "\n".join(rows) or "| - | - | - | - | - | - |"
     return (
         "### 6.1 Prioritised Remediation Plan\n\n"
         "Each finding is prioritised highest-severity-first, with an indicative remediation "
@@ -417,9 +417,9 @@ def _references(f: dict) -> str:
     if cwe.upper().startswith("CWE-") and cwe[4:].isdigit():
         refs.append(f"- [{cwe}](https://cwe.mitre.org/data/definitions/{cwe[4:]}.html)")
     for t in (f.get("attack") or []):
-        refs.append(f"- MITRE ATT&CK [{t['id']} — {t['name']}]({t.get('url')})")
-    refs.append("- OWASP Top 10 (2021) — https://owasp.org/Top10/")
-    refs.append("- OWASP Cheat Sheet Series — https://cheatsheetseries.owasp.org/")
+        refs.append(f"- MITRE ATT&CK [{t['id']} - {t['name']}]({t.get('url')})")
+    refs.append("- OWASP Top 10 (2021) - https://owasp.org/Top10/")
+    refs.append("- OWASP Cheat Sheet Series - https://cheatsheetseries.owasp.org/")
     return "#### References\n\n" + "\n".join(refs) + "\n"
 
 
@@ -484,12 +484,12 @@ def _finding_prompt(f: dict) -> str:
 def _exec_prompt(ctx: dict) -> str:
     summ = ctx["summary"]
     top = "\n".join(
-        f"- [{_sev_label(f['severity'])}] {f['title']} — {f.get('url')}"
+        f"- [{_sev_label(f['severity'])}] {f['title']} - {f.get('url')}"
         for f in ctx["findings"][:12]
     )
     return (
         "Write the **Executive Summary** (start directly with prose; no heading). Cover, in "
-        "4–8 paragraphs: the overall security posture and an overall risk rating; the business "
+        "4-8 paragraphs: the overall security posture and an overall risk rating; the business "
         "context and what a realistic compromise would mean for the organisation; the most "
         "significant findings (reference them by title and severity); systemic themes or root "
         "causes across findings; and prioritised strategic recommendations. Board-readable but "
@@ -506,9 +506,9 @@ def _roadmap_prompt(ctx: dict) -> str:
     )
     return (
         "Write a **Strategic Remediation Roadmap** as three phased subsections with #### headings: "
-        "'Immediate (0–30 days)', 'Short-term (30–90 days)', and 'Strategic (90+ days)'. Under "
+        "'Immediate (0-30 days)', 'Short-term (30-90 days)', and 'Strategic (90+ days)'. Under "
         "each, list concrete remediation actions grounded in the findings below, with a short "
-        "rationale and the risk each action retires. Order by leverage — fixes that break attack "
+        "rationale and the risk each action retires. Order by leverage - fixes that break attack "
         "chains or clear critical/high findings come first.\n\n"
         f"FINDINGS:\n{lines}"
     )
@@ -518,7 +518,7 @@ def _chain_prompt(chain: dict) -> str:
     steps = " → ".join(f"{s.get('label')} ({s.get('vuln_type')})" for s in (chain.get("steps") or []))
     return (
         "Narrate the following correlated attack chain as a concise, realistic attacker story "
-        "(1–2 paragraphs): how an adversary walks the steps to reach the stated impact, and why "
+        "(1-2 paragraphs): how an adversary walks the steps to reach the stated impact, and why "
         "breaking any single link defeats it.\n\n"
         f"CHAIN: {chain.get('name')} (severity {chain.get('severity')})\n"
         f"STEPS: {steps}\nIMPACT: {chain.get('impact')}"

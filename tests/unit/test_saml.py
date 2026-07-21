@@ -65,7 +65,7 @@ def test_decode_refuses_decompression_bomb():
     deflated = co.compress(bomb_plain) + co.flush()
     assert len(deflated) < 50_000  # a few KB on the wire...
     enc = base64.b64encode(deflated).decode()
-    # ...must NOT inflate to 11 MB in memory — refused outright.
+    # ...must NOT inflate to 11 MB in memory - refused outright.
     assert decode_saml(enc) is None
 
 

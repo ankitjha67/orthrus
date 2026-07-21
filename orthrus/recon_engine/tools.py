@@ -3,7 +3,7 @@
 Wrap best-of-breed subdomain enumerators (subfinder, amass) behind the same
 :class:`ReconAdapter` interface as the pure-Python sources. Each runs the binary
 per in-scope domain, parses its line output into subdomain assets, and self-skips
-when the tool isn't installed — so the operator gets more coverage by installing
+when the tool isn't installed - so the operator gets more coverage by installing
 tools, without any pipeline change. Parsing is pure and unit-tested; the
 subprocess run is the only part that needs the binary.
 """

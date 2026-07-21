@@ -1,11 +1,11 @@
-"""Cost ledger — turn spend transparency from a promise into a receipt (PRD §10).
+"""Cost ledger - turn spend transparency from a promise into a receipt (PRD §10).
 
 An append-only ledger of what an engagement costs: LLM tokens (auto-recorded when
 you use the copilot with a model), and anything else you log (OAST, VPS, API
 quota). ``orthrus cost`` rolls it up by provider/category and per program.
 
 Token cost is a blended estimate (chars/4 ≈ tokens, times a per-model
-USD/1k-token rate) — a guide, not a bill; override rates via ``ORTHRUS_LLM_RATE``.
+USD/1k-token rate) - a guide, not a bill; override rates via ``ORTHRUS_LLM_RATE``.
 Stored as JSON Lines at ``$ORTHRUS_HOME/cost.jsonl``.
 """
 

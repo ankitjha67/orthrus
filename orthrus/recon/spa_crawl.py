@@ -1,9 +1,9 @@
-"""SPA client-side route discovery — deep dynamic recon (PRD §5.2).
+"""SPA client-side route discovery - deep dynamic recon (PRD §5.2).
 
 `browser-crawl` drives the target's entry page so its bootstrap XHR/fetch calls
 are captured. But a modern single-page app (React Router / Angular Router / Vue
 Router) keeps most of its attack surface behind *client-side routes* that never
-trigger a server navigation — ``/#/administration``, ``/orders/42``, lazy-loaded
+trigger a server navigation - ``/#/administration``, ``/orders/42``, lazy-loaded
 feature modules. Each route, once rendered, fires its own route-specific API
 calls. This module enumerates those routes from the rendered DOM (anchor hrefs,
 Angular ``routerLink``, Vue ``to``, ``data-*`` nav hints, hash fragments), then
@@ -94,7 +94,7 @@ class SpaCrawl(BaseRecon):
                 continue
             parts = urlsplit(url)
             # Skip the bare shell page (same path, no client-side route fragment)
-            # — browser-crawl already drove it; only deeper routes are new.
+            # - browser-crawl already drove it; only deeper routes are new.
             if not parts.fragment and (parts.netloc, parts.path or "/") == shell_key:
                 continue
             routes.append(url)

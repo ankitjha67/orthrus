@@ -5,7 +5,7 @@ from __future__ import annotations
 from orthrus.scanners._cloud_metadata import extract_credentials, redact_secret
 from orthrus.scanners.ssrf import detect_metadata_leak
 
-# NOTE: these are deliberately NON-credential placeholders — they only exercise
+# NOTE: these are deliberately NON-credential placeholders - they only exercise
 # the JSON-shape extraction/redaction logic. Real-looking AWS/GCP/Azure token
 # shapes are avoided on purpose so secret scanners don't flag the fixtures.
 _AWS = (
@@ -33,7 +33,7 @@ def test_extract_aws_credentials():
     creds = extract_credentials(_AWS)
     assert creds.provider == "aws"
     assert creds.fields["AccessKeyId"] == "PLACEHOLDER-not-a-real-access-key-id"  # identifier kept
-    # secrets redacted — never stored in full
+    # secrets redacted - never stored in full
     assert "real-secret-access-key" not in creds.fields["SecretAccessKey"]
     assert "chars" in creds.fields["SecretAccessKey"]
     assert "real-session-token" not in creds.fields["Token"] and "chars" in creds.fields["Token"]

@@ -9,18 +9,18 @@
 
 ORTHRUS crawls a target, fingerprints its stack, runs 59 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
-exploitation-confirmation phase — so a report distinguishes "this looks
+exploitation-confirmation phase - so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
 produces JSON / CSV / HTML / PDF / SARIF / Markdown reports with CVSS v3.1 + v4.0
-scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings — and, optionally,
+scoring and OWASP / CWE / PCI-DSS / NIST-CSF / MITRE ATT&CK mappings - and, optionally,
 an [**AI-written consultant report**](#-ai-consultant-report-orthrus-ai-report) (Markdown / HTML / PDF)
 grounded strictly in those findings and their verbatim evidence.
 
 **Run a scan, then explore the results in the built-in dashboard** (`orthrus serve`):
 
-![ORTHRUS dashboard — a completed scan's findings, chipped by severity, with confidence, type, URL and CWE, plus a link to the attack-surface graph](docs/dashboard.png)
+![ORTHRUS dashboard - a completed scan's findings, chipped by severity, with confidence, type, URL and CWE, plus a link to the attack-surface graph](docs/dashboard.png)
 
-![ORTHRUS attack-surface graph — target → host → path → endpoint, force-laid-out from the scan's recon data](docs/surface.png)
+![ORTHRUS attack-surface graph - target → host → path → endpoint, force-laid-out from the scan's recon data](docs/surface.png)
 
 <sub>The dashboard shows findings by severity/confidence/CWE, an interactive **attack-surface graph** (`orthrus surface`), and a **Repeater** for hands-on verification. Prefer the terminal? The full run renders there too:</sub>
 
@@ -31,7 +31,7 @@ grounded strictly in those findings and their verbatim evidence.
 ### Try it in one command
 
 ```bash
-# no clone, no Python setup — pull the image and scan the bundled practice target
+# no clone, no Python setup - pull the image and scan the bundled practice target
 docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope 127.0.0.1
 # or grab a standalone binary (no dependencies) from the Releases page:
 #   https://github.com/ankitjha67/orthrus/releases  →  ./orthrus scan -t … --scope …
@@ -40,28 +40,28 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1065-test / lint-clean quality gates.
+1254-test / lint-clean quality gates.
 
-🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) — a 6-step walkthrough (scan →
+🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
 reproducible in one command via [`demo.sh`](demo.sh).
 
-📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) — the granular,
+📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) - the granular,
 implemented-system PRD: every subsystem (59 scanners, 19 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
 > **Status & positioning.** ORTHRUS is an early (v0.1.0), actively-developed
 > project built as a deep, hands-on exploration of how a modern DAST pipeline
-> fits together end to end. It's an *integrated framework* — recon → scan →
-> exploitation-confirmation → correlation → reporting in one tool — meant to
+> fits together end to end. It's an *integrated framework* - recon → scan →
+> exploitation-confirmation → correlation → reporting in one tool - meant to
 > **complement**, not replace, mature and battle-tested tools like Burp Suite,
 > OWASP ZAP, or nuclei. Verify its findings, and expect rough edges. Bug reports,
 > false-positive reports, and feedback are very welcome.
 
 ---
 
-> ## ⚠️ Legal & Ethical Use — read before running anything
+> ## ⚠️ Legal & Ethical Use - read before running anything
 >
 > **ORTHRUS is an offensive security tool. It sends real attack payloads and, in
 > its confirmation phase, actively attempts to exploit findings.**
@@ -116,7 +116,7 @@ roadmap for advanced scanners & methods.
 
 **Reconnaissance (18 modules)**
 - Scope-aware web crawler, passive technology fingerprinting
-- Headless-browser (dynamic) crawl + SPA client-side route discovery — captures JS-rendered XHR/fetch endpoints
+- Headless-browser (dynamic) crawl + SPA client-side route discovery - captures JS-rendered XHR/fetch endpoints
 - Parameter mining (Arjun-style hidden-parameter discovery)
 - JavaScript analysis (endpoint + secret extraction), **source-map recovery** (recover endpoints from leaked `.map` files), content discovery
 - **robots.txt / sitemap.xml** endpoint discovery (sitemap index + `.gz`) and **`/.well-known/`** probing (security.txt, OpenID/OAuth config → auth endpoints)
@@ -136,9 +136,9 @@ roadmap for advanced scanners & methods.
 | Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks, **RS->HS algorithm confusion** via published JWKS), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)**, **SAML response inspection (unsigned assertion, signature-wrapping, NameID comment-truncation)** |
 | Server-side | SSRF (out-of-band + metadata), **OS command injection (output / time / OOB-callback blind RCE)**, deserialization, prototype pollution (client- & server-side) |
 | Config / transport | Security headers, **CSP weakness analysis**, **mixed-content / insecure-transport refs**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **HTTP misconfig (TRACE/XST, dangerous methods)** |
-| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading + circular-fragment DoS, debug/stack-trace disclosure, **argument injection — introspect the schema, then fuzz mutation/query arguments for SQLi / OS-command / SSTI** — DVGA-grade), WebSocket, **gRPC server-reflection exposure**, **shadow / improper-inventory API (API9)** |
-| Secrets | **Exposed-secret scanner** — AWS/Google/Slack/Stripe/GitHub keys + private-key blocks in responses/JS (redacted) |
-| Supply chain | SCA — known-vulnerable JS libraries (retire.js-style) |
+| Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading + circular-fragment DoS, debug/stack-trace disclosure, **argument injection - introspect the schema, then fuzz mutation/query arguments for SQLi / OS-command / SSTI** - DVGA-grade), WebSocket, **gRPC server-reflection exposure**, **shadow / improper-inventory API (API9)** |
+| Secrets | **Exposed-secret scanner** - AWS/Google/Slack/Stripe/GitHub keys + private-key blocks in responses/JS (redacted) |
+| Supply chain | SCA - known-vulnerable JS libraries (retire.js-style) |
 | Templates | Declarative Nuclei-style YAML/JSON template engine (`--templates`) |
 | Intelligence | CVE matcher (version → known-CVE) **plus** version-less product fingerprinting (WebLogic, Confluence, Jenkins, Solr → known-exploited CVEs), all enriched with CISA KEV + EPSS (`orthrus update`) |
 | AI / LLM | Prompt injection + system-prompt / sensitive-info disclosure (OWASP LLM Top 10) |
@@ -148,16 +148,16 @@ Active injection scanners share a **WAF-evasion encoder library** (URL / double-
 mixed-case / comment-spacing / HTML-entity / unicode); transport-surviving
 variants are tried automatically under `--aggressive`.
 
-**Exploitation confirmation (18 modules)** — re-proves findings to upgrade their
+**Exploitation confirmation (18 modules)** - re-proves findings to upgrade their
 confidence to `confirmed`:
 
-- **Injection** — SQLi, command injection, SSTI, LFI, XXE, **NoSQL** (driver-error replay)
-- **XSS** — browser-executed by default when Playwright is present (window-flag/dialog + screenshot)
-- **Redirect / headers** — open redirect, **CRLF / response splitting** (fresh-nonce header survives), **host-header injection** (a freshly-forged attacker host re-reflected into links/redirects)
-- **Access / objects** — **IDOR** (sequential object enumeration reproduced: adjacent IDs resolve, an implausible ID does not), **mass assignment** (a fresh per-field nonce re-bound into the response object)
-- **Cross-origin / tokens** — **CORS** (arbitrary-origin reflection re-proven with a freshly-minted attacker origin), **JWT** (a weak HMAC secret is recovered and used to forge a validly-signed token — the secret is never emitted)
-- **JS-runtime / DoS** — **server-side prototype pollution** (a fresh `__proto__` sentinel re-persists onto a new object via a clean-before/polluted-after differential), **GraphQL DoS** (query-batching and alias-overloading amplification re-issued and re-observed)
-- **Out-of-band** — SSRF (collaborator callback)
+- **Injection** - SQLi, command injection, SSTI, LFI, XXE, **NoSQL** (driver-error replay)
+- **XSS** - browser-executed by default when Playwright is present (window-flag/dialog + screenshot)
+- **Redirect / headers** - open redirect, **CRLF / response splitting** (fresh-nonce header survives), **host-header injection** (a freshly-forged attacker host re-reflected into links/redirects)
+- **Access / objects** - **IDOR** (sequential object enumeration reproduced: adjacent IDs resolve, an implausible ID does not), **mass assignment** (a fresh per-field nonce re-bound into the response object)
+- **Cross-origin / tokens** - **CORS** (arbitrary-origin reflection re-proven with a freshly-minted attacker origin), **JWT** (a weak HMAC secret is recovered and used to forge a validly-signed token - the secret is never emitted)
+- **JS-runtime / DoS** - **server-side prototype pollution** (a fresh `__proto__` sentinel re-persists onto a new object via a clean-before/polluted-after differential), **GraphQL DoS** (query-batching and alias-overloading amplification re-issued and re-observed)
+- **Out-of-band** - SSRF (collaborator callback)
 
 Confirmation works on query-string **and** POST/JSON body parameters and runs
 **concurrently** (bounded by `concurrency`) so WAN round-trips overlap instead of
@@ -168,9 +168,9 @@ definitively proven by observation (missing security headers, deprecated TLS,
 known-CVE product exposure, banner disclosure, exposed services, request
 smuggling, GraphQL introspection) ship as `firm`/`confirmed` from detection
 itself. A few classes are intentionally **detection-only** because no *safe*,
-generic automated exploit exists — most notably **insecure deserialization**
+generic automated exploit exists - most notably **insecure deserialization**
 (a passive serialized-blob signature; proving RCE needs a target-specific gadget
-chain) — so ORTHRUS reports them rather than inventing a misleading confirmation.
+chain) - so ORTHRUS reports them rather than inventing a misleading confirmation.
 
 **Reporting**
 - Formats: **JSON, CSV, HTML, PDF, SARIF, Markdown, MITRE ATT&CK Navigator layer**
@@ -189,12 +189,20 @@ chain) — so ORTHRUS reports them rather than inventing a misleading confirmati
 **Platform & integrations**
 - **REST API** (`orthrus serve`, FastAPI) with auto Swagger docs at `/docs`, plus a served **web dashboard**
 - **MCP server** (`orthrus mcp`) exposing scans/findings as tools for AI agents
-- **External-tool orchestration** (`--tools nuclei`) — runs best-of-breed CLIs and normalizes their output into ORTHRUS findings
-- **IaC misconfiguration audit** (`orthrus iac`) — Dockerfile / docker-compose / Terraform, fully offline
+- **External-tool orchestration** (`--tools nuclei`) - runs best-of-breed CLIs and normalizes their output into ORTHRUS findings
+- **IaC misconfiguration audit** (`orthrus iac`) - Dockerfile / docker-compose / Terraform, fully offline
+
+**v2.0 operator platform** (a persistent, program-anchored layer over the scan engine)
+- **Operator graph** - programs -> assets -> endpoints -> deduped findings persist across scans, with a hash-chained audit log and cost ledger
+- **Continuous recon** (`orthrus recon-run` / `recon-watch`) - crt.sh/certspotter/DNS/wayback (+ subfinder/amass), wildcard-DNS detection, new-asset diff, Slack/Discord alerts
+- **Scan -> graph** (`orthrus program-scan`) promotes findings into a cross-tool-deduped, priority-ranked triage queue (`orthrus program-findings`)
+- **Traffic bridge** (`orthrus import-traffic`) folds a Burp / Caido / HAR proxy history into the graph (deny-by-default on import); **`orthrus plan`** suggests the grounded next steps
+- **Grounded copilot** + tagged **notes** over your own program data (cites, never invents); multi-domain adapters (`--tools slither,checkov,semgrep`)
+- **Team mode** (`orthrus team`) - per-program roles (owner/member/viewer) + per-user API keys; **cockpit** (React/Tauri) and a Postgres deploy (`docker/docker-compose.operator.yml`). Full guide: **[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md)**
 
 ## 🔁 How it works
 
-ORTHRUS runs a four-phase pipeline. Every network request — in every phase — goes
+ORTHRUS runs a four-phase pipeline. Every network request - in every phase - goes
 through the scope-enforced HTTP client.
 
 ```mermaid
@@ -214,13 +222,13 @@ flowchart LR
     end
 ```
 
-1. **Recon** — discover hosts, endpoints, parameters, and technology.
-2. **Scan** — run the selected scanners against discovered injection points;
+1. **Recon** - discover hosts, endpoints, parameters, and technology.
+2. **Scan** - run the selected scanners against discovered injection points;
    emit findings with a confidence of `tentative`/`firm`.
-3. **Exploit / Confirm** — re-issue a controlled payload (and, for XSS, execute
+3. **Exploit / Confirm** - re-issue a controlled payload (and, for XSS, execute
    it in a real browser; for SSRF, await an out-of-band callback) to upgrade
    proven findings to `confirmed`.
-4. **Report** — render the findings (with CVSS, compliance mappings, and
+4. **Report** - render the findings (with CVSS, compliance mappings, and
    evidence) to your chosen format.
 
 ## 🛡️ Scope enforcement (the safety boundary)
@@ -276,14 +284,14 @@ pip install -e ".[dev]"          # pytest, ruff, mypy
 playwright install chromium
 ```
 
-**Or skip the clone** — run the published container image or a standalone binary:
+**Or skip the clone** - run the published container image or a standalone binary:
 
 ```bash
 # Docker (core + scanners + API/dashboard; no local Python needed)
 docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://TARGET --scope TARGET
 docker run --rm -p 8000:8000 ghcr.io/ankitjha67/orthrus serve --host 0.0.0.0   # dashboard
 
-# Standalone binary (no dependencies) — download from Releases, then:
+# Standalone binary (no dependencies) - download from Releases, then:
 ./orthrus scan -t http://TARGET --scope TARGET
 ```
 
@@ -292,7 +300,7 @@ to each [GitHub release](https://github.com/ankitjha67/orthrus/releases).
 
 > The **jwt** and **tls** scanners need `[scanners]`; **dom-xss** / **stored-xss**
 > and XSS confirmation need `[browser]` + `playwright install chromium`. Each
-> module self-disables cleanly if its extra is missing — the lean core still runs
+> module self-disables cleanly if its extra is missing - the lean core still runs
 > everything else.
 
 ## 💻 Run in VS Code or Google Colab
@@ -300,10 +308,10 @@ to each [GitHub release](https://github.com/ankitjha67/orthrus/releases).
 Prefer a guided, copy-paste setup? Two detailed step-by-step walkthroughs live in
 **[docs/USAGE_VSCODE_COLAB.md](docs/USAGE_VSCODE_COLAB.md)**:
 
-- **VS Code** — virtual-environment setup, recommended extensions, running the
+- **VS Code** - virtual-environment setup, recommended extensions, running the
   bundled practice target, breakpoint debugging (`launch.json`), and the
   test/lint workflow.
-- **Google Colab** — zero local install, all in the browser. Open the
+- **Google Colab** - zero local install, all in the browser. Open the
   ready-to-run notebook and choose **Runtime → Run all**:
   [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
@@ -350,14 +358,14 @@ ORTHRUS's core sub-commands are `recon`, `scan`, `exploit`, and `report`, plus
 post-scan analysis and delivery: `findings` (terminal triage view), `triage`
 (dedup/cluster + optional LLM false-positive judge), `chains` / `graph`
 (correlate findings into attack paths / maximal kill-chains), `runbook`
-(consolidated remediation plan, ordered so the highest-leverage fix — one that
-breaks an attack path — comes first), `finding` (set a finding's status/owner),
+(consolidated remediation plan, ordered so the highest-leverage fix - one that
+breaks an attack path - comes first), `finding` (set a finding's status/owner),
 `notify` (push high-severity findings to Slack / Jira, with `--dry-run`),
 `patch` (generate concrete config/code remediation patches per finding), and
-`ai-report` (a Big-Four-grade consultant report — deterministic evidence + AI
+`ai-report` (a Big-Four-grade consultant report - deterministic evidence + AI
 narrative, via a local or any market LLM).
 Autonomous & posture: `agent` (a bounded LLM planner that sequences the existing
-scope-enforced, non-destructive scanners — no shells, no arbitrary code), `cloud`
+scope-enforced, non-destructive scanners - no shells, no arbitrary code), `cloud`
 (read-only CSPM/IAM posture + toxic-combination analysis), and `proxy` (a
 scope-aware capturing proxy that feeds the scanner from a manual browse).
 Utility commands: `doctor` (environment readiness), `modules` (module inventory),
@@ -367,7 +375,7 @@ API + dashboard), `mcp` (MCP server for AI agents), `iac` (Infrastructure-as-Cod
 audit), and `completion` (shell completion). Run `orthrus --help` for the full
 list.
 
-### `orthrus scan` — the full pipeline
+### `orthrus scan` - the full pipeline
 
 ```bash
 # Explicit engagement scope (wildcard domains + CIDR), exclude sensitive paths
@@ -406,14 +414,14 @@ Common `scan` options: `--modules`, `--aggressive`, `--rate-limit`,
 
 ### Full end-to-end scan of a site you own (recommended workflow)
 
-`orthrus scan` runs all four phases — recon → scan → exploit-confirm → report — in
+`orthrus scan` runs all four phases - recon → scan → exploit-confirm → report - in
 a single command, and writes the report when you pass `-o` + `--format`. With the
 `[browser]` extra installed, DOM/stored-XSS and JS-rendered crawling are included
 automatically. A safe, live-site-friendly flow for **a site you own or are
 explicitly authorized to test**:
 
 ```bash
-# 1) Preview the engagement scope + plan — sends NO traffic
+# 1) Preview the engagement scope + plan - sends NO traffic
 orthrus scan -t https://yoursite.com --scope "yoursite.com,*.yoursite.com" --dry-run
 
 # 2) Run the full pipeline with gentle settings → technical HTML report
@@ -432,7 +440,7 @@ orthrus report --scan-id <id> --format json  -o reports/yoursite     # machine-r
 ```
 
 Tune it for your target:
-- **Deeper testing** (more load — use deliberately, ideally on staging): add
+- **Deeper testing** (more load - use deliberately, ideally on staging): add
   `--aggressive` for time-based blind SQLi/command tests and race-condition probes.
 - **Authenticated areas**: add `--auth-cookie "session=…; csrf=…"` (copy a logged-in
   cookie from your browser's dev tools), or drive a login with `--login-url` and the
@@ -441,10 +449,10 @@ Tune it for your target:
 - **Gate CI**: add `--fail-on high` to exit non-zero when a high-or-worse finding appears.
 
 > Only scan hosts you **own** or hold **written authorization** for, and keep
-> `--scope` tight (deny-by-default — only listed hosts are contacted). On shared
+> `--scope` tight (deny-by-default - only listed hosts are contacted). On shared
 > hosting, check your provider's policy before active scanning.
 
-### `orthrus recon` — reconnaissance only
+### `orthrus recon` - reconnaissance only
 
 ```bash
 # All recon modules (fingerprint, crawl, JS, content, WAF, API, DNS)
@@ -455,7 +463,7 @@ orthrus recon -t https://target.com --scope "*.target.com" \
   --subdomains --wayback --no-content --crawl-depth 5
 ```
 
-### `orthrus report` — render an existing scan
+### `orthrus report` - render an existing scan
 
 ```bash
 # Reports are generated from the stored scan; pick format + template
@@ -471,9 +479,9 @@ orthrus exploit --scan-id scan-abcd1234
 ```
 
 > Note: confirmation runs automatically during `orthrus scan`. Standalone
-> replay-from-DB is not yet implemented — re-run the scan to (re-)confirm.
+> replay-from-DB is not yet implemented - re-run the scan to (re-)confirm.
 
-### `orthrus bounty` — authorized bug-bounty engagements
+### `orthrus bounty` - authorized bug-bounty engagements
 
 Runs a whole engagement from a program's **authorized scope**: enumerate in-scope
 subdomains, scan every asset, confirm what it can, and write submission-ready
@@ -492,12 +500,12 @@ orthrus bounty --program acme --platform hackerone --enumerate -o acme-report/
 Program-anchored, so it carries cross-run intelligence: **new in-scope assets**
 since the last run are flagged, bugs you reported before are marked as likely
 **duplicates**, and per-program **mute rules** drop known noise. Companion
-commands cover the rest of the workflow — `program-policy`, `bounty-assets`,
+commands cover the rest of the workflow - `program-policy`, `bounty-assets`,
 `suppress`/`suppressions`, `submission`/`submissions`, `note`/`notes`, `copilot`
 (RAG over your own data), `cost`, `audit`, `bounty-report` (re-render without
 re-scanning), and `bounty-status` (one-view cockpit). Optional external tools
 fold in via `--tools`, spanning web (nuclei / dalfox / testssl / ffuf / nikto /
-wpscan), code (semgrep), cloud & IaC (checkov), and web3 (slither) — each
+wpscan), code (semgrep), cloud & IaC (checkov), and web3 (slither) - each
 self-skips if its binary is absent. Full guide:
 **[docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md)**.
 
@@ -524,16 +532,16 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
 
 ## 📑 Reporting
 
-- **JSON** — full structured output (every field, evidence, exploitation results).
-- **CSV** — one row per finding (severity, confidence, CVSS, type, URL, parameter,
+- **JSON** - full structured output (every field, evidence, exploitation results).
+- **CSV** - one row per finding (severity, confidence, CVSS, type, URL, parameter,
   param location, CWE, OWASP) for spreadsheets/triage.
-- **HTML** — styled report; `technical` includes raw request/response evidence and
+- **HTML** - styled report; `technical` includes raw request/response evidence and
   screenshots, `executive` is a summary, `compliance` emphasises framework mappings.
-- **PDF** — the HTML report rendered to PDF via headless Chromium (needs `[browser]`).
-- **SARIF** — Static Analysis Results Interchange Format for CI / code-scanning
+- **PDF** - the HTML report rendered to PDF via headless Chromium (needs `[browser]`).
+- **SARIF** - Static Analysis Results Interchange Format for CI / code-scanning
   dashboards (e.g. GitHub code scanning); pair with `--fail-on` to gate a pipeline.
-- **Markdown** — portable plain-text report for tickets, pull requests, and wikis.
-- **ATT&CK Navigator** (`--format navigator`) — a MITRE ATT&CK Navigator layer JSON,
+- **Markdown** - portable plain-text report for tickets, pull requests, and wikis.
+- **ATT&CK Navigator** (`--format navigator`) - a MITRE ATT&CK Navigator layer JSON,
   heat-mapped by finding count; drop it into
   [mitre-attack.github.io/attack-navigator](https://mitre-attack.github.io/attack-navigator/)
   to see the scan on the ATT&CK matrix.
@@ -542,18 +550,18 @@ export ORTHRUS_ENCRYPTION_KEY="$(python -c 'import base64,os;print(base64.b64enc
 
 Turn a scan into a **Big-Four-grade penetration-test deliverable**: every finding,
 CVSS score, and recorded request/response is rendered *verbatim*, and a language
-model writes the consultant narrative around those facts — executive summary,
+model writes the consultant narrative around those facts - executive summary,
 per-finding technical description / business impact / likelihood / exploitation
 walkthrough / remediation, correlated attack-chain stories, and a phased
 remediation roadmap. Because the findings are fixed and the evidence is quoted,
-**the model cannot hallucinate a vulnerability** — it explains and contextualises
+**the model cannot hallucinate a vulnerability** - it explains and contextualises
 only what the scanner already proved.
 
 ```bash
 orthrus ai-report --scan-id <id> -o report.md            # Claude (ANTHROPIC_API_KEY)
 orthrus ai-report --scan-id <id> --format pdf            # client-ready PDF (styled HTML → Chromium)
 orthrus ai-report --scan-id <id> --format html          # self-contained, styled HTML deliverable
-orthrus ai-report --scan-id <id> --llm ollama:llama3.1   # fully local — nothing leaves the host
+orthrus ai-report --scan-id <id> --llm ollama:llama3.1   # fully local - nothing leaves the host
 orthrus ai-report --scan-id <id> --llm openai:gpt-4o     # OpenAI (OPENAI_API_KEY)
 orthrus ai-report --scan-id <id> --dry-run               # full structure + evidence, no model call
 ```
@@ -564,18 +572,18 @@ severity-shaded finding tables); PDF reuses the headless-Chromium pipeline. Mark
 (`--format md`, default) stays available for diffing and pipelines.
 
 **Deduplicated like a consultant would write it.** Findings that share a root
-cause — e.g. reflected XSS across seven parameters, or a cookie missing a flag on
-four responses — collapse into **one** finding with an *affected-instances* table
+cause - e.g. reflected XSS across seven parameters, or a cookie missing a flag on
+four responses - collapse into **one** finding with an *affected-instances* table
 listing every endpoint/parameter, instead of seven near-identical entries
 (`--no-group` to keep them separate). Inherited default CVSS scores are reconciled
 against each finding's own severity, so a low-severity sub-finding never shows a
 critical score.
 
 **Model-agnostic:** Claude, OpenAI, any OpenAI-compatible endpoint (Azure, Groq,
-OpenRouter, vLLM, LM Studio — via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama**
+OpenRouter, vLLM, LM Studio - via `ORTHRUS_LLM_BASE_URL`), or a **local Ollama**
 model so sensitive findings never leave your infrastructure. Credentials and
 cookies in captured evidence are redacted before anything is sent to a remote
-model. The narrative is AI-generated and grounded in the recorded evidence —
+model. The narrative is AI-generated and grounded in the recorded evidence -
 review before client delivery. Slow or cold-starting hosted models can be given
 more headroom with `ORTHRUS_LLM_TIMEOUT` (seconds per call; default 180).
 
@@ -591,7 +599,7 @@ catalogue (Apache-2.0); the IDs are public MITRE facts.
 **Share the terminal view.** `examples/render_report_ui.py` renders any JSON
 report into the themed terminal UI (banner, scope panel, summary, OWASP coverage,
 findings table) and exports an **SVG + HTML** frame (and a **PNG** when the
-`[browser]` extra is installed) — useful for docs, slides, and tickets:
+`[browser]` extra is installed) - useful for docs, slides, and tickets:
 
 ```bash
 orthrus scan -t http://127.0.0.1:8791 -o report.json
@@ -626,17 +634,24 @@ orthrus/
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
   scanners/    59 scanners + base interface + registry
   exploits/    19 confirmation modules + base interface + registry
-  integrations/ external-tool adapters (nuclei, ...) normalized into findings
+  integrations/ external-tool adapters (nuclei/dalfox/slither/checkov/semgrep, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
   iac/         Infrastructure-as-Code misconfig analyzer (Dockerfile/compose/Terraform)
-  api/         FastAPI REST API + web dashboard;  mcp_server.py = MCP server
+  ai/          model-agnostic provider layer + Big-4-grade AI report writer
+  api/         FastAPI REST API + web dashboard + operator-graph routes;  mcp_server.py = MCP server
   reporting/   JSON/CSV/HTML/PDF/SARIF/Markdown generator, CVSS engine, Jinja2 templates
   db/          SQLAlchemy 2.0 models, async store, Alembic migrations
   distributed/ Celery app, tasks, target dispatcher
+  bounty/      authorized bug-bounty engagement runner (scope/authorization/kill-list, triage, platform reports)
+  model/       v2.0 operator graph (programs/assets/endpoints/findings), promotion, planner, copilot, RBAC
+  recon_engine/ v2.0 continuous-recon adapters + engine (crt.sh/certspotter/DNS/wayback, subfinder/amass)
+  bridges/     Burp / Caido / HAR proxy-history import into the operator graph
+  cloud/ agent/ proxy/  cloud posture (CSPM), bounded LLM planner, scope-aware capturing proxy
   utils/       logger, scope validator, rate limiter, encoding
   main.py      Click CLI entry point
-docker/        Dockerfile + docker-compose (app, workers, redis, postgres)
-examples/      render_report_ui.py (report → themed SVG/HTML/PNG) + a sample report
+cockpit/       v2.0 React + Vite + Tauri operator cockpit (served at /cockpit)
+docker/        Dockerfile(s) + docker-compose (scan workers) + docker-compose.operator.yml (API + cockpit + Postgres)
+examples/      render_report_ui.py (report -> themed SVG/HTML/PNG) + a sample report
 docs/          screenshots and supporting images
 tests/         unit tests + a bundled deliberately-vulnerable integration target
 ```
@@ -646,7 +661,7 @@ tests/         unit tests + a bundled deliberately-vulnerable integration target
 Scanners, exploits, recon modules, and reporters are auto-discovered via
 decorators. Drop a module that subclasses the relevant base class and registers
 itself into `ORTHRUS_PLUGINS_DIR` (or the in-tree package) and it joins the
-pipeline — no core changes needed. A new scanner is roughly:
+pipeline - no core changes needed. A new scanner is roughly:
 
 ```python
 from orthrus.scanners.base_scanner import BaseScanner
@@ -698,17 +713,17 @@ research only.**
 
 | Doc | What it covers |
 |---|---|
-| [docs/CLI.md](docs/CLI.md) | Full CLI reference — every command and flag (auto-generated). |
-| [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) | **Bug-bounty mode** (`orthrus bounty`) — scan an authorized program's scope, confirm, and write submission-ready reports. |
-| [docs/COMPARISON.md](docs/COMPARISON.md) | Honest comparison vs ZAP, Nuclei, Burp, w3af, Wapiti, StackHawk — including where ORTHRUS *loses*. |
-| [docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md) | "Your first scanner in 15 minutes" — build a Log4Shell detector from empty file to merged PR. |
+| [docs/CLI.md](docs/CLI.md) | Full CLI reference - every command and flag (auto-generated). |
+| [docs/BUG_BOUNTY.md](docs/BUG_BOUNTY.md) | **Bug-bounty mode** (`orthrus bounty`) - scan an authorized program's scope, confirm, and write submission-ready reports. |
+| [docs/COMPARISON.md](docs/COMPARISON.md) | Honest comparison vs ZAP, Nuclei, Burp, w3af, Wapiti, StackHawk - including where ORTHRUS *loses*. |
+| [docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md) | "Your first scanner in 15 minutes" - build a Log4Shell detector from empty file to merged PR. |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Sequenced roadmap of upcoming technical + adoption work. |
 | [samples/](samples/) | Real reports from a scan of the bundled target (HTML/PDF/JSON/SARIF). |
 | [docs/PRD.md](docs/PRD.md) · [docs/PROOF.md](docs/PROOF.md) | Product spec and proof-of-work. |
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)**
+Issues and pull requests are welcome - see **[CONTRIBUTING.md](CONTRIBUTING.md)**
 for dev setup, the quality gates (`ruff check orthrus tests` + `pytest -q`), and
 **[docs/WRITING_A_SCANNER.md](docs/WRITING_A_SCANNER.md)** for a full walkthrough of
 adding a scanner. Keep changes scope-safe (all network access goes through the
@@ -720,14 +735,14 @@ process in **[SECURITY.md](SECURITY.md)** rather than opening a public issue.
 
 ## 💼 Commercial support
 
-ORTHRUS is MIT-licensed and free to use. Commercial support — priority help,
-custom scanner development, or a managed/hosted deployment — is on the roadmap; the
+ORTHRUS is MIT-licensed and free to use. Commercial support - priority help,
+custom scanner development, or a managed/hosted deployment - is on the roadmap; the
 paid layer and its terms are still being defined.
 
 > **⚑ your call:** decide the model (hosted scan-as-a-service · managed instance ·
 > priority support/SLA · custom scanner development) and drop a contact link here
-> (email or a Cal.com booking). Stating a commercial path — even before it fully
-> exists — is what lets enterprise users adopt an open-source tool. See
+> (email or a Cal.com booking). Stating a commercial path - even before it fully
+> exists - is what lets enterprise users adopt an open-source tool. See
 > [docs/ROADMAP.md](docs/ROADMAP.md) (item A15). The **[TRADEMARKS.md](TRADEMARKS.md)**
 > policy keeps the *name* protected while the code stays MIT.
 

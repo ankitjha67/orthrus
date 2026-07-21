@@ -1,7 +1,7 @@
 """Emergency kill switch (PRD §8.3).
 
 ``orthrus panic`` writes a flag file that the scope-enforced HTTP client checks
-before *every* outbound request — when engaged, all requests are denied, turning
+before *every* outbound request - when engaged, all requests are denied, turning
 deny-by-default into deny-everything. It also marks in-flight scans aborted. The
 state is a single file at ``$ORTHRUS_HOME/PANIC`` so it survives process death and
 is trivially inspectable; ``orthrus panic --clear`` lifts it.

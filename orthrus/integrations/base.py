@@ -8,7 +8,7 @@ present (``orthrus doctor`` reports availability).
 Safety note: external tools do **not** route through the scope-enforced
 HttpClient, so per-request scope cannot be guaranteed for them. As a guardrail
 the adapter scope-checks the target URL before launching, and tools are
-invoked against the single target only — but the operator is responsible for
+invoked against the single target only - but the operator is responsible for
 the tool's own targeting. This is the same deliberate trade-off as the raw-socket
 request-smuggling probe.
 """
@@ -71,11 +71,11 @@ class ExternalToolAdapter(ABC):
     async def run(self, ctx: ScanContext) -> list[Finding]:
         target = ctx.config.target
         if not self.available():
-            logger.info("tool '%s': binary %r not found on PATH — skipping", self.name, self.binary)
+            logger.info("tool '%s': binary %r not found on PATH - skipping", self.name, self.binary)
             return []
         try:
             if not ctx.scope.is_allowed(target):
-                logger.warning("tool '%s': target out of scope — skipping", self.name)
+                logger.warning("tool '%s': target out of scope - skipping", self.name)
                 return []
         except ScopeViolation:
             return []

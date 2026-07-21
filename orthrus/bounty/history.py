@@ -2,7 +2,7 @@
 
 Keeps a small archive of every reportable bug's *signature*
 (``vuln_type|normalized-title|host``) across runs, so a new campaign can tell you
-"you've reported this exact bug before" — the difference between a fresh finding
+"you've reported this exact bug before" - the difference between a fresh finding
 and re-submitting a known/duplicate issue. Cross-program, so re-finding the same
 bug on the same asset under a different engagement still surfaces.
 
@@ -85,7 +85,7 @@ class HistoryStore:
         """Non-mutating: map ``id(finding)`` → how many earlier runs saw it (omit unseen).
 
         Keyed by object id (not signature) so report renderers can look a finding
-        up without importing this module — avoids a circular import with report.py.
+        up without importing this module - avoids a circular import with report.py.
         """
         data = self._read()
         out: dict[int, int] = {}

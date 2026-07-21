@@ -1,7 +1,7 @@
 """Automated remediation patch generation.
 
-Turns findings into concrete, paste-able fixes — config/code snippets keyed by
-vulnerability type — so the runbook's *what to do* becomes *here is the change*.
+Turns findings into concrete, paste-able fixes - config/code snippets keyed by
+vulnerability type - so the runbook's *what to do* becomes *here is the change*.
 The template library is deterministic and unit-tested; an optional LLM pass
 (`llm_patch`, same opt-in/best-effort shape as triage's judge) can produce a
 context-specific patch for a finding when a template doesn't fit.
@@ -102,7 +102,7 @@ app.use(session({
         _p("Use parameterized queries (never string-format SQL)", "python", """
 -# vulnerable: user input concatenated into SQL
 -cur.execute("SELECT * FROM users WHERE email = '" + email + "'")
-+# fixed: bound parameter — the driver escapes it
++# fixed: bound parameter - the driver escapes it
 +cur.execute("SELECT * FROM users WHERE email = %s", (email,))
 """, "python"),
         _p("Parameterized query (Node / pg)", "javascript", """
@@ -174,7 +174,7 @@ def safe_path(name: str) -> str:
     ],
     "csrf": [
         _p("Require an anti-CSRF token + SameSite cookies", "python", """
-# Flask-WTF / Django both ship CSRF middleware — enable it and render the token:
+# Flask-WTF / Django both ship CSRF middleware - enable it and render the token:
 # <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 # and set the session cookie SameSite=Lax so cross-site POSTs drop the cookie.
 """, ""),
@@ -221,7 +221,7 @@ resource "aws_security_group_rule" "ssh" {
   from_port   = 22
   to_port     = 22
   protocol    = "tcp"
-  cidr_blocks = ["10.0.0.0/8"]          # a bastion/VPN range — never 0.0.0.0/0
+  cidr_blocks = ["10.0.0.0/8"]          # a bastion/VPN range - never 0.0.0.0/0
   security_group_id = aws_security_group.this.id
 }
 """, "terraform"),
@@ -297,16 +297,16 @@ class PatchReport:
 
     def to_markdown(self) -> str:
         scope = self.target or self.scan_id or "scan"
-        out: list[str] = [f"# Remediation Patches — {scope}", "", f"_{self.summary()}._", ""]
+        out: list[str] = [f"# Remediation Patches - {scope}", "", f"_{self.summary()}._", ""]
         if not self.groups:
             return "\n".join([*out, "No findings require remediation."]) + "\n"
         for i, g in enumerate(self.groups, 1):
-            out.append(f"## {i}. {g.title} (`{g.vuln_type}`) — {g.severity.upper()}")
+            out.append(f"## {i}. {g.title} (`{g.vuln_type}`) - {g.severity.upper()}")
             out.append(f"Affects {g.count} finding(s) across {len(g.urls)} endpoint(s).")
             if g.remediation:
                 out += ["", f"> {g.remediation}"]
             if not g.patches:
-                out += ["", "_No templated patch for this type yet — apply the remediation above._", ""]
+                out += ["", "_No templated patch for this type yet - apply the remediation above._", ""]
                 continue
             for patch in g.patches:
                 label = f"{patch.title}" + (f" · {patch.platform}" if patch.platform else "")

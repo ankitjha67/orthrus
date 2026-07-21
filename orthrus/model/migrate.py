@@ -2,7 +2,7 @@
 
 Additive and idempotent: creates (or reuses) a single "Legacy v0.1 import"
 Program (self-owned-lab), then upserts every v0.1 scan's assets and findings into
-the operator graph — assets by identity, findings by signature — so re-running
+the operator graph - assets by identity, findings by signature - so re-running
 never duplicates. The v0.1 scan tables are never modified, so the migration is
 trivially reversible (delete the legacy Program) and every v0.1 CLI path keeps
 working unchanged.
@@ -34,7 +34,7 @@ def _host(url: str) -> str:
 async def migrate_v01(store: Store, graph: ProgramGraph, *, dry_run: bool = False) -> dict:
     """Promote all v0.1 scans/assets/findings into the operator graph.
 
-    Returns counts. With ``dry_run`` nothing is written — it just reports what
+    Returns counts. With ``dry_run`` nothing is written - it just reports what
     *would* migrate (the PRD's dry-runnable, reversible migration).
     """
     counts = {"scans": 0, "assets_seen": 0, "assets_new": 0,

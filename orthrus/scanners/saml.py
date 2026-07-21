@@ -4,15 +4,15 @@ SAML single sign-on is a perennial source of authentication-bypass bugs. When an
 SP accepts a ``SAMLResponse`` without strictly validating the signature, an
 attacker can forge or wrap assertions and authenticate as anyone. This scanner
 inspects any ``SAMLResponse`` it observes (in discovered endpoint parameters /
-forms) and flags the classic weaknesses — all from offline XML analysis:
+forms) and flags the classic weaknesses - all from offline XML analysis:
 
-* **Unsigned assertion** — the response/assertion carries no XML-DSig
+* **Unsigned assertion** - the response/assertion carries no XML-DSig
   ``<Signature>``; the assertion can be forged wholesale (CWE-347, HIGH).
-* **Signature-wrapping surface (XSW)** — more than one ``<Assertion>`` (or
+* **Signature-wrapping surface (XSW)** - more than one ``<Assertion>`` (or
   multiple ``<Response>``/``<Signature>``) is present, the precondition for an
   XML Signature Wrapping attack that smuggles an attacker assertion past a
   signature that covers a different one (CWE-347, MEDIUM).
-* **NameID comment truncation** — the ``<NameID>`` contains an XML comment,
+* **NameID comment truncation** - the ``<NameID>`` contains an XML comment,
   which some parsers truncate to escalate to another user's identity
   (CVE-2018-0489 class, CWE-290, MEDIUM).
 
@@ -127,7 +127,7 @@ def analyze_saml(xml: str) -> list[tuple[Severity, str, str, str]]:
         issues.append((
             Severity.MEDIUM,
             "SAML response contains multiple assertions (signature-wrapping surface)",
-            "More than one assertion/response element is present — the precondition for an XML "
+            "More than one assertion/response element is present - the precondition for an XML "
             "Signature Wrapping (XSW) attack that smuggles an unsigned attacker assertion past a "
             "signature covering a different element.",
             "CWE-347",

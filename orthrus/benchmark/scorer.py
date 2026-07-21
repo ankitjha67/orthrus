@@ -4,9 +4,9 @@ Given a list of :class:`~orthrus.core.schemas.Finding` objects produced by a sca
 and a list of :class:`Expected` ground-truth entries describing what *should* be
 found on a known target, this computes:
 
-* **detection rate** — fraction of (required) expected vulnerabilities that the
+* **detection rate** - fraction of (required) expected vulnerabilities that the
   scan actually flagged, and
-* **unexpected findings** — findings that match no ground-truth entry, used as a
+* **unexpected findings** - findings that match no ground-truth entry, used as a
   false-positive proxy on a target whose vulnerabilities are fully enumerated.
 
 The module is deliberately dependency-free (no DB, no network) so it can be unit
@@ -27,7 +27,7 @@ class Expected:
     """One ground-truth vulnerability we expect a scan to detect.
 
     A finding matches when its ``vuln_type`` is equal (case-insensitive), its URL
-    contains ``url_contains``, and — when ``param`` is set — the finding's
+    contains ``url_contains``, and - when ``param`` is set - the finding's
     parameter matches. ``optional`` marks vulnerabilities that need a deferred
     capability (e.g. a real browser for DOM/stored XSS); they are tracked but do
     not drag down the headline detection rate.
@@ -93,7 +93,7 @@ class BenchmarkReport:
 
     @property
     def detection_rate(self) -> float:
-        """Fraction of required ground-truth vulns detected (0.0–1.0)."""
+        """Fraction of required ground-truth vulns detected (0.0-1.0)."""
         total = self.required_total
         return self.required_detected / total if total else 1.0
 

@@ -1,8 +1,8 @@
 """gRPC server-reflection scanner.
 
 gRPC services that leave **server reflection** enabled in production hand an
-attacker the entire RPC API surface — every service and (via descriptors) every
-method and message type — which is exactly what they need to craft calls against
+attacker the entire RPC API surface - every service and (via descriptors) every
+method and message type - which is exactly what they need to craft calls against
 undocumented internal endpoints. This scanner connects to the target over gRPC
 and issues a ``ListServices`` reflection request; if the server answers, it
 reports the exposed services.
@@ -37,7 +37,7 @@ SCANNER_NAME = "grpc-reflection"
 MAX_TARGETS = 3
 PROBE_TIMEOUT = 6.0
 
-# Framework/internal reflection services — exposing these is the *bug*, but the
+# Framework/internal reflection services - exposing these is the *bug*, but the
 # attacker-relevant disclosure is the application services they reveal.
 _INTERNAL_PREFIXES = ("grpc.reflection.", "grpc.health.", "grpc.channelz.")
 

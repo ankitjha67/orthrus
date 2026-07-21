@@ -60,7 +60,7 @@ class HttpMethod(StrEnum):
 
 
 class ParamLocation(StrEnum):
-    """Where an injectable parameter lives — drives scanner injection logic."""
+    """Where an injectable parameter lives - drives scanner injection logic."""
 
     QUERY = "query"
     BODY = "body"

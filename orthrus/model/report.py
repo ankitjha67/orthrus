@@ -16,7 +16,7 @@ _IMPACT = {
     "high": "A meaningful breach of confidentiality, integrity, or availability is achievable.",
     "medium": "Limited impact requiring specific conditions or additional steps.",
     "low": "Minor impact / hardening gap.",
-    "info": "Informational — no direct security impact.",
+    "info": "Informational - no direct security impact.",
 }
 
 
@@ -53,14 +53,14 @@ def render_program_finding(finding, *, platform: str = "generic", program_name: 
         desc, poc, impact, remed = "Description", "Proof of concept", "Impact", "Recommendation"
     elif platform == "immunefi":
         head += [
-            prog + f"**Severity:** {sev.capitalize()} — CVSS {_cvss(finding)}",
+            prog + f"**Severity:** {sev.capitalize()} - CVSS {_cvss(finding)}",
             f"**Vulnerability type:** {finding.cwe_id or 'n/a'}",
         ]
         desc, poc, impact, remed = "Description", "Proof of Concept", "Impact", "Recommendation"
     else:  # generic / hackerone / yeswehack share the standard shape
         head += [
             prog + f"**Weakness:** {finding.cwe_id or 'n/a'}",
-            f"**Severity:** {sev.capitalize()} — CVSS {_cvss(finding)}",
+            f"**Severity:** {sev.capitalize()} - CVSS {_cvss(finding)}",
             f"**Confidence:** {finding.confidence}",
         ]
         desc, poc, impact, remed = "Summary", "Steps To Reproduce", "Impact", "Remediation"

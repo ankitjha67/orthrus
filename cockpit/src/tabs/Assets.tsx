@@ -30,7 +30,7 @@ export default function Assets({ program }: { program: Program | null }) {
       <h2>Live in-scope assets ({assets.length})</h2>
       {err && <div className="err">{err}</div>}
       {assets.length === 0 ? (
-        <div className="empty">No assets recorded yet — the recon engine (Phase 1) populates these.</div>
+        <div className="empty">No assets recorded yet - the recon engine (Phase 1) populates these.</div>
       ) : (
         <table>
           <thead>
@@ -53,9 +53,9 @@ export default function Assets({ program }: { program: Program | null }) {
                   {a.display_value}
                   {isRecent(a.first_seen_at) && <span className="pill" style={{ background: "var(--accent)", color: "var(--on-accent)", marginLeft: 8 }}>new</span>}
                 </td>
-                <td>{a.is_alive ? "✓" : "—"}</td>
+                <td>{a.is_alive ? "✓" : "-"}</td>
                 <td>{a.trust_score.toFixed(2)}</td>
-                <td className="faint">{a.discovered_by ?? "—"}</td>
+                <td className="faint">{a.discovered_by ?? "-"}</td>
                 <td className="faint">{(a.first_seen_at ?? "").slice(0, 10)}</td>
               </tr>
             ))}

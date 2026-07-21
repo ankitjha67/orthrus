@@ -2,7 +2,7 @@
 
 Two halves: the pure ``_resolve_plan`` partitioning (modules selection +
 aggressiveness gate) and the CLI guarantee that --dry-run never executes the
-scan (the load-bearing safety property — no request leaves the host).
+scan (the load-bearing safety property - no request leaves the host).
 """
 
 from __future__ import annotations

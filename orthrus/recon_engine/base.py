@@ -1,7 +1,7 @@
 """Recon adapter framework (PRD §7.2).
 
-Every recon source — a pure-Python API client (crt.sh, certspotter, wayback) or a
-wrapped external binary (subfinder, dnsx, httpx) — implements :class:`ReconAdapter`
+Every recon source - a pure-Python API client (crt.sh, certspotter, wayback) or a
+wrapped external binary (subfinder, dnsx, httpx) - implements :class:`ReconAdapter`
 and yields :class:`DiscoveredAsset` records. The engine normalizes and dedups them
 into the operator graph, so adding a new source is one small class, not new
 plumbing. Adapters that need a binary self-skip when it isn't installed, exactly

@@ -1,4 +1,4 @@
-"""Team/RBAC REST surface — users, API keys, per-program membership (PRD §9)."""
+"""Team/RBAC REST surface - users, API keys, per-program membership (PRD §9)."""
 
 from __future__ import annotations
 

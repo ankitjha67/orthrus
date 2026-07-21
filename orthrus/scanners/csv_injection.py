@@ -4,7 +4,7 @@ Many apps let users supply data that later lands in a CSV / spreadsheet export
 (reports, contact lists, invoices). When a cell value begins with a formula
 trigger character (``=``, ``+``, ``-``, ``@``) and is written into the export
 unescaped, Excel / LibreOffice / Google Sheets interpret it as a formula on
-open — enabling DDE command execution, data exfiltration via ``HYPERLINK``/
+open - enabling DDE command execution, data exfiltration via ``HYPERLINK``/
 ``WEBSERVICE``, and client-side compromise of whoever opens the file.
 
 This scanner sends a **benign** arithmetic formula carrying a unique nonce
@@ -118,7 +118,7 @@ class CsvInjectionScanner(BaseScanner):
                     "spreadsheet export: a benign formula payload survived in the downloaded "
                     "cell, still beginning with a formula trigger character. When a victim "
                     "opens the export in Excel / LibreOffice / Google Sheets, an attacker-"
-                    "controlled formula executes — enabling DDE command execution, data "
+                    "controlled formula executes - enabling DDE command execution, data "
                     "exfiltration via HYPERLINK/WEBSERVICE, and client-side compromise."
                 ),
                 remediation=(

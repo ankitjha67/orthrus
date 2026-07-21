@@ -3,7 +3,7 @@
 The authorization-matrix scanner tests *discovered* endpoints. This scanner
 covers the complementary gap: **unlinked** privileged routes (admin panels,
 management APIs, debug consoles) that the crawler never reached but a
-lower-privilege user can still hit directly — classic broken function-level
+lower-privilege user can still hit directly - classic broken function-level
 authorization (OWASP A01 / API #5).
 
 Driven by the same `--identities` lattice (first = privileged baseline): it
@@ -39,7 +39,7 @@ MAX_ORIGINS = 2
 _UA = "Mozilla/5.0 (compatible; ORTHRUS privesc)"
 
 # Clearly-administrative / privileged routes (kept deliberately unambiguous to
-# minimise false positives — public-ish paths like /users or /metrics are out).
+# minimise false positives - public-ish paths like /users or /metrics are out).
 PRIVILEGED_PATHS: tuple[str, ...] = (
     "/admin",
     "/admin/",
@@ -148,7 +148,7 @@ class PrivilegeEscalationScanner(BaseScanner):
         anon = (
             ""
             if other.is_authenticated
-            else " (anonymous — confirm the route is meant to require authentication)"
+            else " (anonymous - confirm the route is meant to require authentication)"
         )
         return Finding(
             vuln_type="privilege-escalation",

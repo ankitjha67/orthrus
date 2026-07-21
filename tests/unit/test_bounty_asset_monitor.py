@@ -1,4 +1,4 @@
-"""Cross-run asset monitor — new/removed in-scope host detection."""
+"""Cross-run asset monitor - new/removed in-scope host detection."""
 
 from __future__ import annotations
 

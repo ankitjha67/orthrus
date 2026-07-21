@@ -25,7 +25,7 @@ def test_user_services_empty():
 async def test_scan_noop_when_reflection_unavailable(monkeypatch):
     # Satisfy the grpcio-availability guard so we test the "no service answered"
     # path itself (not the "grpc not installed" early-return). Keeps the test
-    # hermetic — it runs identically with or without the optional grpc extra.
+    # hermetic - it runs identically with or without the optional grpc extra.
     monkeypatch.setattr(grpc_probe, "grpc", object())
 
     async def none_list(self, host, port, tls):  # noqa: ANN001
@@ -42,7 +42,7 @@ async def test_scan_noop_when_reflection_unavailable(monkeypatch):
 
 async def test_scan_flags_when_services_returned(monkeypatch):
     # Satisfy the grpcio guard so the scan logic runs even where the optional
-    # grpc extra isn't installed (e.g. base CI) — the real reflection call is
+    # grpc extra isn't installed (e.g. base CI) - the real reflection call is
     # replaced by `fake_list`, so grpcio itself is never needed.
     monkeypatch.setattr(grpc_probe, "grpc", object())
 

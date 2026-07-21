@@ -100,7 +100,7 @@ class CachePoisoningScanner(BaseScanner):
                     description=(
                         "After injecting an unkeyed header (X-Forwarded-Host) on a unique "
                         "cache-buster URL, a subsequent *clean* request (no injected header) to the "
-                        "same URL returned the attacker-controlled value — proving the cache stored "
+                        "same URL returned the attacker-controlled value - proving the cache stored "
                         "and serves a response an attacker fully controls to every other visitor of "
                         "that page. (Testing used a cache-buster, so only the throwaway key was "
                         "poisoned, not production URLs.)"

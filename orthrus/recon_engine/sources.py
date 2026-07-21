@@ -1,4 +1,4 @@
-"""Pure-Python recon sources (PRD §7.2) — no external binary required.
+"""Pure-Python recon sources (PRD §7.2) - no external binary required.
 
 These adapters query trusted third-party data sources (CT logs, passive DNS,
 web archives) or resolve DNS directly, so they work out of the box. They fetch

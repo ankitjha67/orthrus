@@ -1,4 +1,4 @@
-"""One-view operator status — the cockpit, in the terminal.
+"""One-view operator status - the cockpit, in the terminal.
 
 Aggregates the bounty module's persistent stores (programs, submissions, history,
 audit, mute rules, tracked assets, LLM spend) into a single snapshot: what you're

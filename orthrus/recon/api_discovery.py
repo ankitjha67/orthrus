@@ -5,7 +5,7 @@ Two complementary jobs:
 1. **Probe** common API-descriptor paths (OpenAPI/Swagger) and the GraphQL root,
    surfacing REST/GraphQL roots and flagging machine-readable specs.
 2. **Import** any spec it finds (or one the operator supplies via
-   ``config.import_spec``) into concrete endpoints with typed params — turning a
+   ``config.import_spec``) into concrete endpoints with typed params - turning a
    Swagger/OpenAPI/GraphQL/HAR/Postman contract into the actual JSON/REST attack
    surface for the scan phase.
 
@@ -39,7 +39,7 @@ SPEC_PATHS = [
     "/.well-known/openapi.json", "/api", "/api/v1", "/api/v2", "/graphql",
 ]
 
-# Minimal introspection query — asks only for the operation root field names.
+# Minimal introspection query - asks only for the operation root field names.
 _INTROSPECTION_QUERY = (
     "query{__schema{queryType{name}mutationType{name}"
     "types{name fields{name args{name}}}}}"

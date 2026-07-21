@@ -49,7 +49,7 @@ class DomXssScanner(BaseScanner):
             base = endpoint.url.split("#", 1)[0]
             path = urlsplit(base).path
 
-            # 1) URL fragment (hash) source — test once per path.
+            # 1) URL fragment (hash) source - test once per path.
             if path not in seen_paths:
                 seen_paths.add(path)
                 probes += 1

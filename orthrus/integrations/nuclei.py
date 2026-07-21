@@ -1,4 +1,4 @@
-"""Nuclei adapter — run ProjectDiscovery's nuclei and normalize its JSONL output.
+"""Nuclei adapter - run ProjectDiscovery's nuclei and normalize its JSONL output.
 
 Nuclei brings a huge community template ecosystem (CVEs, misconfigurations,
 exposures, default creds, takeovers). This adapter runs it against the target and

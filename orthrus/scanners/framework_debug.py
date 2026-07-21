@@ -3,15 +3,15 @@
 Production apps routinely ship with framework debug features or management
 endpoints left reachable: Spring Boot Actuator (``/actuator/env`` leaks config
 and secrets), ``phpinfo()``, Apache ``server-status``, Prometheus ``/metrics``,
-Laravel Telescope, Rails info pages — and, worst of all, **debug mode** that
+Laravel Telescope, Rails info pages - and, worst of all, **debug mode** that
 renders full stack traces (Flask/Werkzeug, Django, Laravel Ignition, Rails) and
 leaks source, file paths, and sometimes an interactive console.
 
 Two probes, both non-mutating GETs through the scope-enforced HttpClient:
 
-1. **Known endpoints** — a curated path list, each confirmed by a *content*
+1. **Known endpoints** - a curated path list, each confirmed by a *content*
    fingerprint (not just a 200) so a generic catch-all page can't false-positive.
-2. **Debug mode** — request a deliberately non-existent path and look for a
+2. **Debug mode** - request a deliberately non-existent path and look for a
    framework stack-trace/debugger marker in the error response.
 """
 
@@ -148,7 +148,7 @@ class FrameworkDebugScanner(BaseScanner):
                 f"The {framework} endpoint at {path} is publicly reachable and returned its "
                 "expected content. Management and framework endpoints commonly expose "
                 "configuration, environment variables and secrets, runtime metrics, request "
-                "history, or internal routes — valuable reconnaissance and, for some (e.g. "
+                "history, or internal routes - valuable reconnaissance and, for some (e.g. "
                 "Actuator env/heapdump), a direct path to credential disclosure or RCE."
             ),
             remediation=(

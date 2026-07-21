@@ -5,7 +5,7 @@ Crawling only finds parameters that appear in links/forms. Many endpoints accept
 extra behaviour or new injection sinks. This module probes each discovered GET
 endpoint with a wordlist of likely parameter names and, for any whose unique
 sentinel value is reflected in the response, emits a new Endpoint carrying that
-parameter — expanding the surface every downstream scanner then tests.
+parameter - expanding the surface every downstream scanner then tests.
 
 A baseline request with a random parameter is sent first; endpoints that reflect
 *any* input are skipped (their reflection tells us nothing about a real param).

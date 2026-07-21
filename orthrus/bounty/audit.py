@@ -7,7 +7,7 @@ its own hash over its contents, so any edit or deletion breaks the chain and
 ``verify()`` reports exactly where.
 
 Stored as JSON Lines at ``$ORTHRUS_HOME/audit.log.jsonl`` (default
-``~/.orthrus/audit.log.jsonl``) — no database, and cheap to append.
+``~/.orthrus/audit.log.jsonl``) - no database, and cheap to append.
 """
 
 from __future__ import annotations

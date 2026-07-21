@@ -1,7 +1,7 @@
 """Autonomous authorized-pentest orchestrator (`orthrus agent`).
 
 A bounded LLM planner that sequences ORTHRUS's existing scope-enforced,
-non-destructive tools — recon and scanners — against an authorized target. Its
+non-destructive tools - recon and scanners - against an authorized target. Its
 action space is a hard allow-list built from the scanner registry: no shells, no
 arbitrary code, no way to reach out of scope (every tool goes through the
 scope-enforced client). ``--dry-run`` shows the plan without executing.

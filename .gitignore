@@ -50,7 +50,7 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Internal spec / PRD — kept local, never published
+# Internal spec / PRD - kept local, never published
 ORTHRUS_PRD_v1.0.docx
 *.docx
 _prd_extracted.txt

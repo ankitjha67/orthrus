@@ -1,4 +1,4 @@
-"""Nikto adapter — run the classic web-server scanner and normalize its JSON.
+"""Nikto adapter - run the classic web-server scanner and normalize its JSON.
 
 Nikto checks a web server for thousands of dangerous files, outdated components,
 and server misconfigurations. It's noisy and unranked by design, so this adapter
@@ -77,7 +77,7 @@ def parse_nikto_json(stdout: str, target: str) -> list[Finding]:
                 severity=sev,
                 url=url,
                 description=(
-                    f"Nikto reported: {msg}. Nikto checks are pattern-based and unranked — "
+                    f"Nikto reported: {msg}. Nikto checks are pattern-based and unranked - "
                     "confirm manually before reporting; treat this as a lead, not a proof."
                 )[:600],
                 remediation="Review the flagged resource/header; remove or restrict it if unneeded.",

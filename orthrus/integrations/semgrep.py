@@ -1,4 +1,4 @@
-"""Semgrep adapter — normalize the SAST engine's JSON (PRD Phase 5, code).
+"""Semgrep adapter - normalize the SAST engine's JSON (PRD Phase 5, code).
 
 Semgrep covers source-code security across many languages (and smart contracts).
 Each result becomes a Finding: ERROR/WARNING/INFO → severity, CWE lifted from the

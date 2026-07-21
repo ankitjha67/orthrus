@@ -1,4 +1,4 @@
-"""Canonical ORTHRUS visual palette — red / white / black, everywhere.
+"""Canonical ORTHRUS visual palette - red / white / black, everywhere.
 
 Single source of truth for colours in **every** HTML / report / UI surface: the
 web dashboard, the attack-surface graph, the AI consultant report, and the Jinja
@@ -6,14 +6,14 @@ report templates. The CLI's crimson identity (``orthrus/utils/theme.py``, Rich
 ``red3``) is the anchor.
 
 **Convention (applies to all current *and future* reports/UI):** use only these
-tokens — red, white, black, and neutral greys (which are just shades of
+tokens - red, white, black, and neutral greys (which are just shades of
 black↔white). Do **not** introduce blue / green / teal / amber / purple. New
 views, report formats, and upgrades must pull their colours from here.
 """
 
 from __future__ import annotations
 
-# Brand red — anchored to Rich `red3`.
+# Brand red - anchored to Rich `red3`.
 RED = "#d70000"         # primary accent / brand (on dark)
 RED_PRINT = "#c40000"   # slightly deeper, for ink-on-white (reports / PDF headers)
 RED_BRIGHT = "#ff3b3b"  # high-emphasis / "hot"
@@ -24,7 +24,7 @@ WHITE = "#f0f0f0"       # primary text on dark
 BLACK = "#0f0f0f"       # primary background (dark surfaces)
 INK = "#1a1a1a"         # primary text on light (reports)
 
-# Neutrals — shades of black↔white, so they stay on-palette.
+# Neutrals - shades of black↔white, so they stay on-palette.
 GREY = "#a8a8a8"
 GREY_DIM = "#6f6f6f"
 LINE = "#2b2b2b"        # borders on dark
@@ -34,8 +34,8 @@ PANEL = "#181818"
 
 # Severity as a red-intensity ramp (hottest = critical) fading to grey for the
 # low end. Two variants because contrast needs differ:
-#   ON_DARK — coloured text on a black background (dashboard tables / graph).
-#   FILL    — a filled pill/bar with white text (print reports).
+#   ON_DARK - coloured text on a black background (dashboard tables / graph).
+#   FILL    - a filled pill/bar with white text (print reports).
 SEVERITY_ON_DARK = {
     "critical": "#ff3b3b", "high": "#ff6b6b", "medium": "#ff9e9e",
     "low": "#c9c9c9", "info": "#8a8a8a",

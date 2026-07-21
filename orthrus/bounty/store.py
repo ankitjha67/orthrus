@@ -5,7 +5,7 @@ under a name, plus the history of campaigns run against it. Re-run a program by
 name without re-typing its scope, and keep an audit trail of what was scanned when.
 
 Storage is a single JSON file (``$ORTHRUS_HOME/programs.json``, default
-``~/.orthrus/programs.json``) — no database to stand up. The record round-trips
+``~/.orthrus/programs.json``) - no database to stand up. The record round-trips
 back into a :class:`ProgramScope` via the same intake parser the CLI uses, so the
 authorization/kill-list checks apply identically on a resumed run.
 """

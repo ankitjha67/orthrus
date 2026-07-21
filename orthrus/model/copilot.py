@@ -1,6 +1,6 @@
 """Copilot retrieval over the operator graph (PRD §7.7).
 
-Grounds the copilot in the program's *own* data — its findings and notes — using
+Grounds the copilot in the program's *own* data - its findings and notes - using
 the same dependency-free BM25-lite ranker the bounty copilot uses. Returns cited
 snippets (never invents): the retrieval layer that a LanceDB + BGE embedding
 backend can transparently replace, and that an LLM step can synthesize on top of

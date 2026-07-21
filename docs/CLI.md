@@ -1,6 +1,6 @@
 # ORTHRUS CLI reference
 
-_Auto-generated from the Click command tree — regenerate with_ `python scripts/gen_cli_docs.py`_._
+_Auto-generated from the Click command tree - regenerate with_ `python scripts/gen_cli_docs.py`_._
 
 ## `orthrus`
 
@@ -18,7 +18,7 @@ Options:
 
 Commands:
   agent             Autonomous orchestrator: an LLM plans which...
-  ai-report         Generate a Big-Four-grade consultant report —...
+  ai-report         Generate a Big-Four-grade consultant report -...
   audit             Show or verify the tamper-evident bug-bounty audit log.
   benchmark         Measure detection accuracy against a...
   bounty            Run an authorized bug-bounty campaign: scan every...
@@ -39,7 +39,7 @@ Commands:
   hosts             Gather and list the host footprint for a TARGET (or a...
   iac               Audit Infrastructure-as-Code for misconfigurations...
   import-traffic    Import a Burp / Caido / HAR proxy history into a...
-  mcp               Run the ORTHRUS MCP server (stdio) — expose...
+  mcp               Run the ORTHRUS MCP server (stdio) - expose...
   migrate           Promote existing v0.1 scans/findings into the v2.0...
   modules           List scanner and exploit-confirmation modules, or...
   monitor           Re-scan a TARGET and report drift vs the previous run.
@@ -57,9 +57,9 @@ Commands:
   recon             Run reconnaissance only.
   recon-run         Run continuous recon for a program: enumerate its...
   recon-watch       Continuously re-run recon for a program, alerting on...
-  replay            Resend a recorded request with optional tweaks — the...
+  replay            Resend a recorded request with optional tweaks - the...
   report            Generate a report from an existing scan.
-  runbook           Consolidated remediation runbook — the few fixes that...
+  runbook           Consolidated remediation runbook - the few fixes that...
   scan              Run the full pipeline: recon -> scan -> exploit ->...
   scans             List previous scans (id, status, phase, findings) for...
   serve             Run the ORTHRUS REST API (scans/findings +...
@@ -85,7 +85,7 @@ Usage: orthrus agent [OPTIONS]
 
   The agent reasons over the target and findings-so-far and picks the next
   batch of ORTHRUS's own scanners to run, up to --max-steps. Its action space
-  is a hard allow-list of registered modules — no shells, no arbitrary code —
+  is a hard allow-list of registered modules - no shells, no arbitrary code -
   and every request still passes the deny-by-default scope check and non-
   destructive doctrine. Use --dry-run to see the plan without running
   anything.
@@ -115,7 +115,7 @@ Options:
 ```text
 Usage: orthrus ai-report [OPTIONS]
 
-  Generate a Big-Four-grade consultant report — deterministic evidence + AI
+  Generate a Big-Four-grade consultant report - deterministic evidence + AI
   narrative.
 
   Every finding, CVSS score, and recorded request/response is rendered
@@ -127,7 +127,7 @@ Usage: orthrus ai-report [OPTIONS]
 
 Options:
   --scan-id TEXT          Scan identifier to report on.  [required]
-  --llm TEXT              Model spec 'provider:model' — anthropic / openai /
+  --llm TEXT              Model spec 'provider:model' - anthropic / openai /
                           openai-compatible / ollama (e.g. 'ollama:llama3.1',
                           'openai:gpt-4o'). Keys/base-url from env.
   --model TEXT            Override the model id.
@@ -197,7 +197,7 @@ Usage: orthrus bounty [OPTIONS]
   Run an authorized bug-bounty campaign: scan every in-scope asset with all
   scanners, confirm the findings, and write submission-ready per-bug reports.
 
-  Requires an explicit program scope (--scope-file or --in-scope) — ORTHRUS is
+  Requires an explicit program scope (--scope-file or --in-scope) - ORTHRUS is
   deny-by-default and will not scan without one. Out-of-scope entries are
   enforced and never touched. Authorized programs only.
 
@@ -316,7 +316,7 @@ Usage: orthrus chains [OPTIONS]
   Correlate a scan's findings into attack paths (kill-chains).
 
   A flat finding list hides impact: one SSRF and one exposed Redis are two
-  mediums — together they're RCE on the internal network. This matches the
+  mediums - together they're RCE on the internal network. This matches the
   findings against a catalog of known attack chains and shows the paths an
   attacker would actually walk, each with an escalated severity and an impact
   narrative, prioritised above the raw list.
@@ -336,8 +336,8 @@ Usage: orthrus cloud [OPTIONS] [SNAPSHOT]
   Assess cloud security posture (CSPM/IAM) from a snapshot or read-only
   collection.
 
-  Consumes a normalized inventory JSON (SNAPSHOT) — or, with --live, collects
-  one read-only from the provider using your own credentials — and reports
+  Consumes a normalized inventory JSON (SNAPSHOT) - or, with --live, collects
+  one read-only from the provider using your own credentials - and reports
   public / unencrypted / over-privileged resources plus the CRITICAL *toxic
   combinations* an attacker would chain (internet-reachable workload +
   privileged role, admin user without MFA, PassRole escalation). Read-only: it
@@ -482,7 +482,7 @@ Usage: orthrus findings [OPTIONS]
 
   Show a stored scan's findings as a triage table (or JSON).
 
-  A read-only, network-free view of what a previous scan found — the quick
+  A read-only, network-free view of what a previous scan found - the quick
   triage list (severity, type, where, how sure) without regenerating a full
   report. Use --severity to focus on the high-risk end and --json to pipe the
   findings into other tools (stdout is reserved for that JSON; chrome is
@@ -508,7 +508,7 @@ Usage: orthrus graph [OPTIONS]
 
   Where `chains` matches each catalog rule independently, this builds a
   reachability graph and *merges* rules that share a finding into maximal
-  kill-chains — e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
+  kill-chains - e.g. LFI → exposed-secret → JWT-forgery becomes one three-step
   path. Reports how many raw findings collapse onto how few reachable paths.
 
 Options:
@@ -525,8 +525,8 @@ Usage: orthrus hosts [OPTIONS] [TARGET]
 
   Gather and list the host footprint for a TARGET (or a stored scan).
 
-  Casts a passive net — Certificate Transparency, reverse-IP / co-hosting, a
-  /24 reverse-DNS sweep, and Wayback — and folds the results into one
+  Casts a passive net - Certificate Transparency, reverse-IP / co-hosting, a
+  /24 reverse-DNS sweep, and Wayback - and folds the results into one
   deduplicated inventory. In-scope hosts are listed first; co-hosted hosts
   that fall outside scope are shown (flagged) for situational awareness but
   are never scanned. Use --scan-id to instead list the hosts a prior scan
@@ -578,8 +578,8 @@ Usage: orthrus import-traffic [OPTIONS] EXPORT_FILE
   Import a Burp / Caido / HAR proxy history into a program's operator graph
   (PRD §7.12).
 
-  Folds the real attack surface you browsed by hand — hosts and their routes,
-  with query/body params and a juicy-score — into the program's assets and
+  Folds the real attack surface you browsed by hand - hosts and their routes,
+  with query/body params and a juicy-score - into the program's assets and
   endpoints, so manual recon flows into the same scan/triage/report pipeline.
   Out-of-scope hosts (third-party CDNs, analytics) are refused by default.
 
@@ -602,7 +602,7 @@ Options:
 ```text
 Usage: orthrus mcp [OPTIONS]
 
-  Run the ORTHRUS MCP server (stdio) — expose scans/findings as agent tools.
+  Run the ORTHRUS MCP server (stdio) - expose scans/findings as agent tools.
 
   Lets an MCP-capable AI agent query ORTHRUS results (list_scans, get_scan,
   get_findings, list_modules). Needs the [mcp] extra.
@@ -619,7 +619,7 @@ Usage: orthrus migrate [OPTIONS]
   Promote existing v0.1 scans/findings into the v2.0 operator graph (PRD
   §4.2).
 
-  Additive and idempotent — creates a 'Legacy v0.1 import' program and upserts
+  Additive and idempotent - creates a 'Legacy v0.1 import' program and upserts
   every scan's assets/findings into the unified graph without touching the
   v0.1 tables, so it's safe to re-run and trivially reversible.
 
@@ -654,7 +654,7 @@ Usage: orthrus monitor [OPTIONS] [TARGET]
 
   Continuous monitoring: each run takes a fresh snapshot, stores it, and diffs
   it against the target's previous snapshot. By default it monitors the
-  *attack surface* (recon only) — hosts that appeared/vanished, new IPs, newly
+  *attack surface* (recon only) - hosts that appeared/vanished, new IPs, newly
   exposed ports. With --deep it runs a full vulnerability scan and also
   reports NEW and RESOLVED findings. Use --watch to run hands-off on an
   interval (each pass auto-diffs against the previous one), --webhook to get
@@ -753,7 +753,7 @@ Usage: orthrus panic [OPTIONS]
   (PRD §8.3).
 
   Engaging writes a flag the scope-enforced HTTP client checks before every
-  request — deny-by-default becomes deny-everything until you `--clear` it.
+  request - deny-by-default becomes deny-everything until you `--clear` it.
 
 Options:
   --clear        Lift a previously-engaged panic state.
@@ -802,7 +802,7 @@ Usage: orthrus plan [OPTIONS]
 
   A deterministic, no-hallucination planner: it reads the program's assets,
   endpoints, findings, scan history and scope, then prints a priority-ranked
-  list of the concrete `orthrus` commands to run next — each with the count
+  list of the concrete `orthrus` commands to run next - each with the count
   it's based on. The honest core of the bounded operator agent.
 
 Options:
@@ -839,12 +839,12 @@ Usage: orthrus program-policy [OPTIONS]
 
   Most programs state a max request rate and ask you to identify your traffic.
   Saved here, both are applied automatically on every `orthrus bounty
-  --program NAME` run — the rate is a hard cap (never exceeded), the header is
+  --program NAME` run - the rate is a hard cap (never exceeded), the header is
   attached to every request.
 
 Options:
   --program TEXT   Saved program to set policy on.  [required]
-  --max-rps FLOAT  Rate ceiling (req/s) — honored as a cap on every run.
+  --max-rps FLOAT  Rate ceiling (req/s) - honored as a cap on every run.
   --identify TEXT  Identifying header to send, e.g. "X-Bug-Bounty: yourname".
   --clear          Clear both policy fields.
   --help           Show this message and exit.
@@ -861,7 +861,7 @@ Usage: orthrus program-scan [OPTIONS]
   Bridges recon → scan → triage queue: takes the live assets the recon engine
   discovered, runs the full scan+confirm pipeline over them, and folds the
   bugs into the program's ProgramFinding queue (deduped, priority-scored,
-  ScanRun- linked) — where the cockpit Findings tab and triage see them.
+  ScanRun- linked) - where the cockpit Findings tab and triage see them.
 
 Options:
   --program TEXT                  Operator-graph program to scan.  [required]
@@ -901,7 +901,7 @@ Options:
   --port INTEGER        Local port to listen on.
   --host TEXT           Local bind address.
   --scope TEXT          Authorized scope: comma-separated domains / CIDRs
-                        (required — deny by default).
+                        (required - deny by default).
   --scan-id TEXT        Persist captured endpoints into this existing scan.
   --allow-out-of-scope  Pass through (don't block) out-of-scope requests; they
                         are never captured.
@@ -1016,7 +1016,7 @@ Options:
 ```text
 Usage: orthrus replay [OPTIONS]
 
-  Resend a recorded request with optional tweaks — the mini-Repeater.
+  Resend a recorded request with optional tweaks - the mini-Repeater.
 
   Source the request from a finding (`--scan-id --finding-id`), a raw request
   file (`--request-file`), or an ad-hoc `--url`; tweak it with `--method`,
@@ -1065,7 +1065,7 @@ Options:
 ```text
 Usage: orthrus runbook [OPTIONS]
 
-  Consolidated remediation runbook — the few fixes that retire a scan's risk.
+  Consolidated remediation runbook - the few fixes that retire a scan's risk.
 
   Collapses findings that share a fix into one prioritised action, ordered so
   the highest-leverage change (one that breaks a correlated attack path) is
@@ -1282,7 +1282,7 @@ Usage: orthrus suppress [OPTIONS]
 
   At least one of --vuln-type / --host / --title-contains is required (an
   empty rule would mute everything, so it's refused). Muted findings are still
-  counted in the campaign summary — nothing silently disappears.
+  counted in the campaign summary - nothing silently disappears.
 
 Options:
   --program TEXT         Program the rule applies to.  [required]
@@ -1312,7 +1312,7 @@ Options:
 Usage: orthrus surface [OPTIONS]
 
   Render a scan's recon (hosts / ports / technologies / endpoints) as an
-  interactive attack-surface graph — a self-contained HTML page.
+  interactive attack-surface graph - a self-contained HTML page.
 
 Options:
   --scan-id TEXT      Scan whose recon to visualize.  [required]
@@ -1355,7 +1355,7 @@ Usage: orthrus triage [OPTIONS]
   A real scan reports the same bug at many URLs (IDOR on /order/1..999, a
   missing header on every route). This folds id-like URLs together
   (/order/{id}) and clusters by type + location, so a 600-finding list becomes
-  the handful of issues that actually need fixing — each with its severity, a
+  the handful of issues that actually need fixing - each with its severity, a
   count, and the affected URLs. With --llm, an LLM judge additionally flags
   clusters that look like false positives (opt-in; no-ops without an API key).
 
@@ -1380,7 +1380,7 @@ Usage: orthrus update [OPTIONS]
   the full EPSS dataset from FIRST.org (both trusted data sources, not the
   target) and rewrites the bundled seeds so CVE findings are flagged when
   actively exploited (KEV) and prioritised by exploit probability (EPSS). Each
-  feed refreshes independently — one failing does not abort the other.
+  feed refreshes independently - one failing does not abort the other.
 
 Options:
   --help  Show this message and exit.

@@ -92,7 +92,7 @@ def forge_alg_confusion(token: str, public_pem: str) -> str | None:
     Built by hand with HMAC-SHA256 because that is exactly what a vulnerable
     server does (and what PyJWT's safety guard refuses to do for us): use the
     public-key PEM bytes as the HMAC secret. Returns the forged token whose
-    signature is valid for that key — proving the forgery primitive — else None.
+    signature is valid for that key - proving the forgery primitive - else None.
     The PEM is public, so no secret material is exposed.
     """
     if jwt is None or not public_pem:
@@ -313,7 +313,7 @@ class JwtScanner(BaseScanner):
                 description=(
                     f"The token is signed with an asymmetric algorithm ({alg}) and the server "
                     "publishes its RSA public key (JWKS). ORTHRUS minted a valid HS256 token using "
-                    "that public key as the HMAC secret — if the server does not pin the algorithm "
+                    "that public key as the HMAC secret - if the server does not pin the algorithm "
                     "it will accept this forged token, allowing full token forgery (account "
                     f"takeover). Verify the server rejects HS256. (token: {preview})"
                 ),

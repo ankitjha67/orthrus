@@ -1,4 +1,4 @@
-"""Cloud posture (CSPM/IAM) rules — turn a normalized inventory into Findings.
+"""Cloud posture (CSPM/IAM) rules - turn a normalized inventory into Findings.
 
 Read-only, offline analysis (the collection is what touches the provider; this
 is pure). Each rule mirrors the ``iac`` analyzer's shape so cloud issues flow
@@ -52,7 +52,7 @@ def _has_sensitive_tag(resource: CloudResource) -> bool:
 
 
 def analyze_inventory(inventory: CloudInventory) -> list[Finding]:
-    """Per-resource posture findings (no cross-resource correlation — see toxic)."""
+    """Per-resource posture findings (no cross-resource correlation - see toxic)."""
     findings: list[Finding] = []
     for r in inventory.resources:
         # Public storage / buckets.
@@ -86,7 +86,7 @@ def analyze_inventory(inventory: CloudInventory) -> list[Finding]:
         if r.type in ("iam-user", "iam-role", "iam-policy", "iam-group") and _is_wildcard_admin(r.permissions):
             findings.append(_finding(
                 f"Wildcard-admin permissions on '{r.label}'", Severity.HIGH, r,
-                "The principal/policy grants Action:* (full administrative access) — it violates least "
+                "The principal/policy grants Action:* (full administrative access) - it violates least "
                 "privilege and massively widens blast radius on compromise.",
                 "Replace '*' with the specific actions/resources required; use permission boundaries.",
                 "CWE-269", "cloud-iam-admin", "permissions include '*'",
@@ -105,7 +105,7 @@ def analyze_inventory(inventory: CloudInventory) -> list[Finding]:
             names = ", ".join(f"{p}/{SENSITIVE_PORTS[p]}" for p in sorted(world_ports))
             findings.append(_finding(
                 f"Sensitive port open to the internet on '{r.label}'", Severity.HIGH, r,
-                f"Port(s) {names} are reachable from 0.0.0.0/0 — administrative/database services must "
+                f"Port(s) {names} are reachable from 0.0.0.0/0 - administrative/database services must "
                 "never be world-exposed.",
                 "Restrict the security-group ingress to specific trusted CIDRs / a bastion / VPN.",
                 "CWE-284", "cloud-open-port", names,

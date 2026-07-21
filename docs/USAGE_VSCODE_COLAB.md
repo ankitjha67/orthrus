@@ -2,15 +2,15 @@
 
 A complete, copy-paste step-by-step guide for two of the most common setups:
 
-- **[Part A — VS Code](#part-a--vs-code)** on your own machine (Windows / macOS / Linux): the full developer experience — integrated terminal, breakpoint debugging, test runner, linting.
-- **[Part B — Google Colab](#part-b--google-colab)** in the browser: zero local install, great for a quick demo or for running on a clean Linux box. A **one-click notebook** is included.
+- **[Part A - VS Code](#part-a--vs-code)** on your own machine (Windows / macOS / Linux): the full developer experience - integrated terminal, breakpoint debugging, test runner, linting.
+- **[Part B - Google Colab](#part-b--google-colab)** in the browser: zero local install, great for a quick demo or for running on a clean Linux box. A **one-click notebook** is included.
 
-> ### ⚠️ Authorized testing only — read this first
+> ### ⚠️ Authorized testing only - read this first
 > ORTHRUS sends **real attack payloads** and actively tries to exploit findings.
 > Only point it at systems you **own** or have **explicit written permission** to
 > test. Both walkthroughs below scan the **bundled, deliberately-vulnerable
 > practice target** (`tests/integration/reflecting_target.py`), which binds to
-> `127.0.0.1` only — that is the safe thing to learn on. See the full
+> `127.0.0.1` only - that is the safe thing to learn on. See the full
 > [Legal & Ethical Use notice in the README](../README.md#-legal--ethical-use).
 
 **Prerequisites for both paths:** Python **3.11+** and `git`. ORTHRUS's lean core
@@ -18,15 +18,15 @@ is pure-Python (wheels only) and installs with no system binaries.
 
 ---
 
-## Part A — VS Code
+## Part A - VS Code
 
 ### A0. Install the prerequisites
-- **Python 3.11+** — verify with `python --version` (Windows may use `py --version`).
-- **git** — `git --version`.
+- **Python 3.11+** - verify with `python --version` (Windows may use `py --version`).
+- **git** - `git --version`.
 - **VS Code** with these extensions (open the Extensions panel, `Ctrl/Cmd+Shift+X`):
   - **Python** (`ms-python.python`)
   - **Pylance** (`ms-python.vscode-pylance`)
-  - **Ruff** (`charliermarsh.ruff`) — matches the project's linter/formatter.
+  - **Ruff** (`charliermarsh.ruff`) - matches the project's linter/formatter.
 
 ### A1. Get the code
 Open VS Code's integrated terminal (`` Ctrl+` ``) and clone the repo:
@@ -81,7 +81,7 @@ pip install -e ".[distributed]"  # celery + redis (distributed scanning)
 playwright install chromium
 ```
 
-Each module self-disables cleanly if its extra is missing — the lean core still runs everything else.
+Each module self-disables cleanly if its extra is missing - the lean core still runs everything else.
 
 ### A4. Verify the install
 ```bash
@@ -90,19 +90,19 @@ orthrus --help
 orthrus doctor          # environment-readiness table: which extras/binaries are present
 ```
 
-`orthrus doctor` performs **no network access** — it only checks which optional
+`orthrus doctor` performs **no network access** - it only checks which optional
 capabilities are installed, so it's a safe first command.
 
-### A5. First scan — the bundled practice target (two terminals)
+### A5. First scan - the bundled practice target (two terminals)
 The repo ships a deliberately-vulnerable app that exercises every scanner, bound
 to `127.0.0.1` only. Run it in one terminal and scan it from another.
 
-**Terminal 1 — start the target** (`` Ctrl+` ``, then the **+** to keep it):
+**Terminal 1 - start the target** (`` Ctrl+` ``, then the **+** to keep it):
 ```bash
 python tests/integration/reflecting_target.py 8731
 ```
 
-**Terminal 2 — run the full pipeline** (split the terminal with the split icon, or **+**):
+**Terminal 2 - run the full pipeline** (split the terminal with the split icon, or **+**):
 ```bash
 orthrus scan -t http://127.0.0.1:8731 --aggressive --no-browser -o reports/demo.json --format json
 ```
@@ -155,7 +155,7 @@ Set a breakpoint (e.g. in a scanner under `orthrus/scanners/`), make sure the
 practice target from **A5** is running, then press **F5**. `justMyCode: false`
 lets you step into library calls too.
 
-> `.vscode/` is gitignored in this repo, so your `launch.json` stays local — that's expected and won't be committed.
+> `.vscode/` is gitignored in this repo, so your `launch.json` stays local - that's expected and won't be committed.
 
 ### A8. Run tests & lint from VS Code
 The project is pre-configured (`pyproject.toml`: `pytest` with `asyncio_mode=auto`, `ruff`).
@@ -168,7 +168,7 @@ The project is pre-configured (`pyproject.toml`: `pytest` with `asyncio_mode=aut
   mypy orthrus
   ```
 
-The suite is offline and deterministic — it never touches the network.
+The suite is offline and deterministic - it never touches the network.
 
 ### A9. Full end-to-end scan of a site you own
 Once you're comfortable, point it at a system you **own** or are **authorized** to
@@ -176,7 +176,7 @@ test, and always pass an **explicit scope**. `orthrus scan` runs all four phases
 (recon → scan → exploit-confirm → report) in one command:
 
 ```bash
-# 1) Preview the scope + plan first — sends NO traffic
+# 1) Preview the scope + plan first - sends NO traffic
 orthrus scan -t https://yoursite.com --scope "yoursite.com,*.yoursite.com" --dry-run
 
 # 2) Run the full pipeline with gentle, live-site-friendly settings
@@ -210,9 +210,9 @@ for the full set of options.
 
 ---
 
-## Part B — Google Colab
+## Part B - Google Colab
 
-Colab gives you a free, clean **Linux** box with Python already installed — no
+Colab gives you a free, clean **Linux** box with Python already installed - no
 local setup. A few things to know going in:
 
 - **Sessions are ephemeral.** Installs and files vanish when the runtime resets;
@@ -221,11 +221,11 @@ local setup. A few things to know going in:
   **background process** and read the report inline.
 - **We drive ORTHRUS through the shell (`!orthrus …` / `subprocess`)**, not by
   importing it into a cell. That's deliberate: a Colab notebook already runs its
-  own asyncio event loop, and ORTHRUS starts its own — running it as a
+  own asyncio event loop, and ORTHRUS starts its own - running it as a
   subprocess keeps the two from colliding (no `nest_asyncio` hacks needed).
-- Colab's Python (currently 3.12) satisfies the **≥3.11** requirement — confirm with `!python --version`.
+- Colab's Python (currently 3.12) satisfies the **≥3.11** requirement - confirm with `!python --version`.
 
-### Option 1 — One-click notebook (recommended)
+### Option 1 - One-click notebook (recommended)
 The repo ships a ready-to-run notebook. Open it directly in Colab:
 
 **→ https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb**
@@ -233,10 +233,10 @@ The repo ships a ready-to-run notebook. Open it directly in Colab:
 Then **Runtime → Run all**. It installs ORTHRUS, starts the bundled practice
 target, runs a full scan, and prints the findings. Every cell is commented.
 
-### Option 2 — Build it cell by cell
+### Option 2 - Build it cell by cell
 Prefer to type it yourself (or adapt it)? Paste each block into its own Colab cell.
 
-**Cell 1 — install ORTHRUS** (clone + lean core):
+**Cell 1 - install ORTHRUS** (clone + lean core):
 ```python
 import os
 REPO = "/content/orthrus"
@@ -244,17 +244,17 @@ if not os.path.isdir(REPO):
     !git clone --depth 1 https://github.com/ankitjha67/orthrus.git {REPO}
 os.chdir(REPO)
 !pip -q install -e .
-print("\n✅ installed —", end=" ")
+print("\n✅ installed -", end=" ")
 !python --version
 !orthrus --version
 ```
 
-**Cell 2 — environment readiness** (no network; safe):
+**Cell 2 - environment readiness** (no network; safe):
 ```python
 !orthrus --no-banner doctor
 ```
 
-**Cell 3 — start the bundled, authorized practice target** (background, 127.0.0.1 only):
+**Cell 3 - start the bundled, authorized practice target** (background, 127.0.0.1 only):
 ```python
 import subprocess, sys, socket, time
 
@@ -274,7 +274,7 @@ else:
     raise RuntimeError("practice target did not start")
 ```
 
-**Cell 4 — run the full scan** (recon → scan → confirm → report):
+**Cell 4 - run the full scan** (recon → scan → confirm → report):
 ```python
 import subprocess
 os.makedirs("reports", exist_ok=True)
@@ -289,7 +289,7 @@ print("running:", " ".join(cmd), "\n")
 subprocess.run(cmd, check=True)
 ```
 
-**Cell 5 — read the results**:
+**Cell 5 - read the results**:
 ```python
 import json, collections
 data = json.load(open("reports/colab.json"))
@@ -301,7 +301,7 @@ for f in sorted(data["findings"], key=lambda x: x["severity"]):
     print(f"[{f['severity']:<8}] {f['confidence']:<10} {f['vuln_type']:<22} {f['url']}")
 ```
 
-**Cell 6 (optional) — render the themed report UI as a PNG**:
+**Cell 6 (optional) - render the themed report UI as a PNG**:
 ```python
 !pip -q install -e ".[browser]"
 !playwright install --with-deps chromium
@@ -310,13 +310,13 @@ from IPython.display import Image
 Image("reports/colab_ui.png")
 ```
 
-**Cell 7 (optional) — download the report**:
+**Cell 7 (optional) - download the report**:
 ```python
 from google.colab import files
 files.download("reports/colab.json")
 ```
 
-**Cell 8 (optional) — stop the practice target**:
+**Cell 8 (optional) - stop the practice target**:
 ```python
 target.terminate()
 print("stopped practice target")
@@ -324,7 +324,7 @@ print("stopped practice target")
 
 ### Scanning your *own* authorized target from Colab
 Skip the practice-target cells and scan a system you're permitted to test, with
-an **explicit scope**. Note Colab runs from a Google datacenter IP — only do
+an **explicit scope**. Note Colab runs from a Google datacenter IP - only do
 this where that source is authorized:
 
 ```python
@@ -352,7 +352,7 @@ drive.mount("/content/drive")
 | `pip` warns "restart runtime" after install | Usually unnecessary because we call `orthrus` as a subprocess (fresh imports). If a scan errors oddly, **Runtime → Restart session** and re-run from Cell 1. |
 | Scan can't reach `127.0.0.1:8731` | Re-run Cell 3; the readiness loop must print "listening" before you run Cell 4. |
 | Browser/PDF render fails | `!playwright install --with-deps chromium` needs the `--with-deps` flag in Colab to pull system libraries. |
-| Everything disappeared | The session reset — installs/files are ephemeral. Re-run from Cell 1, and use Drive (above) to persist. |
+| Everything disappeared | The session reset - installs/files are ephemeral. Re-run from Cell 1, and use Drive (above) to persist. |
 
 ---
 
@@ -373,4 +373,4 @@ Formats: `json`, `csv`, `html`, `pdf`, `md`, `sarif`. Templates: `executive`,
 for CI exit codes.
 
 **Remember:** authorized targets only. When in doubt, scan the bundled practice
-target or a self-hosted lab — never a system you don't have written permission to test.
+target or a self-hosted lab - never a system you don't have written permission to test.

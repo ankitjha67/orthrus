@@ -33,7 +33,7 @@ def _client(scope_config: ScopeConfig, resolves_to: list[str]) -> HttpClient:
 
 
 async def test_blocks_domain_that_resolves_to_link_local_metadata():
-    # cloud metadata IP — the classic SSRF-via-rebinding target.
+    # cloud metadata IP - the classic SSRF-via-rebinding target.
     client = _client(ScopeConfig(domains=["app.target.test"], ports=[]), ["169.254.169.254"])
     with pytest.raises(ScopeViolation):
         await client._enforce_scope("http://app.target.test/")

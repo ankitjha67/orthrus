@@ -2,13 +2,13 @@
 
 Standardized well-known URIs leak a lot of high-value surface for free:
 
-* **openid-configuration** / **oauth-authorization-server** — the JSON advertises
+* **openid-configuration** / **oauth-authorization-server** - the JSON advertises
   the identity provider's ``authorization_endpoint``, ``token_endpoint``,
   ``jwks_uri``, ``userinfo_endpoint``, ``registration_endpoint`` … i.e. the whole
   auth attack surface, which the auth/JWT/OAuth scanners then get to test.
-* **security.txt** — Contact/Policy URLs (and a disclosure-program hint).
+* **security.txt** - Contact/Policy URLs (and a disclosure-program hint).
 * **change-password**, **assetlinks.json**, **apple-app-site-association**,
-  **mta-sts.txt**, **host-meta** — password-management and app-linkage surface.
+  **mta-sts.txt**, **host-meta** - password-management and app-linkage surface.
 
 Everything is fetched through the scope-enforced ``ctx.http`` and every referenced
 URL is scope-checked before it's yielded. The pure ``parse_openid_config`` /

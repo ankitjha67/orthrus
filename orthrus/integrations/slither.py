@@ -1,7 +1,7 @@
-"""Slither adapter — normalize the Solidity static analyzer's JSON (PRD Phase 5, web3).
+"""Slither adapter - normalize the Solidity static analyzer's JSON (PRD Phase 5, web3).
 
 Slither is the standard smart-contract static analyzer. This maps each detector
-result to an ORTHRUS Finding — impact→severity, confidence→confidence — carrying
+result to an ORTHRUS Finding - impact→severity, confidence→confidence - carrying
 the contract file/line as evidence, so web3 findings flow through the same
 graph/triage/report pipeline as web findings.
 """

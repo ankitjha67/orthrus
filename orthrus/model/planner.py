@@ -1,7 +1,7 @@
 """Deterministic next-action planner over the operator graph (PRD §7.10, Phase 6).
 
 The bounded "operator agent" in its honest, no-hallucination form: it inspects
-real graph state — assets, endpoints, findings, scan history, scope — and proposes
+real graph state - assets, endpoints, findings, scan history, scope - and proposes
 the concrete next commands to run, each grounded in counts it can point at. No LLM,
 no invented steps: an operator asks "what next on this program?" and gets an
 explainable, ranked to-do list of commands that actually exist. An LLM narrative
@@ -31,7 +31,7 @@ class PlannedAction:
     """One grounded, ranked next step: what to do, why, and the exact command."""
 
     key: str            # stable action kind: recon | scan | triage | report | reverify | import
-    priority: float     # 0..1 — higher runs sooner
+    priority: float     # 0..1 - higher runs sooner
     reason: str         # explanation grounded in real counts
     command: str        # a concrete, runnable orthrus command
 
@@ -66,12 +66,12 @@ async def next_actions(
 
     actions: list[PlannedAction] = []
 
-    # regressed findings first — a bug we'd fixed is back; re-verify immediately.
+    # regressed findings first - a bug we'd fixed is back; re-verify immediately.
     regressed = [f for f in findings if f.status == _REGRESSED]
     if regressed:
         actions.append(PlannedAction(
             "reverify", 0.95,
-            f"{len(regressed)} finding(s) regressed — a previously-resolved bug is back",
+            f"{len(regressed)} finding(s) regressed - a previously-resolved bug is back",
             f"orthrus program-scan --program {name}"))
 
     # no surface yet → recon (if scoped) so there's something to scan.
@@ -79,12 +79,12 @@ async def next_actions(
         if has_in_scope:
             actions.append(PlannedAction(
                 "recon", 0.9,
-                "no assets discovered yet — enumerate the in-scope domains",
+                "no assets discovered yet - enumerate the in-scope domains",
                 f"orthrus recon-run --program {name}"))
         else:
             actions.append(PlannedAction(
                 "recon", 0.6,
-                "program has no in-scope entries — add scope, then recon",
+                "program has no in-scope entries - add scope, then recon",
                 f"orthrus recon-run --program {name} --in-scope <domain> "
                 f"--authorization <source>"))
 
@@ -95,7 +95,7 @@ async def next_actions(
             f"{len(alive)} live asset(s) discovered but never scanned",
             f"orthrus program-scan --program {name}"))
 
-    # new findings awaiting triage — high/critical bumps the priority.
+    # new findings awaiting triage - high/critical bumps the priority.
     new = [f for f in findings if f.status == _NEEDS_TRIAGE]
     if new:
         hi = [f for f in new if (f.severity or "").lower() in _HIGH_SEVERITIES]
@@ -121,19 +121,19 @@ async def next_actions(
             f"{len(juicy)} high-value endpoint(s) imported but no findings yet",
             f"orthrus program-scan --program {name}"))
 
-    # stale recon — newest run older than the freshness window.
+    # stale recon - newest run older than the freshness window.
     if runs and (age := _age_days(runs[0].started_at, now)) is not None \
             and age >= _STALE_RECON_DAYS:
         actions.append(PlannedAction(
             "recon", 0.5,
-            f"last scan run was {int(age)}d ago — re-run recon for drift",
+            f"last scan run was {int(age)}d ago - re-run recon for drift",
             f"orthrus recon-run --program {name}"))
 
     # a scoped program with assets but no endpoints mapped → suggest importing traffic.
     if alive and not endpoints:
         actions.append(PlannedAction(
             "import", 0.4,
-            "assets known but no routes mapped — import a Burp/Caido/HAR session",
+            "assets known but no routes mapped - import a Burp/Caido/HAR session",
             f"orthrus import-traffic <export-file> --program {name}"))
 
     actions.sort(key=lambda a: a.priority, reverse=True)

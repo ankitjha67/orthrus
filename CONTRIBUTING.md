@@ -1,8 +1,8 @@
 # Contributing to ORTHRUS
 
 Thanks for your interest. ORTHRUS is an integrated, incrementally-built DAST
-framework, and contributions — bug reports, false-positive fixes, new detectors,
-docs — are welcome.
+framework, and contributions - bug reports, false-positive fixes, new detectors,
+docs - are welcome.
 
 ## Ground rule: authorized-use only
 
@@ -13,11 +13,11 @@ contribution must respect that:
   the deny-by-default scope check (`orthrus/utils/scope.py`). Every outgoing
   request must validate against scope before it is sent.
 - **Non-destructive by default.** Exploitation-confirmation proves a finding
-  (canary values, OOB callbacks, reading `/etc/passwd`) — it does not damage,
+  (canary values, OOB callbacks, reading `/etc/passwd`) - it does not damage,
   persist, or exfiltrate.
 - **No secret emission.** Confirmers report *whether* auth/forgery succeeded,
   never the credential or key. Redact secrets in findings and reports.
-- We will not accept features whose primary purpose is malicious — detection
+- We will not accept features whose primary purpose is malicious - detection
   evasion for its own sake, autonomous offense without bounds, mass/untargeted
   scanning, or anything designed to hide an attacker from a defender.
 
@@ -35,7 +35,7 @@ python -m venv .venv
 pip install -e ".[dev]"
 # Optional feature groups, add as needed:
 #   .[scanners]  pyjwt/cryptography/sslyze/paramiko/websockets
-#   .[browser]   Playwright (DOM/stored XSS) — then: playwright install chromium
+#   .[browser]   Playwright (DOM/stored XSS) - then: playwright install chromium
 #   .[cloud]     boto3 (read-only AWS collection for `orthrus cloud --live`)
 #   .[api] .[mcp] .[recon] .[distributed] .[postgres]
 ```
@@ -44,7 +44,7 @@ Requires Python 3.11+.
 
 ## Quality gates (must be green before you open a PR)
 
-CI runs exactly these two — match them locally:
+CI runs exactly these two - match them locally:
 
 ```bash
 ruff check orthrus tests      # E,F,I,UP,B,ASYNC · line-length 100
@@ -62,24 +62,24 @@ green; a PR that breaks either won't merge.
    without a network.
 2. Register it: `@register` from `orthrus.scanners.registry`, and make sure it's
    imported so the registry populates (`orthrus/scanners/__init__.py`).
-3. Add a pure unit test in `tests/unit/` for the detector, plus — if it's an active
-   scanner — a matching vulnerable route in `tests/integration/reflecting_target.py`
+3. Add a pure unit test in `tests/unit/` for the detector, plus - if it's an active
+   scanner - a matching vulnerable route in `tests/integration/reflecting_target.py`
    so the end-to-end flow is exercised.
 4. Run the gates. If you added a new `vuln_type`, consider a remediation entry in
    `orthrus/reporting/patches.py`.
 
 The same pattern applies to recon modules (`orthrus/recon/`), exploit confirmers
-(`orthrus/exploits/`), and reporters — each has a registry and a base class.
+(`orthrus/exploits/`), and reporters - each has a registry and a base class.
 
-## Visual style — red / white / black only
+## Visual style - red / white / black only
 
 ORTHRUS has one palette: **red, white, and black** (plus neutral greys, which are
 just shades of black↔white). It's anchored to the CLI's crimson identity
-(`orthrus/utils/theme.py`, Rich `red3`). Every visual surface follows it — the web
+(`orthrus/utils/theme.py`, Rich `red3`). Every visual surface follows it - the web
 dashboard, the attack-surface graph, the AI consultant report, and the Jinja
 report templates.
 
-The canonical colours live in **`orthrus/utils/palette.py`** — use those tokens for
+The canonical colours live in **`orthrus/utils/palette.py`** - use those tokens for
 any new report, view, or UI, now and in future. Do **not** introduce blue / green /
 teal / amber / purple. Severity reads as a red-intensity ramp (critical hottest →
 grey for low/info), never a green→red rainbow.

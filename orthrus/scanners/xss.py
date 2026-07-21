@@ -1,6 +1,6 @@
 """Reflected XSS scanner (PRD §6.3 Cross-Site Scripting).
 
-Detection only — exploitation/confirmation (callback or DOM execution) is the
+Detection only - exploitation/confirmation (callback or DOM execution) is the
 Phase-4 job of exploits/xss_confirm.py. This injects a marker-wrapped probe so
 that, regardless of how surrounding characters are handled, we can tell exactly
 which of < > " ' are reflected unencoded and infer the injection context.
@@ -49,7 +49,7 @@ def execution_payloads(marker: str) -> list[str]:
 
     Delegates to the shared XSS corpus (orthrus.scanners._payloads). Each payload
     sets a *marker-namespaced* global so detection survives pages that render
-    many payloads (stored XSS) — no last-write-wins clash and no alert()-driven
+    many payloads (stored XSS) - no last-write-wins clash and no alert()-driven
     dialog storms. Covers script/event-handler/SVG/iframe contexts, several
     tag-breakout prefixes, and a context-spanning polyglot.
     """
@@ -67,7 +67,7 @@ def is_html_context(content_type: str | None) -> bool:
     """Whether a reflected payload could execute as HTML in this response.
 
     Reflecting ``<script>`` into an ``application/json`` (or other non-HTML)
-    response is not XSS — browsers don't render it as markup — so we only treat
+    response is not XSS - browsers don't render it as markup - so we only treat
     HTML-ish content types (and a missing/empty type, which can be sniffed) as
     an XSS context. This suppresses false positives on JSON API echoes.
     """

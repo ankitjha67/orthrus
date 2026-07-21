@@ -2,12 +2,12 @@
 
 When user input is copied into a response header (a redirect ``Location``, a
 ``Set-Cookie``, a cache key) without stripping CR/LF, an attacker can inject
-their own headers — or split the response entirely — enabling session fixation,
+their own headers - or split the response entirely - enabling session fixation,
 cache poisoning, and reflected XSS via injected bodies.
 
 The probe sends a value containing ``\\r\\n`` followed by a uniquely-named
 sentinel header and cookie. If that header/cookie comes back on the response,
-the input reached the header block unescaped — a confirmed split. Detection is
+the input reached the header block unescaped - a confirmed split. Detection is
 on the *parsed* response headers, so it only fires when the injection actually
 took effect (low false positives).
 """

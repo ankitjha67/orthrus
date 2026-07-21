@@ -3,11 +3,11 @@
 Every engagement must be tied to a *source of authorization*: a public program
 URL (HackerOne / Bugcrowd / Intigriti / YesWeHack / Immunefi), a signed private
 engagement letter, direct written permission, or a self-owned lab. ORTHRUS
-refuses to scan public hosts without one — ``--scope auto`` convenience is only
+refuses to scan public hosts without one - ``--scope auto`` convenience is only
 implied when the whole scope is a local lab (loopback / RFC1918).
 
 This module does not verify the *content* of the authorization (that a program
-actually lists your target) — it records the operator's attested source so the
+actually lists your target) - it records the operator's attested source so the
 audit trail is honest and casual "point it at anything" use is blocked.
 """
 
@@ -25,8 +25,8 @@ class AuthKind(StrEnum):
     INTIGRITI = "intigriti"
     YESWEHACK = "yeswehack"
     IMMUNEFI = "immunefi"
-    SIGNED = "signed"          # signed:<file-or-hash> — a private engagement letter
-    DIRECT = "direct"          # direct:<note> or a policy URL — direct written permission
+    SIGNED = "signed"          # signed:<file-or-hash> - a private engagement letter
+    DIRECT = "direct"          # direct:<note> or a policy URL - direct written permission
     SELF_LAB = "self-owned-lab"
 
 

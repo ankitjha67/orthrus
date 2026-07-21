@@ -36,7 +36,7 @@ URL_HINTS = {
 
 METADATA_PAYLOADS = list(SSRF_METADATA)
 
-# Content signatures only — tokens that appear in actual metadata *responses* but
+# Content signatures only - tokens that appear in actual metadata *responses* but
 # NOT in the payload URLs we inject (otherwise a reflected payload false-positives).
 # Covers AWS, Azure, GCP, DigitalOcean and Oracle Cloud metadata services.
 _METADATA_RE = re.compile(
@@ -153,7 +153,7 @@ class SsrfScanner(BaseScanner):
                             description=(
                                 f"Injecting a cloud-metadata URL into '{point.param}' returned live "
                                 f"{creds.summary} from the instance metadata service. These are "
-                                "short-lived credentials for the instance's role — an attacker can "
+                                "short-lived credentials for the instance's role - an attacker can "
                                 "use them to act as that role across the cloud account (read storage, "
                                 "pivot to other services, escalate), so impact scales with the role's "
                                 "permissions. This is full SSRF-to-cloud-takeover, not just metadata "

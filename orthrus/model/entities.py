@@ -37,7 +37,7 @@ from orthrus.db.models import Base
 # authorization platforms an engagement can be tied to (PRD §6.1, §2.3)
 PLATFORMS = ("h1", "bc", "int", "ywh", "im", "self", "direct")
 SCOPE_ENTRY_TYPES = ("in", "out")
-# polymorphic scope kinds — web, API, mobile, web3, LLM, source (PRD §2.1 multi-domain)
+# polymorphic scope kinds - web, API, mobile, web3, LLM, source (PRD §2.1 multi-domain)
 SCOPE_KINDS = (
     "domain", "ip_cidr", "url", "mobile_app", "graphql", "grpc",
     "contract", "llm", "repo", "publisher_id",
@@ -86,7 +86,7 @@ class Program(Base):
     """A bug-bounty program: the anchor of authorization (PRD §6.2).
 
     Every asset/scan/finding in the operator graph references a Program, and a
-    Program must carry a valid ``authorization_source`` — a platform policy URL,
+    Program must carry a valid ``authorization_source`` - a platform policy URL,
     ``signed:<hash>``, ``direct:<note>``, or ``self-owned-lab``. Deny-by-default.
     """
 
@@ -243,7 +243,7 @@ class ScanRun(Base):
 
 
 class ProgramFinding(Base):
-    """A program-anchored, deduped finding (PRD §6.1) — the triage/report unit.
+    """A program-anchored, deduped finding (PRD §6.1) - the triage/report unit.
 
     Distinct from v0.1's scan-scoped ``Finding``: this is the persistent operator
     finding a scan promotes into, carrying dedup ``signature``, cross-tool
@@ -307,7 +307,7 @@ class Evidence(Base):
     """Content-addressable evidence blob (PRD §6.1).
 
     ``content_hash`` (SHA-256) makes evidence deduplicatable and integrity-checkable
-    — the same blob referenced by two findings stores once.
+    - the same blob referenced by two findings stores once.
     """
 
     __tablename__ = "evidence"
@@ -437,7 +437,7 @@ class Membership(Base):
 
 
 class CostLedgerRow(Base):
-    """One spend line — LLM/STT/OAST/compute/API (PRD §6.1/§10)."""
+    """One spend line - LLM/STT/OAST/compute/API (PRD §6.1/§10)."""
 
     __tablename__ = "cost_ledger"
 

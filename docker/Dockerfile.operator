@@ -6,7 +6,7 @@
 #
 #   docker compose -f docker/docker-compose.operator.yml up -d --build
 #
-# NOTE: not built/run in the dev environment that authored it — the compose file is
+# NOTE: not built/run in the dev environment that authored it - the compose file is
 # `docker compose config`-validated; exercise the image build in your own CI.
 
 # --- stage 1: build the cockpit (React + Vite) -------------------------------

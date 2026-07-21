@@ -43,7 +43,7 @@ async def test_panic_denies_every_request(tmp_path, monkeypatch):
     assert "PANIC" in str(ei.value)
     assert client.scope_violations == 1
 
-    # cleared: normal scope enforcement resumes — an out-of-scope host is still
+    # cleared: normal scope enforcement resumes - an out-of-scope host is still
     # denied, but NOT for a panic reason (proves panic no longer short-circuits)
     panic.clear()
     with pytest.raises(ScopeViolation) as ei2:

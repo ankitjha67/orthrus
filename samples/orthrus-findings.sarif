@@ -37,7 +37,7 @@
                 "text": "OS command injection in GraphQL argument 'systemDiagnostics.cmd'"
               },
               "fullDescription": {
-                "text": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed — the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver."
+                "text": "A shell metacharacter + canary injected into the GraphQL argument 'cmd' of 'mutation systemDiagnostics' was executed - the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver."
               },
               "defaultConfiguration": {
                 "level": "error"
@@ -58,7 +58,7 @@
                 "text": "Unrestricted file upload (.php accepted) at /upload"
               },
               "fullDescription": {
-                "text": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload — confirm where the file lands and whether it executes."
+                "text": "The upload endpoint /upload accepted a file with a dangerous '.php' extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload - confirm where the file lands and whether it executes."
               },
               "defaultConfiguration": {
                 "level": "error"
@@ -121,7 +121,7 @@
                 "text": "DOM-based XSS: URL-controlled value flows into innerHTML()"
               },
               "fullDescription": {
-                "text": "A value taken from the page URL reached the JavaScript sink 'innerHTML', which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting — exploited entirely client-side, so the server (and server-side filters) never see the payload."
+                "text": "A value taken from the page URL reached the JavaScript sink 'innerHTML', which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting - exploited entirely client-side, so the server (and server-side filters) never see the payload."
               },
               "defaultConfiguration": {
                 "level": "error"
@@ -309,7 +309,7 @@
                 "text": "Exposed framework/management endpoint: Spring Boot Actuator (env) (/actuator/env)"
               },
               "fullDescription": {
-                "text": "The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE."
+                "text": "The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes - valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE."
               },
               "defaultConfiguration": {
                 "level": "error"
@@ -561,7 +561,7 @@
                 "text": "GraphQL query batching enabled"
               },
               "fullDescription": {
-                "text": "The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request — amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use."
+                "text": "The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request - amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use."
               },
               "defaultConfiguration": {
                 "level": "warning"
@@ -624,7 +624,7 @@
                 "text": "OAuth authorization request without 'state' (CSRF)"
               },
               "fullDescription": {
-                "text": "No 'state' parameter is present, so the authorization response is not bound to the user's session — enabling login CSRF / authorization-code injection."
+                "text": "No 'state' parameter is present, so the authorization response is not bound to the user's session - enabling login CSRF / authorization-code injection."
               },
               "defaultConfiguration": {
                 "level": "warning"
@@ -687,7 +687,7 @@
                 "text": "Host header injection (attacker-controlled host reflected into links/redirects)"
               },
               "fullDescription": {
-                "text": "A sentinel host sent in the 'Host'/'X-Forwarded-Host' request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link — e.g. a poisoned password-reset email — leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF."
+                "text": "A sentinel host sent in the 'Host'/'X-Forwarded-Host' request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link - e.g. a poisoned password-reset email - leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF."
               },
               "defaultConfiguration": {
                 "level": "warning"
@@ -3039,7 +3039,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Debug surface → remote code execution on 127.0.0.1 — An exposed debug/framework surface combined with an injection primitive yields server-side code execution."
+            "text": "Attack path: Debug surface → remote code execution on 127.0.0.1 - An exposed debug/framework surface combined with an injection primitive yields server-side code execution."
           },
           "locations": [
             {
@@ -3101,7 +3101,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Leaked secret → authentication forgery on 127.0.0.1 — A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user — full authentication bypass."
+            "text": "Attack path: Leaked secret → authentication forgery on 127.0.0.1 - A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user - full authentication bypass."
           },
           "locations": [
             {
@@ -3163,7 +3163,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Session foothold → privilege escalation on 127.0.0.1 — An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users' or admin data — full account/admin takeover."
+            "text": "Attack path: Session foothold → privilege escalation on 127.0.0.1 - An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users' or admin data - full account/admin takeover."
           },
           "locations": [
             {
@@ -3225,7 +3225,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Cache poisoning → fleet-wide XSS on 127.0.0.1 — A poisoned or deceptive cache serves an injected payload to every visitor, turning a single injection into a stored, fleet-wide attack."
+            "text": "Attack path: Cache poisoning → fleet-wide XSS on 127.0.0.1 - A poisoned or deceptive cache serves an injected payload to every visitor, turning a single injection into a stored, fleet-wide attack."
           },
           "locations": [
             {
@@ -3287,7 +3287,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: File read → secret → lateral movement on 127.0.0.1 — Path traversal / XXE reads config or key files; the leaked secrets enable lateral movement or authentication bypass."
+            "text": "Attack path: File read → secret → lateral movement on 127.0.0.1 - Path traversal / XXE reads config or key files; the leaked secrets enable lateral movement or authentication bypass."
           },
           "locations": [
             {
@@ -3349,7 +3349,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Open redirect → OAuth token theft on 127.0.0.1 — An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse — account takeover."
+            "text": "Attack path: Open redirect → OAuth token theft on 127.0.0.1 - An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse - account takeover."
           },
           "locations": [
             {
@@ -3411,7 +3411,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: Source/config disclosure → secret exposure on 127.0.0.1 — Exposed source, listings, or debug output reveal secrets/credentials that unlock deeper access."
+            "text": "Attack path: Source/config disclosure → secret exposure on 127.0.0.1 - Exposed source, listings, or debug output reveal secrets/credentials that unlock deeper access."
           },
           "locations": [
             {
@@ -3473,7 +3473,7 @@
           "ruleIndex": 36,
           "level": "error",
           "message": {
-            "text": "Attack path: XSS → account takeover on 127.0.0.1 — Script injection with weak session/anti-CSRF protections lets an attacker ride a victim's session and take over the account."
+            "text": "Attack path: XSS → account takeover on 127.0.0.1 - Script injection with weak session/anti-CSRF protections lets an attacker ride a victim's session and take over the account."
           },
           "locations": [
             {

@@ -1,7 +1,7 @@
 """Report assembly (PRD §8): JSON, CSV, HTML (Jinja2), and PDF (Chromium).
 
-Builds a single report context from stored findings — CVSS-scored, OWASP-mapped,
-with confirmation evidence and base64-embedded screenshots — then renders it to
+Builds a single report context from stored findings - CVSS-scored, OWASP-mapped,
+with confirmation evidence and base64-embedded screenshots - then renders it to
 the requested format. The executive/technical/compliance HTML templates live in
 ``reporting/templates``.
 """
@@ -226,7 +226,7 @@ def _finding_dict(
         "param_location": row.param_location,
         "cwe": row.cwe,
         "owasp": OWASP_2021.get(row.vuln_type, "Unmapped"),
-        "pci_dss": PCI_DSS.get(row.vuln_type, "—"),
+        "pci_dss": PCI_DSS.get(row.vuln_type, "-"),
         "nist_csf": NIST_CSF.get(row.vuln_type, _NIST_DEFAULT),
         "mitre_attack": MITRE_ATTACK.get(row.vuln_type, _MITRE_DEFAULT),
         "attack": attack_for(row.vuln_type),  # structured ATT&CK techniques [{id,name,url}]
@@ -263,7 +263,7 @@ async def _build_context(
         findings = [f for f in findings if _SEVERITY_ORDER.get(f["severity"], 0) >= floor]
 
     # Rank by severity tier first (a critical never drops below a medium), then by
-    # EPSS exploit-probability, then CVSS — so actively-exploitable CVEs rise to
+    # EPSS exploit-probability, then CVSS - so actively-exploitable CVEs rise to
     # the top of their severity band.
     findings.sort(
         key=lambda f: (
@@ -390,9 +390,9 @@ def _write_markdown(context: dict[str, Any]) -> str:
     lines: list[str] = []
     lines.append("# ORTHRUS Security Report")
     lines.append("")
-    lines.append(f"**Target:** {scan.get('target') or '—'}  ")
-    lines.append(f"**Scan ID:** `{scan.get('id') or '—'}`  ")
-    lines.append(f"**Status:** {scan.get('status') or '—'}  ")
+    lines.append(f"**Target:** {scan.get('target') or '-'}  ")
+    lines.append(f"**Scan ID:** `{scan.get('id') or '-'}`  ")
+    lines.append(f"**Status:** {scan.get('status') or '-'}  ")
     lines.append(f"**Generated:** {context['generated_at']}")
     lines.append("")
     lines.append("> Authorized security testing only.")
@@ -425,7 +425,7 @@ def _write_markdown(context: dict[str, Any]) -> str:
         lines.append("## Attack Paths")
         lines.append("")
         lines.append(
-            f"{len(chains)} attacker-walkable path(s) — findings that combine into real "
+            f"{len(chains)} attacker-walkable path(s) - findings that combine into real "
             "compromise. Prioritise breaking these."
         )
         lines.append("")
@@ -456,7 +456,7 @@ def _write_markdown(context: dict[str, Any]) -> str:
     for i, f in enumerate(findings, 1):
         lines.append(
             f"| {i} | {_SEVERITY_BADGE.get(f['severity'], f['severity'])} "
-            f"| {f.get('cvss_score') if f.get('cvss_score') is not None else '—'} "
+            f"| {f.get('cvss_score') if f.get('cvss_score') is not None else '-'} "
             f"| {_md_cell(f['vuln_type'])} | {_md_cell(f.get('title'))} "
             f"| {_md_cell(f['url'])} | {_md_cell(f.get('confidence'))} |"
         )
@@ -466,7 +466,7 @@ def _write_markdown(context: dict[str, Any]) -> str:
     lines.append("")
     for i, f in enumerate(findings, 1):
         badge = _SEVERITY_BADGE.get(f["severity"], f["severity"])
-        lines.append(f"### {i}. {f.get('title') or f['vuln_type']} — {badge}")
+        lines.append(f"### {i}. {f.get('title') or f['vuln_type']} - {badge}")
         lines.append("")
         meta = [
             ("Type", f["vuln_type"]),
@@ -590,7 +590,7 @@ def _chain_results(chains: list[dict[str, Any]], rules: list[dict[str, Any]]) ->
             "ruleId": CHAIN_RULE_ID,
             "ruleIndex": rule_index,
             "level": _SARIF_LEVEL.get(c.get("severity", ""), "warning"),
-            "message": {"text": f"Attack path: {c.get('name')} on {c.get('host')} — {c.get('impact')}"},
+            "message": {"text": f"Attack path: {c.get('name')} on {c.get('host')} - {c.get('impact')}"},
             "locations": [{"physicalLocation": {"artifactLocation": {"uri": primary_uri}}}],
             "codeFlows": [{"threadFlows": [{"locations": thread_locations}]}],
             "partialFingerprints": {"orthrusChainHash/v1": fp},
@@ -683,7 +683,7 @@ def _safe_output_path(output: str) -> str:
 
     Tolerates a pasted URL as a filename (e.g. ``reports/https://site.com:8443.html``)
     by stripping the scheme and replacing characters that are illegal in a filename
-    (``: / \\ * ? " < > |``) in the *basename* with ``-`` — turning what would be an
+    (``: / \\ * ? " < > |``) in the *basename* with ``-`` - turning what would be an
     OSError (or a silent NTFS alternate-data-stream write on Windows) into a real,
     predictable file. Directory and drive components are preserved.
     """

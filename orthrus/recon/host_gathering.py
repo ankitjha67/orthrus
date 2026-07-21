@@ -1,20 +1,20 @@
-"""Host gathering — consolidate the host footprint from many passive sources.
+"""Host gathering - consolidate the host footprint from many passive sources.
 
 Given a target, this module casts a wide *passive* net to gather every related
 host it can, then folds them into one deduplicated inventory:
 
-* **Certificate Transparency** (crt.sh) — subdomains seen in issued certs.
-* **Reverse-IP / co-hosting** — other hostnames sharing the target's IP(s).
-* **Reverse-DNS netblock sweep** — PTR records across the target IP's /24,
+* **Certificate Transparency** (crt.sh) - subdomains seen in issued certs.
+* **Reverse-IP / co-hosting** - other hostnames sharing the target's IP(s).
+* **Reverse-DNS netblock sweep** - PTR records across the target IP's /24,
   surfacing neighbouring hosts on the same network.
-* **Wayback Machine** — hostnames seen in historically archived URLs.
+* **Wayback Machine** - hostnames seen in historically archived URLs.
 
 Everything queries public databases / third-party OSINT services *about* the
-target — no host-discovery packet is sent to the gathered hosts themselves.
+target - no host-discovery packet is sent to the gathered hosts themselves.
 
 Scope discipline: only hosts that fall **within the authorised scope** are
 emitted as scannable :class:`Asset`s. Co-hosted hosts that land outside scope
-are still *gathered and counted* (situational awareness — e.g. shared-hosting
+are still *gathered and counted* (situational awareness - e.g. shared-hosting
 exposure) but are flagged ``in_scope=False`` and never fed to the scan phase.
 """
 

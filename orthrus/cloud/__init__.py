@@ -1,4 +1,4 @@
-"""Cloud security posture (CSPM/IAM) — read-only misconfiguration + toxic-combination analysis.
+"""Cloud security posture (CSPM/IAM) - read-only misconfiguration + toxic-combination analysis.
 
 `orthrus cloud` consumes a normalized inventory snapshot (or collects one
 read-only via boto3) and emits ORTHRUS Findings for public/unencrypted/over-

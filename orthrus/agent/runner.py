@@ -4,7 +4,7 @@ Drives the planner in a loop: plan → (validate against the allow-list) → exe
 via an injected executor → observe findings → re-plan, up to ``max_steps``. The
 executor is a dependency (the CLI wires it to the real scope-enforced
 Orchestrator; tests inject a fake), and it is only ever handed allow-listed
-module names — the runner filters every planned action through
+module names - the runner filters every planned action through
 ``validate_action`` before anything runs. ``--dry-run`` produces the plan and
 executes nothing.
 """
@@ -53,10 +53,10 @@ class AgentReport:
 
     def summary(self) -> str:
         if self.dry_run:
-            return f"planned {len(self.plan)} action(s) for {self.target} (dry-run — nothing executed)"
+            return f"planned {len(self.plan)} action(s) for {self.target} (dry-run - nothing executed)"
         return (
             f"{self.target}: ran {len(self.modules_run)} module(s) over {len(self.steps)} step(s), "
-            f"{len(self.findings)} finding(s) — {self.stopped_reason}"
+            f"{len(self.findings)} finding(s) - {self.stopped_reason}"
         )
 
     def to_dict(self) -> dict:

@@ -27,7 +27,7 @@ export default function Reports({ program }: { program: Program | null }) {
         <h2>Platform-native reports</h2>
         <p className="muted">
           Submission-ready HackerOne / Bugcrowd / Intigriti / YesWeHack / Immunefi reports are produced by
-          the report engine — today via <code>orthrus bounty-report --program {program.name} --platform …</code>,
+          the report engine - today via <code>orthrus bounty-report --program {program.name} --platform …</code>,
           wired into this tab in Phase 3. Reports lead with <b>confirmed</b> findings, carry evidence-grounded
           PoC steps, and flag likely cross-run duplicates.
         </p>

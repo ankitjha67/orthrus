@@ -1,9 +1,9 @@
-"""Continuous recon engine (PRD §7.2) — the net-new operator subsystem.
+"""Continuous recon engine (PRD §7.2) - the net-new operator subsystem.
 
 Adapters (pure-Python sources + wrapped external tools) each discover assets and
 normalize them into ``DiscoveredAsset`` records; the :class:`ReconEngine` runs
 them for a Program's scope, folds results into the operator graph
-(``ProgramGraph.record_asset`` — dedup + first/last-seen), flags wildcard-DNS
+(``ProgramGraph.record_asset`` - dedup + first/last-seen), flags wildcard-DNS
 noise, and reports what's *new* since the last run. This is what turns a one-shot
 scan into a program that watches its scope continuously.
 """

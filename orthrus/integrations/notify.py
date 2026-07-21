@@ -1,7 +1,7 @@
 """Push high-severity findings to chat / ticketing (Slack, Jira).
 
 Both Trident and Strix surface findings into Slack + Jira; this is the same push
-— webhook (Slack) / REST create-issue (Jira), over the existing httpx dependency,
+- webhook (Slack) / REST create-issue (Jira), over the existing httpx dependency,
 no new packages. The payload *builders* are pure and unit-tested; the senders are
 thin and defensive. `orthrus notify` drives them (with a `--dry-run` that prints
 the payloads instead of sending, so nothing leaves the host without intent).
@@ -56,7 +56,7 @@ def slack_message(
         if counts.get(s)
     )
     lines = [
-        f"*ORTHRUS scan `{scan_id}`* — {target or 'target'}",
+        f"*ORTHRUS scan `{scan_id}`* - {target or 'target'}",
         f"{len(rows)} findings ({tallies or 'none'}); "
         f"{len(selected)} at or above *{min_severity}*:",
     ]
@@ -64,7 +64,7 @@ def slack_message(
         emoji = _SEV_EMOJI.get(_sev(r), "")
         title = getattr(r, "title", getattr(r, "vuln_type", "finding"))
         url = getattr(r, "url", "")
-        lines.append(f"{emoji} *{_sev(r).upper()}* — {title}  `{url}`")
+        lines.append(f"{emoji} *{_sev(r).upper()}* - {title}  `{url}`")
     if len(selected) > max_items:
         lines.append(f"…and {len(selected) - max_items} more.")
     return {"text": "\n".join(lines)}
@@ -80,10 +80,10 @@ def jira_issue(row: object, project_key: str, scan_id: str) -> dict:
         f"*Severity:* {sev.upper()}\n"
         f"*Type:* {getattr(row, 'vuln_type', '')}\n"
         f"*URL:* {url}\n"
-        f"*CWE:* {cwe or '—'}\n"
+        f"*CWE:* {cwe or '-'}\n"
         f"*Scan:* {scan_id}\n\n"
         f"{getattr(row, 'description', '') or ''}\n\n"
-        f"*Remediation:* {getattr(row, 'remediation', '') or '—'}"
+        f"*Remediation:* {getattr(row, 'remediation', '') or '-'}"
     )
     labels = ["orthrus", f"sev-{sev}"]
     vt = getattr(row, "vuln_type", "")

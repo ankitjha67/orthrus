@@ -2,7 +2,7 @@
 
 These guard the shape and breadth of orthrus.scanners._payloads (so a future
 edit can't silently drop a DBMS / OS / cloud / template-engine variant), and
-the invariants the scanners rely on — most importantly that no SSRF metadata
+the invariants the scanners rely on - most importantly that no SSRF metadata
 *payload URL* contains a signature the detector matches (which would turn a mere
 reflection into a false positive).
 """

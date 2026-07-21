@@ -1,7 +1,7 @@
 """Reject-list for high-sensitivity targets (PRD §2.3 / §8.5 / §11).
 
 Some hosts must not be scanned casually even inside an otherwise-authorized
-program: government and military systems, and — with a softer warning —
+program: government and military systems, and - with a softer warning -
 education and healthcare. Testing these without specific, documented
 authorization is a fast route to criminal exposure, so ORTHRUS refuses them by
 default and only proceeds on an explicit, per-host typed acknowledgment that the

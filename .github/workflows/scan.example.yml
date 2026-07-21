@@ -1,4 +1,4 @@
-# Example workflow — copy/adapt into your own repo to scan an authorized target
+# Example workflow - copy/adapt into your own repo to scan an authorized target
 # and publish findings to the GitHub Security tab (code scanning) as SARIF.
 #
 # ⚠️ Only scan systems you OWN or are explicitly AUTHORIZED to test.

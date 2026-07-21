@@ -1,4 +1,4 @@
-"""Per-finding reproduction snippets — curl, Python, and a raw request for Burp.
+"""Per-finding reproduction snippets - curl, Python, and a raw request for Burp.
 
 Pentesters live in curl, ``requests``/``httpx``, and Burp Repeater. For every
 finding that captured a request, ORTHRUS emits copy-paste blocks so the reader
@@ -9,7 +9,7 @@ finding URL, so they reflect what the scanner actually sent.
 
 Headers that a client sets for itself (``Host``, ``Content-Length``) are dropped
 so the snippet doesn't fight the tool; credential headers (``Cookie``,
-``Authorization``) are kept because reproduction needs them — the report is
+``Authorization``) are kept because reproduction needs them - the report is
 already marked CONFIDENTIAL and carries the same evidence verbatim.
 """
 

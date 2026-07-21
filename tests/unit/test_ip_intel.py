@@ -130,7 +130,7 @@ async def test_discover_enriches_in_scope_target(monkeypatch):
 
 
 async def test_discover_skips_out_of_scope_target(monkeypatch):
-    # An out-of-scope target must yield nothing — and never even resolve.
+    # An out-of-scope target must yield nothing - and never even resolve.
     def _boom(_host):  # pragma: no cover - must not be called
         raise AssertionError("resolution attempted on an out-of-scope target")
 

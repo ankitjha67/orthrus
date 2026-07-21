@@ -1,14 +1,14 @@
-"""Per-program mute rules — suppress known-noise findings (PRD §7.5 triage).
+"""Per-program mute rules - suppress known-noise findings (PRD §7.5 triage).
 
 Every real bounty program accumulates *known noise*: an informational header
 finding on a marketing host the program explicitly considers out-of-policy, a
 class the team has said they won't pay for. Re-surfacing it every run is friction.
-A mute rule says "for this program, don't report findings matching X" — matched
+A mute rule says "for this program, don't report findings matching X" - matched
 by vuln_type, host (exact or subdomain), and/or a title substring. The campaign
-report counts what it suppressed (honest — nothing silently vanishes) but keeps
+report counts what it suppressed (honest - nothing silently vanishes) but keeps
 it out of the submission queue.
 
-Safety: a rule with no criteria matches **nothing** — you can never accidentally
+Safety: a rule with no criteria matches **nothing** - you can never accidentally
 mute an entire program. Stored as JSON at ``$ORTHRUS_HOME/suppressions.json``,
 keyed by (lowercased) program name.
 """

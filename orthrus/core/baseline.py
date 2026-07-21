@@ -1,7 +1,7 @@
 """Response baseline / soft-404 calibration for false-positive suppression.
 
 Path-probing scanners (content discovery, declarative templates) are easily
-fooled by a target that returns a *success* page for every URL — a catch-all or
+fooled by a target that returns a *success* page for every URL - a catch-all or
 soft-404. Before scanning, ORTHRUS sends a handful of deliberately nonsensical
 requests and records how the target answers them. A later response that looks
 just like those baseline answers is almost certainly the catch-all rather than a
@@ -61,7 +61,7 @@ class ResponseFingerprint:
         """Whether two responses are structurally alike (same status, near size).
 
         Matches on byte length within tolerance OR on near-identical word and
-        line counts — the latter catches catch-alls whose only variation is an
+        line counts - the latter catches catch-alls whose only variation is an
         echoed path/token, which barely shifts the counts.
         """
         if self.status != other.status:

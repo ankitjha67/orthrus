@@ -2,14 +2,14 @@
 
 This is the only part of the cloud subsystem that talks to a provider, and it is
 strictly **read-only** (list/describe/get) using the operator's own credentials
-against their own account — the same posture-assessment model as Prowler /
+against their own account - the same posture-assessment model as Prowler /
 ScoutSuite. It never creates, modifies, or deletes anything. boto3 is imported
 lazily (optional ``[cloud]`` extra); a ``client_factory`` can be injected so the
 normalization is unit-tested without live credentials.
 
 Collection is best-effort: a failure for one service/region is logged and
 skipped so a partial inventory is still useful. Exact IAM action expansion is
-intentionally approximate (attached AdministratorAccess ⇒ ``["*"]``) — enough
+intentionally approximate (attached AdministratorAccess ⇒ ``["*"]``) - enough
 for posture/toxic rules without walking every policy version.
 """
 

@@ -3,7 +3,7 @@
 Sends a JSON body that pollutes ``__proto__`` (or ``constructor.prototype``) with
 a unique sentinel property, then issues a *fresh* benign request. If the sentinel
 now appears in that fresh response, the property leaked onto a new object via the
-prototype — confirming server-side prototype pollution (Node.js et al.). The
+prototype - confirming server-side prototype pollution (Node.js et al.). The
 differential check (clean before, polluted after) avoids the echo false positive
 of merely reflecting the input back.
 

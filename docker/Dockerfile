@@ -1,5 +1,5 @@
 # ORTHRUS application/worker image (PRD §15.2).
-# Uses Python 3.12 (broad wheel availability) — the code targets 3.11+.
+# Uses Python 3.12 (broad wheel availability) - the code targets 3.11+.
 FROM python:3.12-slim
 
 WORKDIR /app

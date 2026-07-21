@@ -48,7 +48,7 @@ export default function Programs({
     <>
       {!health && (
         <div className="err">
-          API offline — start it with <code>orthrus serve</code>.
+          API offline - start it with <code>orthrus serve</code>.
         </div>
       )}
 
@@ -76,7 +76,7 @@ export default function Programs({
           </div>
         </div>
         <label>
-          Authorization source <span className="faint">(required — deny-by-default)</span>
+          Authorization source <span className="faint">(required - deny-by-default)</span>
         </label>
         <input
           value={form.authorization_source}
@@ -97,7 +97,7 @@ export default function Programs({
       <div className="card">
         <h2>Programs ({programs.length})</h2>
         {programs.length === 0 ? (
-          <div className="empty">No programs yet — create one above.</div>
+          <div className="empty">No programs yet - create one above.</div>
         ) : (
           <table>
             <thead>

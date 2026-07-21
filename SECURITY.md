@@ -1,7 +1,7 @@
 # Security Policy
 
 ORTHRUS is an **offensive security tool** for **authorized** testing. This policy
-covers vulnerabilities **in ORTHRUS itself** — not findings you produced *with* it
+covers vulnerabilities **in ORTHRUS itself** - not findings you produced *with* it
 against some third-party system (those belong to that system's disclosure
 process, and only if you were authorized to test it).
 
@@ -9,11 +9,11 @@ process, and only if you were authorized to test it).
 
 High-signal issues in the tool that could cause real harm:
 
-- **Scope-enforcement bypass** — any way ORTHRUS sends a request to a host / port /
+- **Scope-enforcement bypass** - any way ORTHRUS sends a request to a host / port /
   path that the engagement `ScopeConfig` did not authorize (this is the load-bearing
   safety control; a bypass is the most serious class of bug here).
 - **DNS-rebinding / redirect escapes** that reach an out-of-scope address.
-- **Secret / credential leakage** — the tool writing API keys, tokens, or
+- **Secret / credential leakage** - the tool writing API keys, tokens, or
   exploited data into reports/logs unredacted, or committing them.
 - **Unsafe deserialization / RCE** in ORTHRUS's own parsing of responses, specs,
   configs, templates, or plugins.
@@ -28,7 +28,7 @@ target" (that's the intended behavior).
 
 **Please do not open a public issue for a security bug.** Use either:
 
-1. **GitHub private vulnerability reporting** — the repo's *Security → Report a
+1. **GitHub private vulnerability reporting** - the repo's *Security → Report a
    vulnerability* tab (preferred; keeps the report private until a fix ships), or
 2. **Email** the maintainer at **ankitjha67@gmail.com** with `[ORTHRUS SECURITY]`
    in the subject.
@@ -39,7 +39,7 @@ third-party host), the impact, and any suggested fix.
 
 ## What to expect
 
-This is a solo, best-effort open-source project — timelines are targets, not SLAs:
+This is a solo, best-effort open-source project - timelines are targets, not SLAs:
 
 - **Acknowledgement** within ~72 hours.
 - **Initial assessment** within ~1 week.
@@ -59,5 +59,5 @@ no back-ported patch releases yet.
 
 - Only run it against systems you **own** or are **explicitly authorized** to test.
 - Keep scope enforcement enabled; treat any need to disable it as a red flag.
-- Reports may contain sensitive data — `reports/`, local DBs, and `.env` are
+- Reports may contain sensitive data - `reports/`, local DBs, and `.env` are
   git-ignored by default; keep them that way.

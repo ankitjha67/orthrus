@@ -3,13 +3,13 @@
 When a web server (Apache ``mod_autoindex``, Nginx ``autoindex on``, IIS
 directory browsing, or a framework dev server) serves a directory that has no
 index file, it renders an auto-generated listing of the directory's contents.
-That listing leaks file names, backups, source, and layout — handy
+That listing leaks file names, backups, source, and layout - handy
 reconnaissance for an attacker.
 
 This scanner builds a small set of candidate directory URLs from (a) the parent
 directories of every discovered endpoint and (b) a curated common-directory
 list, then GETs each (no redirects) and flags any ``200`` response whose body
-carries a specific autoindex marker. A bare ``200`` never qualifies — only a
+carries a specific autoindex marker. A bare ``200`` never qualifies - only a
 positive listing signal does, keeping false positives low.
 """
 
@@ -54,7 +54,7 @@ COMMON_DIRS: tuple[str, ...] = (
 def is_directory_listing(body: str) -> bool:
     """True if the body carries an autoindex/directory-listing marker.
 
-    Matching is case-insensitive. A specific marker is required — a bare ``200``
+    Matching is case-insensitive. A specific marker is required - a bare ``200``
     must never qualify.
     """
     low = body.lower()
@@ -152,7 +152,7 @@ class DirectoryListingScanner(BaseScanner):
             description=(
                 f"The directory {path} returns an auto-generated index of its contents "
                 "instead of a 403 or an index page. Directory listings disclose file "
-                "names, backups, source files, and the application's internal layout — "
+                "names, backups, source files, and the application's internal layout - "
                 "valuable reconnaissance that can reveal otherwise-unlinked sensitive files."
             ),
             remediation=(

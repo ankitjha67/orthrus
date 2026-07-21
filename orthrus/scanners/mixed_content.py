@@ -1,7 +1,7 @@
 """Mixed-content / insecure-transport reference scanner (CWE-319).
 
-An HTTPS page that pulls in resources over plain ``http://`` — or, far worse,
-posts a form to an ``http://`` action — breaks the transport guarantee: an
+An HTTPS page that pulls in resources over plain ``http://`` - or, far worse,
+posts a form to an ``http://`` action - breaks the transport guarantee: an
 on-path attacker can read or tamper with the insecure sub-request. A form whose
 ``action`` is ``http://`` leaks whatever the user submits (credentials, tokens)
 in cleartext, so it is treated as HIGH; passive sub-resources (scripts, iframes,
@@ -33,7 +33,7 @@ logger = get_logger("scanner.mixed-content")
 SCANNER_NAME = "mixed-content"
 MAX_PAGES = 30
 
-# (attribute, html tag/context, severity, label) — form actions are the worst.
+# (attribute, html tag/context, severity, label) - form actions are the worst.
 _ACTIVE_RE = re.compile(r"""<form\b[^>]*\baction\s*=\s*['"]?(http://[^'"\s>]+)""", re.IGNORECASE)
 _RESOURCE_RE = re.compile(
     r"""<(?:script|iframe|link|img|source|audio|video|embed|object)\b[^>]*"""
@@ -45,7 +45,7 @@ _RESOURCE_RE = re.compile(
 def find_mixed_content(html: str, page_url: str) -> list[tuple[str, str, Severity]]:
     """Return (kind, insecure_url, severity) for http:// references on an https page.
 
-    ``kind`` is "form-action" (HIGH — submitted data leaks in cleartext) or
+    ``kind`` is "form-action" (HIGH - submitted data leaks in cleartext) or
     "resource" (MEDIUM). Returns [] for non-HTTPS pages.
     """
     if urlsplit(page_url).scheme != "https":
@@ -107,7 +107,7 @@ class MixedContentScanner(BaseScanner):
             title = "Form submits over insecure HTTP (mixed content)"
             desc = (
                 f"An HTTPS page posts a form to an insecure http:// action ({insecure_url}). "
-                "Everything the user submits — including credentials or tokens — is sent in "
+                "Everything the user submits - including credentials or tokens - is sent in "
                 "cleartext and can be read or modified by an on-path attacker."
             )
         else:

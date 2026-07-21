@@ -1,8 +1,8 @@
-"""Cross-run asset monitoring — catch NEW in-scope surface (PRD §7.9).
+"""Cross-run asset monitoring - catch NEW in-scope surface (PRD §7.9).
 
 A bug-bounty program's scope is not static: teams ship new subdomains, spin up
 staging, expose new APIs. The single highest-signal event in bounty hunting is a
-*fresh, untested asset appearing in an existing program's scope* — surface that
+*fresh, untested asset appearing in an existing program's scope* - surface that
 nobody has looked at yet. This keeps a per-program snapshot of the live in-scope
 hosts and, on the next enumeration, tells you exactly which ones are new (and
 which stopped resolving), so you can go straight at the fresh surface.
@@ -33,7 +33,7 @@ def default_snapshot_path() -> Path:
 
 
 def _norm(hosts) -> list[str]:
-    """Lowercase, strip, dedupe, drop blanks — a stable host set."""
+    """Lowercase, strip, dedupe, drop blanks - a stable host set."""
     seen = {(h or "").strip().lower().rstrip(".") for h in hosts}
     seen.discard("")
     return sorted(seen)
@@ -53,9 +53,9 @@ class AssetDiff:
 
     def summary(self) -> str:
         if self.is_first:
-            return f"baseline recorded — {self.total} in-scope asset(s)"
+            return f"baseline recorded - {self.total} in-scope asset(s)"
         if not self.has_changes:
-            return f"no change — {self.total} in-scope asset(s)"
+            return f"no change - {self.total} in-scope asset(s)"
         return f"+{len(self.added)} new / -{len(self.removed)} gone ({self.total} total)"
 
     def to_dict(self) -> dict:

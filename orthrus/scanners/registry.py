@@ -1,4 +1,4 @@
-"""Scanner registry — the extension point for vulnerability modules.
+"""Scanner registry - the extension point for vulnerability modules.
 
 Scanner classes register here (via the ``@register`` decorator) keyed by their
 ``vuln_type``. The orchestrator resolves the operator's ``--modules`` selection

@@ -1,11 +1,11 @@
-"""HTTP request smuggling (desync) scanner — timing-based CL.TE / TE.CL probe.
+"""HTTP request smuggling (desync) scanner - timing-based CL.TE / TE.CL probe.
 
 Front-end/back-end disagreement over message framing (Content-Length vs
 Transfer-Encoding) lets an attacker smuggle a request prefix past the front-end,
 enabling cache poisoning, request hijacking, and auth bypass.
 
 This is the **one** scanner that opens a raw socket instead of using the
-scope-enforced HttpClient — because httpx deliberately normalises CL/TE and will
+scope-enforced HttpClient - because httpx deliberately normalises CL/TE and will
 not emit the conflicting framing a smuggling probe requires. Scope is still
 enforced: ``ctx.scope.is_allowed()`` must pass before any connection is opened.
 
@@ -13,7 +13,7 @@ Detection is the standard PortSwigger timing technique: a CL.TE (resp. TE.CL)
 probe is crafted so a desynced back-end blocks waiting for a chunk that never
 arrives. If the probe stalls to the timeout while normal requests are fast, the
 endpoint is flagged TENTATIVE for manual confirmation (smuggling truly requires
-a front-end/back-end chain, which a single host cannot exhibit — so against one
+a front-end/back-end chain, which a single host cannot exhibit - so against one
 server this correctly finds nothing).
 """
 
@@ -76,7 +76,7 @@ def build_cl0_probe(host: str, marker: str) -> bytes:
     """CL.0 desync: a POST whose body is itself an HTTP request for ``/marker``.
 
     If the front-end ignores the Content-Length on this request (CL.0), the body
-    is left on the wire and the back-end parses it as a *separate* request — so a
+    is left on the wire and the back-end parses it as a *separate* request - so a
     request for the unique ``/marker`` path is processed that was never sent as a
     top-level request. A CL-honouring server instead consumes the body and emits
     a single response.
@@ -92,7 +92,7 @@ def build_cl0_probe(host: str, marker: str) -> bytes:
     ).encode()
 
 
-# A response status line ("HTTP/1.1 200 ...") — distinct from a request line that
+# A response status line ("HTTP/1.1 200 ...") - distinct from a request line that
 # merely ends in "HTTP/1.1", so an echoed request body cannot inflate the count.
 _RESPONSE_STATUS_RE = re.compile(r"HTTP/1\.[01] \d{3}")
 
@@ -148,7 +148,7 @@ class RequestSmugglingScanner(BaseScanner):
                     yield self._finding(base_url, label, baseline, elapsed)
                     break
 
-            # CL.0: differential — the smuggled request's marker comes back.
+            # CL.0: differential - the smuggled request's marker comes back.
             marker = "orthrus-cl0-" + secrets.token_hex(4)
             response = await self._cl0_collect(host, port, tls, build_cl0_probe(host, marker))
             if response is not None and cl0_desynced(response, marker):
@@ -190,7 +190,7 @@ class RequestSmugglingScanner(BaseScanner):
             url=url,
             description=(
                 "A POST whose body was itself an HTTP request for a unique path "
-                f"(/{marker}) caused the server to process that smuggled request — its marker "
+                f"(/{marker}) caused the server to process that smuggled request - its marker "
                 "came back as a second HTTP response on the connection. The front-end ignored the "
                 "Content-Length (CL.0), so the body desynced the connection. This enables request "
                 "hijacking, response queue poisoning, and security-control bypass for other users."

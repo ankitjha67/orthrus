@@ -2,16 +2,16 @@
 
 Two of the highest-signal, lowest-noise recon sources on a web target:
 
-* **robots.txt** — its ``Disallow``/``Allow`` directives enumerate exactly the
+* **robots.txt** - its ``Disallow``/``Allow`` directives enumerate exactly the
   paths an admin *didn't* want crawled (admin panels, exports, staging), and its
   ``Sitemap:`` lines point at the sitemaps.
-* **sitemap.xml** — a machine-readable list of the site's real URLs, including a
+* **sitemap.xml** - a machine-readable list of the site's real URLs, including a
   ``<sitemapindex>`` that fans out to more sitemaps; gzipped (``.xml.gz``) variants
   are handled.
 
 Both are fetched through the scope-enforced ``ctx.http`` and every discovered URL
 is scope-checked before it's yielded. Sitemaps are parsed with a ``<loc>`` regex
-rather than an XML parser **on purpose** — the document is attacker-controlled, so
+rather than an XML parser **on purpose** - the document is attacker-controlled, so
 we never feed it to an entity-expanding parser (no self-inflicted XXE). The pure
 ``parse_robots`` / ``parse_sitemap`` helpers are unit-tested.
 """
@@ -58,7 +58,7 @@ def parse_robots(text: str) -> tuple[list[str], list[str]]:
         if not value:
             continue
         if field in ("disallow", "allow"):
-            # Concrete, requestable paths only — skip site-wide "/" and wildcards.
+            # Concrete, requestable paths only - skip site-wide "/" and wildcards.
             if value.startswith("/") and value not in ("/", "/*") and "*" not in value:
                 paths.append(value)
         elif field == "sitemap" and value.startswith(("http://", "https://")):

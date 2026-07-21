@@ -1,4 +1,4 @@
-"""New-asset alerts (PRD §7.9) — the delivery half of "new asset → notification".
+"""New-asset alerts (PRD §7.9) - the delivery half of "new asset → notification".
 
 A plain-text summary that reads well in both Slack (as ``{"text": …}``) and
 Discord (as ``content``), so a fresh in-scope host surfaces the moment recon

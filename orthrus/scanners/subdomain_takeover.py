@@ -30,7 +30,7 @@ SCANNER_NAME = "subdomain-takeover"
 MAX_HOSTS = 25
 
 # (service, distinctive "unclaimed" response phrases). Lowercased at match time.
-# Each phrase MUST be provider-specific — generic 404 strings ("404 not found",
+# Each phrase MUST be provider-specific - generic 404 strings ("404 not found",
 # "the requested url was not found on this server", "web site not found") are
 # deliberately excluded because they false-positive on any ordinary 404 page.
 TAKEOVER_FINGERPRINTS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -99,7 +99,7 @@ class SubdomainTakeoverScanner(BaseScanner):
                 description=(
                     f"The host {parts.netloc} serves {service}'s 'unclaimed resource' page. If its "
                     "DNS record still points at a de-provisioned third-party resource, an attacker "
-                    "can register that resource and serve arbitrary content from your domain — "
+                    "can register that resource and serve arbitrary content from your domain - "
                     "enabling phishing, cookie theft, and OAuth/redirect abuse. Confirm the "
                     "dangling CNAME/ALIAS before reporting."
                 ),

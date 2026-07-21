@@ -34,7 +34,7 @@ export default function Findings({ program }: { program: Program | null }) {
       <h2>Findings queue ({findings.length})</h2>
       {err && <div className="err">{err}</div>}
       {findings.length === 0 ? (
-        <div className="empty">No findings yet — scans promote confirmed bugs into the queue.</div>
+        <div className="empty">No findings yet - scans promote confirmed bugs into the queue.</div>
       ) : (
         <table>
           <thead>
@@ -51,7 +51,7 @@ export default function Findings({ program }: { program: Program | null }) {
           <tbody>
             {findings.map((f) => (
               <tr key={f.id}>
-                <td>{f.priority_score?.toFixed(0) ?? "—"}</td>
+                <td>{f.priority_score?.toFixed(0) ?? "-"}</td>
                 <td className={SEV_CLASS[f.severity] ?? ""}>{f.severity}</td>
                 <td className="mono faint">{f.vuln_class}</td>
                 <td>{f.title}</td>

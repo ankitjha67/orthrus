@@ -1,7 +1,7 @@
-"""Attack-path chaining — correlate individual findings into kill-chains.
+"""Attack-path chaining - correlate individual findings into kill-chains.
 
 A flat finding list hides *impact*. One SSRF and one exposed Redis look like two
-medium issues — together they are remote code execution on the internal network.
+medium issues - together they are remote code execution on the internal network.
 This engine matches a scan's findings against a catalog of well-known attack
 chains and emits the ones whose every link is present, each with an escalated
 severity and a plain-English impact narrative. The result is the handful of
@@ -9,8 +9,8 @@ severity and a plain-English impact narrative. The result is the handful of
 
 Pure and deterministic: ``correlate_findings`` takes findings and returns chains.
 Each link of a chain must be satisfied by a *distinct* finding (so a chain is
-always ≥2 real findings, never one finding counted twice), and — for host-scoped
-chains — all links must sit on the same host, so unrelated findings on different
+always ≥2 real findings, never one finding counted twice), and - for host-scoped
+chains - all links must sit on the same host, so unrelated findings on different
 hosts don't fabricate a path.
 """
 
@@ -55,14 +55,14 @@ CHAIN_RULES: tuple[ChainRule, ...] = (
     ChainRule(
         "Leaked secret → authentication forgery", "critical",
         "A leaked signing key/secret lets an attacker mint their own valid tokens and "
-        "authenticate as any user — full authentication bypass.",
+        "authenticate as any user - full authentication bypass.",
         (_link("Exposed secret / signing key", "exposed-secret"),
          _link("Token-based authentication", "jwt", "saml-misconfig", "auth-session")),
     ),
     ChainRule(
         "Session foothold → privilege escalation", "critical",
         "An attacker obtains a session via the authentication weakness, then escalates "
-        "authorization to reach other users' or admin data — full account/admin takeover.",
+        "authorization to reach other users' or admin data - full account/admin takeover.",
         (_link("Authentication weakness", "jwt", "auth-session", "default-creds", "oauth-misconfig"),
          _link("Authorization bypass", "idor", "broken-authorization",
                "privilege-escalation", "mass-assignment")),
@@ -91,7 +91,7 @@ CHAIN_RULES: tuple[ChainRule, ...] = (
     ChainRule(
         "Open redirect → OAuth token theft", "high",
         "An open redirect on the OAuth flow lets an attacker steal authorization codes/tokens "
-        "via redirect_uri abuse — account takeover.",
+        "via redirect_uri abuse - account takeover.",
         (_link("Open redirect", "open-redirect"),
          _link("OAuth misconfiguration", "oauth-misconfig")),
     ),
@@ -151,7 +151,7 @@ def _vt(finding) -> str:
 
 
 def _host_of(url: str) -> str:
-    # Key on hostname (not netloc) so the same host correlates across ports —
+    # Key on hostname (not netloc) so the same host correlates across ports -
     # an SSRF on app:443 and an exposed Redis on app:6379 are one host.
     return (urlsplit(url or "").hostname or "").lower()
 

@@ -1,8 +1,8 @@
-"""Spec-driven endpoint extraction (PRD §5.2 — API discovery, machine-readable).
+"""Spec-driven endpoint extraction (PRD §5.2 - API discovery, machine-readable).
 
 A static/dynamic crawler only finds the API surface a page happens to exercise.
-When the target ships a machine-readable contract — an OpenAPI/Swagger document,
-a GraphQL introspection result, a recorded HAR, or a Postman collection — the
+When the target ships a machine-readable contract - an OpenAPI/Swagger document,
+a GraphQL introspection result, a recorded HAR, or a Postman collection - the
 *entire* declared surface is knowable up front, including JSON request bodies
 and their typed fields. These pure functions turn each of those artifacts into
 ``Endpoint`` objects with typed params (QUERY / JSON / BODY / PATH / HEADER /

@@ -38,7 +38,7 @@ def cmd_oob_payloads(value: str, url: str) -> list[str]:
     """Shell payloads that fetch an out-of-band callback URL via common tools.
 
     A callback hit proves blind OS command execution even when no command output
-    is reflected and timing is too noisy — the strongest signal for blind RCE.
+    is reflected and timing is too noisy - the strongest signal for blind RCE.
     """
     fetchers = (f"curl {url}", f"wget -qO- {url}")
     seps = (";", "|", "&&", "&")

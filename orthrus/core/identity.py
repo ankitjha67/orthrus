@@ -1,7 +1,7 @@
 """Multi-identity model for authorization testing (Autorize-style BOLA/BFLA).
 
-An *identity* is a distinct authenticated (or anonymous) principal — e.g.
-``admin``, ``user``, ``anonymous`` — supplied by the operator so ORTHRUS can
+An *identity* is a distinct authenticated (or anonymous) principal - e.g.
+``admin``, ``user``, ``anonymous`` - supplied by the operator so ORTHRUS can
 replay the same request as each principal and compare what they are allowed to
 see. The first identity in the list is treated as the privileged **baseline**;
 the rest are tested against it.
@@ -37,7 +37,7 @@ def parse_identities(raw: object) -> list[Identity]:
     """Parse identities from a list of dicts or a JSON string.
 
     Each entry: ``{"name": "...", "cookie": "...", "token": "...",
-    "headers": {...}}`` — all fields except a usable label are optional. An
+    "headers": {...}}`` - all fields except a usable label are optional. An
     entry with no cookie/token/headers is an anonymous identity. Malformed input
     yields an empty list (the scanner then no-ops).
     """

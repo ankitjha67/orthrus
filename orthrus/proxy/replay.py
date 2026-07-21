@@ -1,8 +1,8 @@
-"""Request replay — the mini-Repeater.
+"""Request replay - the mini-Repeater.
 
 Resend a previously-recorded request (a finding's captured request, a proxy
-capture, or a raw request pasted Burp-style) with optional tweaks — a different
-method, URL, header, or body — and observe the response. This bridges an
+capture, or a raw request pasted Burp-style) with optional tweaks - a different
+method, URL, header, or body - and observe the response. This bridges an
 automated finding into hands-on verification: `orthrus replay` a finding's
 recorded request, tweak the payload, and watch what changes.
 
@@ -121,7 +121,7 @@ async def replay(
     spec: RequestSpec,
     validator: ScopeValidator,
     *,
-    timeout: float = 30.0,  # noqa: ASYNC109 — httpx's own timeout is the right mechanism here
+    timeout: float = 30.0,  # noqa: ASYNC109 - httpx's own timeout is the right mechanism here
     follow_redirects: bool = False,
     verify_tls: bool = False,
 ) -> ReplayResult:

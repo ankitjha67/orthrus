@@ -127,7 +127,7 @@ class JsAnalyzer(BaseRecon):
 
             for label, value in extract_secrets(body):
                 # Redact to a non-recoverable preview (first 4 chars + ***),
-                # matching the secret_scanner doctrine — never log a usable secret.
+                # matching the secret_scanner doctrine - never log a usable secret.
                 logger.warning(
                     "possible secret in %s: %s (%s)", ep.url, label, value[:4] + "***"
                 )

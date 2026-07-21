@@ -1,14 +1,14 @@
-"""Client-side taint scanner — browser-instrumented DOM source→sink tracing.
+"""Client-side taint scanner - browser-instrumented DOM source→sink tracing.
 
 Drives the headless browser's taint instrumentation (``BrowserManager.trace_taint``)
 to find DOM-based vulnerabilities by *flow*, not just by execution: a unique
 canary is seeded into the page URL (fragment + query) and the browser records any
 DOM injection / navigation **sink** that receives a value carrying that canary.
 
-This catches client-side bugs the server never sees — DOM XSS where attacker-
+This catches client-side bugs the server never sees - DOM XSS where attacker-
 controlled URL data reaches ``eval`` / ``document.write`` / ``innerHTML`` /
 ``insertAdjacentHTML`` (CWE-79), and client-side open redirect where it reaches
-``location.assign`` / ``location.replace`` / ``window.open`` (CWE-601) — and names
+``location.assign`` / ``location.replace`` / ``window.open`` (CWE-601) - and names
 the exact sink in the finding. Browser-gated; no-ops without Playwright.
 """
 
@@ -103,7 +103,7 @@ class DomTaintScanner(BaseScanner):
             desc = (
                 f"A value taken from the page URL reached the JavaScript sink '{sink}', which "
                 "renders/executes its argument. Attacker-controlled URL data flowing into this "
-                "sink is DOM-based cross-site scripting — exploited entirely client-side, so the "
+                "sink is DOM-based cross-site scripting - exploited entirely client-side, so the "
                 "server (and server-side filters) never see the payload."
             )
             remediation = (
@@ -116,7 +116,7 @@ class DomTaintScanner(BaseScanner):
             desc = (
                 f"A value taken from the page URL reached the navigation sink '{sink}', so an "
                 "attacker can craft a link on this page that redirects the victim to an arbitrary "
-                "site (phishing / token theft) — entirely client-side."
+                "site (phishing / token theft) - entirely client-side."
             )
             remediation = (
                 "Validate URL-derived navigation targets against an allow-list of same-origin / "

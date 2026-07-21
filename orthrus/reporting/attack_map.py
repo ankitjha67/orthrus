@@ -2,7 +2,7 @@
 
 Maps each ORTHRUS ``vuln_type`` to the MITRE ATT&CK Enterprise techniques the
 weakness enables, so a report/finding carries the adversary techniques a SOC
-already tracks — and produces a **MITRE ATT&CK Navigator layer** so a scan can be
+already tracks - and produces a **MITRE ATT&CK Navigator layer** so a scan can be
 visualized directly on the ATT&CK matrix (heat-mapped by finding count).
 
 The technique selection was informed by the community
@@ -169,7 +169,7 @@ def _sev_rank(sev: object) -> int:
 def build_navigator_layer(findings: list, *, name: str = "ORTHRUS findings") -> dict[str, Any]:
     """Build a MITRE ATT&CK Navigator layer (v4.5) heat-mapping enterprise techniques
     by the number of findings that map to each. ATLAS (AML.*) techniques are excluded
-    — they belong to the ATLAS matrix, not enterprise-attack.
+    - they belong to the ATLAS matrix, not enterprise-attack.
     """
     counts: dict[str, int] = {}
     types: dict[str, set[str]] = {}

@@ -1,11 +1,11 @@
-"""Terminal design system for ORTHRUS's CLI — the single 'token layer' for output.
+"""Terminal design system for ORTHRUS's CLI - the single 'token layer' for output.
 
 One place owns the palette, severity/status styling, the startup banner, and the
 section/scope chrome, so every command renders with one consistent look instead
 of ad-hoc inline styles scattered across modules. All of this targets the shared
 stderr Console (stdout stays reserved for machine-readable report data), and
 Rich downgrades colour/glyphs automatically when output is piped or the terminal
-is limited — so CI logs stay clean.
+is limited - so CI logs stay clean.
 
 Accent is crimson: an offensive-security "attack" identity. Severity colours
 stay conventional (critical=red, high=bright-red, medium=yellow, low=cyan,
@@ -36,7 +36,7 @@ ORTHRUS_THEME = Theme(
     {
         "orthrus.accent": "bold red3",
         "orthrus.muted": "grey50",
-        # Severity — conventional risk colours.
+        # Severity - conventional risk colours.
         "sev.critical": "bold white on red3",
         "sev.high": "bold bright_red",
         "sev.medium": "bold yellow",
@@ -105,7 +105,7 @@ def findings_table(findings: object) -> Table:
     """A color-coded, severity-sorted table of individual findings.
 
     Complements the severity tally: the tally answers "how many of each", this
-    answers "what fired, where, how bad, and how sure are we" — the list an
+    answers "what fired, where, how bad, and how sure are we" - the list an
     operator actually triages. Accepts any objects exposing ``severity``,
     ``vuln_type``, ``title``, ``url`` and ``confidence`` (duck-typed so the
     helper stays decoupled from the schemas layer).

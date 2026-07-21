@@ -217,8 +217,8 @@ class ShadowApiScanner(BaseScanner):
                 f"A version/namespace variant of a documented endpoint answered with HTTP "
                 f"{status}, indicating undocumented 'shadow' API surface is still reachable. "
                 "Older versions (e.g. /v1 when the product targets /v2) and internal/beta/admin "
-                "namespaces commonly miss the hardening of the current API — weaker authorization, "
-                "unpatched bugs, and more verbose responses — and are an improper-inventory risk "
+                "namespaces commonly miss the hardening of the current API - weaker authorization, "
+                "unpatched bugs, and more verbose responses - and are an improper-inventory risk "
                 "(OWASP API9). "
                 + (
                     "It returned an auth-required status, so it exists but is access-controlled."

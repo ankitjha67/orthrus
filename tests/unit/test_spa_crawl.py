@@ -2,7 +2,7 @@
 
 The scanner drives a headless browser, so the tests substitute a duck-typed fake
 browser that (a) returns declared client-side routes from ``evaluate_on`` and
-(b) appends a route-specific captured XHR each time a route is ``render``ed —
+(b) appends a route-specific captured XHR each time a route is ``render``ed -
 exactly the contract ``orthrus.core.browser.BrowserManager`` exposes.
 """
 
@@ -21,7 +21,7 @@ def test_resolve_relative_and_absolute() -> None:
 
 
 def test_resolve_keeps_hash_route() -> None:
-    # Hash-based routers keep the fragment — it *is* the client-side route.
+    # Hash-based routers keep the fragment - it *is* the client-side route.
     assert _resolve_route("http://t.test/", "#/administration") == "http://t.test/#/administration"
 
 

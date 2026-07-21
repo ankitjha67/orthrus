@@ -1,18 +1,18 @@
-"""Race condition / TOCTOU scanner — single-packet / last-byte synchronization.
+"""Race condition / TOCTOU scanner - single-packet / last-byte synchronization.
 
 Many state-changing actions guard a limit with a non-atomic *check-then-commit*
 (``if coupon_unused: redeem()``). Between the check and the commit there is a
 window; land enough requests in it simultaneously and several slip past a guard
-that should admit only one — redeeming a one-shot coupon N times, overdrawing a
+that should admit only one - redeeming a one-shot coupon N times, overdrawing a
 balance, over-voting, bypassing a signup cap (CWE-362).
 
 The hard part is landing the requests in the *same* window despite network
 jitter. The primary detector uses **last-byte synchronization** (James Kettle's
 technique): open one connection per request, send every byte *except the last*,
 let them buffer server-side, then release the final byte on every connection
-together — so the server sees the complete requests almost simultaneously (the
+together - so the server sees the complete requests almost simultaneously (the
 HTTP/1.1 analogue of the HTTP/2 single-packet attack). This needs byte-level
-send control, so — like the smuggling scanner — it uses a **raw socket** rather
+send control, so - like the smuggling scanner - it uses a **raw socket** rather
 than the HttpClient. Scope is still enforced before any connection is opened.
 
 The synchronized oracle is conservative: a burst is flagged **only** when ≥2
@@ -60,7 +60,7 @@ CONNECT_TIMEOUT = 8.0
 READ_TIMEOUT = 8.0
 
 # Statuses that signal a *limit/guard* rejected the request (proving a limit
-# exists). Deliberately excludes 429/503 — benign rate limiting / overload.
+# exists). Deliberately excludes 429/503 - benign rate limiting / overload.
 LIMIT_REJECT = {400, 402, 403, 404, 405, 409, 410, 422, 423}
 
 TRANSACTIONAL_HINTS = {
@@ -112,7 +112,7 @@ def classify_race(responses: list[bytes]) -> RaceVerdict:
     raced = accepts >= 2 and rejects >= 1
     reason = (
         f"{accepts} of {len(statuses)} synchronized requests were accepted past a limit that "
-        f"rejected {rejects} of them — a non-atomic check-then-commit window"
+        f"rejected {rejects} of them - a non-atomic check-then-commit window"
         if raced else "no limit overrun observed"
     )
     return RaceVerdict(accepts, rejects, statuses, raced, reason)
@@ -252,7 +252,7 @@ class RaceConditionScanner(BaseScanner):
                     yield self._sync_finding(ep.url, method, verdict)
                 continue
 
-            # Fallback: raw socket unavailable — older httpx partial-success heuristic.
+            # Fallback: raw socket unavailable - older httpx partial-success heuristic.
             if ep.method == HttpMethod.POST and ep.source == "form":
                 data = {
                     p.name: (p.value or "1")
@@ -277,13 +277,13 @@ class RaceConditionScanner(BaseScanner):
                 f"A burst of {SYNC_BURST} {method} requests, landed in the same window via last-byte "
                 f"synchronization, was handled non-atomically: {verdict.reason}. The endpoint guards "
                 "a limit with a check-then-commit that has no lock, so concurrent requests pass the "
-                "check before any commits — letting an attacker exceed a one-shot/quota limit (e.g. "
+                "check before any commits - letting an attacker exceed a one-shot/quota limit (e.g. "
                 "redeem a coupon repeatedly, overdraw a balance, bypass a signup cap)."
             ),
             remediation=(
                 "Make the check and the state change atomic: a transaction with the right isolation "
                 "(SELECT ... FOR UPDATE / optimistic locking via a version column), a unique "
-                "constraint on the consumable resource, or an atomic decrement — never a "
+                "constraint on the consumable resource, or an atomic decrement - never a "
                 "read-modify-write across separate statements. Idempotency keys help too."
             ),
             cwe="CWE-362",
@@ -306,7 +306,7 @@ class RaceConditionScanner(BaseScanner):
             url=url,
             description=(
                 f"A burst of {len(statuses)} concurrent requests produced {success} "
-                "successes — a once-only operation appears to be granted multiple times "
+                "successes - a once-only operation appears to be granted multiple times "
                 "under concurrency. Manual verification required (timing-dependent)."
             ),
             remediation=(

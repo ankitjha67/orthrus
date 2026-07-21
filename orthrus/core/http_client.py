@@ -41,12 +41,12 @@ USER_AGENTS = [
     "(KHTML, like Gecko) Version/17.4 Safari/605.1.15",
 ]
 
-# Cap the body slice handed to block detection — the signatures live near the
+# Cap the body slice handed to block detection - the signatures live near the
 # top of a block page, and a full multi-MB body would be wasteful to scan.
 _BLOCK_BODY_LIMIT = 20_000
 
 # Hard ceiling on a single response body read into memory. A hostile target can
-# otherwise return a multi-gigabyte — or endless chunked, or gzip-bomb — body to
+# otherwise return a multi-gigabyte - or endless chunked, or gzip-bomb - body to
 # exhaust the scanner's memory. We stream the body and stop at the cap, counting
 # DECODED bytes so a small compressed bomb that inflates hugely is also caught.
 # Over-cap bodies are truncated (a scanner only needs the head of a document for
@@ -240,7 +240,7 @@ class HttpClient:
         internal/reserved address (loopback, RFC-1918, link-local 169.254.x,
         multicast, …) unless that address is explicitly authorized in the
         engagement's ``ip_ranges``. The string scope check validates the *name*;
-        this validates where it actually *points* — closing the SSRF-via-scope /
+        this validates where it actually *points* - closing the SSRF-via-scope /
         rebinding gap where an authorized domain resolves to internal infra.
         """
         parts = urlsplit(url)
@@ -249,7 +249,7 @@ class HttpClient:
             return
         try:
             ipaddress.ip_address(host)
-            return  # already an IP literal — the string scope check validated it
+            return  # already an IP literal - the string scope check validated it
         except ValueError:
             pass
         cached = self._ip_scope_cache.get(host)
@@ -275,7 +275,7 @@ class HttpClient:
                     reason=f"{host} resolves to non-authorized address {bad}",
                 )
             logger.warning(
-                "blocked out-of-scope %s to %s — host resolves to internal address %s "
+                "blocked out-of-scope %s to %s - host resolves to internal address %s "
                 "(DNS-rebinding guard)", "redirect" if is_redirect else "request", url, bad,
             )
             raise ScopeViolation(
@@ -287,7 +287,7 @@ class HttpClient:
             # Kill switch (PRD §8.3): panic turns deny-by-default into deny-everything.
             self.scope_violations += 1
             raise ScopeViolation(
-                url, "PANIC engaged — all outbound requests halted "
+                url, "PANIC engaged - all outbound requests halted "
                      "(lift with `orthrus panic --clear`)"
             )
         decision = self.scope.check(url)
@@ -359,14 +359,14 @@ class HttpClient:
         if not (verdict and verdict.blocked):
             return response
         if verdict.kind == "rate_limit":
-            # A 429 means "slow down" — the rate limiter already backs off (AIMD +
+            # A 429 means "slow down" - the rate limiter already backs off (AIMD +
             # Retry-After). Retrying with a new identity would only add load.
             return response
         if not getattr(self, "waf_adapt", False) or self._evading:
             logger.debug("WAF block on %s (%s); adaptation off or recursing", url, verdict.reason)
             return response
 
-        logger.info("WAF block on %s: %s — rotating identity and retrying", url, verdict.reason)
+        logger.info("WAF block on %s: %s - rotating identity and retrying", url, verdict.reason)
         if self.event_bus is not None:
             await self.event_bus.emit(
                 "waf.block", url=url, vendor=verdict.vendor, reason=verdict.reason
@@ -420,7 +420,7 @@ class HttpClient:
             with contextlib.suppress(Exception):
                 await response.aclose()
             logger.warning(
-                "response from %s exceeded the %d-byte cap — body truncated",
+                "response from %s exceeded the %d-byte cap - body truncated",
                 response.url, cap,
             )
         return response
