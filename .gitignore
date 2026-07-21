@@ -69,3 +69,9 @@ reports_demo/
 bounty_demo/
 bounty_run.log
 target.log
+
+# ORTHRUS cockpit (Node/Vite/Tauri)
+cockpit/node_modules/
+cockpit/dist/
+cockpit/src-tauri/target/
+cockpit/.vite/

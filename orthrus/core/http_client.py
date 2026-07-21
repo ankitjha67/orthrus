@@ -18,6 +18,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from orthrus.core import panic
 from orthrus.core.auth import DEFAULT_REAUTH_MARKERS, looks_unauthenticated
 from orthrus.core.block_detect import BlockMonitor, detect_block
 from orthrus.core.config import ScanConfig
@@ -282,6 +283,13 @@ class HttpClient:
             )
 
     async def _enforce_scope(self, url: str, *, is_redirect: bool = False) -> None:
+        if panic.is_engaged():
+            # Kill switch (PRD §8.3): panic turns deny-by-default into deny-everything.
+            self.scope_violations += 1
+            raise ScopeViolation(
+                url, "PANIC engaged — all outbound requests halted "
+                     "(lift with `orthrus panic --clear`)"
+            )
         decision = self.scope.check(url)
         if decision.allowed:
             await self._enforce_resolved_ip(url, is_redirect=is_redirect)

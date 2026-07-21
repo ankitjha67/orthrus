@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from sqlalchemy import Connection, func, inspect, select, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+import orthrus.model  # noqa: F401  (registers the v2.0 operator-graph tables on Base)
 from orthrus.core import schemas
 from orthrus.db.models import Asset as AssetRow
 from orthrus.db.models import Base
