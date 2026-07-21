@@ -33,6 +33,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     headers,
     host_header,
     idor,
+    internal_exposure,
     jwt_analyzer,
     ldap,
     lfi,

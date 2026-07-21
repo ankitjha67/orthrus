@@ -7,7 +7,7 @@
 [![Use](https://img.shields.io/badge/use-authorized%20testing%20only-red.svg)](#-legal--ethical-use)
 [![Open in Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ankitjha67/orthrus/blob/main/examples/orthrus_colab.ipynb)
 
-ORTHRUS crawls a target, fingerprints its stack, runs 59 vulnerability scanners,
+ORTHRUS crawls a target, fingerprints its stack, runs 60 vulnerability scanners,
 and then **re-proves** the interesting findings with a dedicated
 exploitation-confirmation phase - so a report distinguishes "this looks
 vulnerable" (tentative) from "this was demonstrably exploited" (confirmed). It
@@ -40,14 +40,14 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1338-test / lint-clean quality gates.
+1352-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
 reproducible in one command via [`demo.sh`](demo.sh).
 
 📐 **Full system spec:** [`docs/PRD.md`](docs/PRD.md) - the granular,
-implemented-system PRD: every subsystem (59 scanners, 28 confirmers, 18 recon
+implemented-system PRD: every subsystem (60 scanners, 28 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
 
@@ -125,7 +125,7 @@ roadmap for advanced scanners & methods.
 - Passive IP-address intelligence (reverse-DNS / ASN / geo / cloud attribution) + co-hosted host gathering
 - Nmap port scan (optional; needs the `nmap` binary)
 
-**Vulnerability scanners (59)**
+**Vulnerability scanners (60)**
 
 | Category | Scanners |
 |---|---|
@@ -135,7 +135,7 @@ roadmap for advanced scanners & methods.
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
 | Auth / session | Auth-session analysis, default credentials, JWT (alg:none, weak secret, jku/x5u/kid header attacks, **RS->HS algorithm confusion** via published JWKS), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)**, **SAML response inspection (unsigned assertion, signature-wrapping, NameID comment-truncation)** |
 | Server-side | SSRF (out-of-band + metadata), **OS command injection (output / time / OOB-callback blind RCE)**, deserialization, prototype pollution (client- & server-side) |
-| Config / transport | Security headers, **CSP weakness analysis**, **mixed-content / insecure-transport refs**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **HTTP misconfig (TRACE/XST, dangerous methods)** |
+| Config / transport | Security headers, **CSP weakness analysis**, **mixed-content / insecure-transport refs**, CORS, TLS analysis, exposed files, **directory-listing / autoindex**, cache poisoning, web cache deception, framework debug-exposure, unrestricted file upload, subdomain takeover, **internal-IP exposure (public host resolving to RFC1918 / loopback / CGNAT / cloud-metadata)**, **HTTP misconfig (TRACE/XST, dangerous methods)** |
 | Protocol / API | GraphQL (introspection, field-suggestion leakage, query batching + alias-overloading + circular-fragment DoS, debug/stack-trace disclosure, **argument injection - introspect the schema, then fuzz mutation/query arguments for SQLi / OS-command / SSTI** - DVGA-grade), WebSocket, **gRPC server-reflection exposure**, **shadow / improper-inventory API (API9)** |
 | Secrets | **Exposed-secret scanner** - AWS/Google/Slack/Stripe/GitHub keys + private-key blocks in responses/JS (redacted) |
 | Supply chain | SCA - known-vulnerable JS libraries (retire.js-style) |
@@ -632,7 +632,7 @@ docker compose -f docker/docker-compose.yml run --rm app scan -t https://example
 orthrus/
   core/        config, scope-enforced HTTP client, browser engine, callback server, orchestrator, schemas
   recon/       crawler, dynamic/SPA crawl, param-mining, fingerprint, JS analyzer, source-map recovery, content discovery, subdomain/DNS enum, WAF, API, wayback, ports
-  scanners/    59 scanners + base interface + registry
+  scanners/    60 scanners + base interface + registry
   exploits/    28 confirmation modules + base interface + registry
   integrations/ external-tool adapters (nuclei/dalfox/slither/checkov/semgrep, ...) normalized into findings
   intel/       CVE threat-intel enrichment (CISA KEV + EPSS)
