@@ -3838,15 +3838,48 @@ def _print_diagnostics(diag: dict) -> None:
     console.print("\n[orthrus.muted]Core scanning works without any of the above.[/]")
 
 
-@cli.command(name="doctor")
-@click.option("--json", "as_json", is_flag=True, help="Emit diagnostics as JSON (stdout).")
-def doctor(as_json: bool) -> None:
-    """Check which optional integrations are available in this environment.
+def _print_preflight(result: object, diagnosis: str) -> None:
+    section(console, f"PREFLIGHT · {result.host}:{result.port}")
 
-    A read-only, network-free environment probe: it reports the active vs.
-    missing optional capabilities (browser engine, nmap, distributed broker,
-    Postgres, ...) and how to enable each. Always exits 0.
+    def _row(ok: bool, label: str, detail: str) -> None:
+        mark = "[status.completed]OK[/]" if ok else "[red bold]XX[/]"
+        console.print(f"  {mark}  [bold]{label}[/]  [orthrus.muted]{detail}[/]")
+
+    _row(result.dns_ok, "DNS ", ", ".join(result.resolved_ips) or "no records")
+    _row(result.tcp_ok, "TCP ", f"port {result.port}")
+    if result.tls_required:
+        _row(result.tls_ok, "TLS ", "handshake")
+    _row(result.http_ok, "HTTP", f"status {result.http_status}" if result.http_status else "no status line")
+    console.print(f"\n[orthrus.accent]Diagnosis:[/] {diagnosis}")
+    console.print(f"[orthrus.muted]probed in {result.elapsed_ms:.0f} ms[/]\n")
+
+
+@cli.command(name="doctor")
+@click.option("--target", default=None, metavar="URL",
+              help="Preflight a target's reachability (DNS -> TCP -> TLS -> HTTP) and diagnose the "
+                   "first failing layer in seconds, instead of the environment capability probe.")
+@click.option("--json", "as_json", is_flag=True, help="Emit diagnostics as JSON (stdout).")
+def doctor(target: str | None, as_json: bool) -> None:
+    """Check environment capabilities, or preflight a --target's reachability.
+
+    Without --target: a read-only, network-free probe of optional integrations
+    (browser engine, nmap, distributed broker, Postgres, ...) and how to enable each.
+
+    With --target: a fast DNS -> TCP -> TLS -> HTTP reachability check that fails in
+    seconds with a concrete diagnosis and remedy, instead of a scan grinding through
+    recon timeouts. Always exits 0.
     """
+    if target:
+        from dataclasses import asdict
+
+        from orthrus.core.preflight import diagnose, preflight
+
+        result = asyncio.run(preflight(target))
+        if as_json:
+            click.echo(json.dumps({**asdict(result), "diagnosis": diagnose(result)}, indent=2))
+        else:
+            _print_preflight(result, diagnose(result))
+        return
     diag = _collect_diagnostics()
     if as_json:
         click.echo(json.dumps(diag, indent=2))
