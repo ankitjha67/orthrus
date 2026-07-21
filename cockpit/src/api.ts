@@ -120,7 +120,41 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ query }),
     }),
+  replay: (body: { raw_request: string; scope: string; scheme?: string }) =>
+    req<ReplayResponse>("/api/tools/replay", { method: "POST", body: JSON.stringify(body) }),
+  intruder: (body: {
+    raw_request: string; payloads: string[][]; mode: string; scope: string;
+    match?: string | null; url_encode?: boolean; scheme?: string;
+  }) => req<IntruderResponse>("/api/tools/intruder", { method: "POST", body: JSON.stringify(body) }),
 };
+
+export interface ReplayResponse {
+  method: string;
+  url: string;
+  status: number | null;
+  reason: string;
+  headers: [string, string][];
+  body: string;
+  elapsed_ms: number;
+  error: string | null;
+}
+
+export interface IntruderResult {
+  payloads: string[];
+  status: number | null;
+  length: number | null;
+  elapsed_ms: number;
+  matched: boolean;
+  anomaly: boolean;
+  error: string | null;
+}
+
+export interface IntruderResponse {
+  mode: string;
+  total: number;
+  baseline: [number | null, number | null] | null;
+  results: IntruderResult[];
+}
 
 export interface CopilotHit {
   source: string;
