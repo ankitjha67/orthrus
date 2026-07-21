@@ -81,8 +81,18 @@ orthrus bounty --program 1win --platform hackerone -o 1win-run/
 Gives you a **scan id** (also in the DB), a ranked `findings.json`, and per-bug
 reports. Skip to step 4 (you already have findings).
 
-### Path B - you tested manually through Burp / Caido
-Export the proxy history you generated:
+### Path B - you tested manually through a proxy
+Use **ORTHRUS's own intercepting proxy** (no Burp/Caido needed) or export from them:
+
+```powershell
+# one-time: export + install the ORTHRUS CA in your browser/OS trust store
+orthrus proxy --export-ca orthrus-ca.crt
+# then run the MITM proxy (HTTPS bodies captured for in-scope hosts) into a scan:
+orthrus scan -t https://1win.com --scope 1win.com --dry-run --scan-id 1win   # make the scan
+orthrus proxy --intercept-tls --scope 1win.com --scan-id 1win                # browse via 127.0.0.1:8080
+```
+
+Or export from Burp/Caido and import the file (Path B, step 3):
 - **Burp:** Proxy > HTTP history > select items > right-click > *Save items* (XML).
 - **Caido:** export the request list as JSON.
 - **Browser only:** DevTools > Network > *Save all as HAR*.

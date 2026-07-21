@@ -17,6 +17,7 @@ helpers are pure and unit-tested; the server itself is exercised over loopback.
 from __future__ import annotations
 
 import asyncio
+import ssl
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from inspect import isawaitable
@@ -110,11 +111,19 @@ class ProxyServer:
     def __init__(
         self, scope: ScopeConfig, *, on_capture: CaptureFn | None = None,
         allow_out_of_scope: bool = False, timeout: float = 30.0,
+        ca: object | None = None, intercept_tls: bool = False,
+        verify_upstream: bool = True,
     ) -> None:
         self.validator = ScopeValidator(scope)
         self._on_capture = on_capture
         self.allow_out_of_scope = allow_out_of_scope
         self.timeout = timeout
+        # TLS interception (Burp/Caido-style MITM): terminate TLS for in-scope hosts
+        # with a leaf cert minted by `ca` (a CertAuthority), so HTTPS bodies are
+        # captured instead of opaquely tunneled. Off by default.
+        self.ca = ca
+        self.intercept_tls = intercept_tls and ca is not None
+        self.verify_upstream = verify_upstream
         self.captured = 0
         self.blocked = 0
 
@@ -175,8 +184,13 @@ class ProxyServer:
     async def _tunnel(self, req: ParsedRequest, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         host, _, port_s = req.target.partition(":")
         port = int(port_s or 443)
-        if not self.validator.host_in_scope(host) and not self.allow_out_of_scope:
+        in_scope = self.validator.host_in_scope(host)
+        if not in_scope and not self.allow_out_of_scope:
             await self._deny(writer, f"https://{host}:{port}/", "host not in authorized scope")
+            return
+        # TLS interception: for in-scope hosts, terminate TLS and capture plaintext.
+        if self.intercept_tls and in_scope:
+            await self._intercept(host, port, reader, writer)
             return
         try:
             up_reader, up_writer = await asyncio.open_connection(host, port)
@@ -200,6 +214,69 @@ class ProxyServer:
                 dst.close()
 
         await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+
+    async def _intercept(
+        self, host: str, port: int,
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter,
+    ) -> None:
+        """Terminate TLS for an in-scope host and relay+capture the plaintext HTTP."""
+        import httpx
+
+        writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        await writer.drain()
+        # upgrade the client side of the connection to server TLS using our leaf cert.
+        ctx = self.ca.ssl_context_for(host)
+        loop = asyncio.get_event_loop()
+        transport = writer.transport
+        protocol = transport.get_protocol()
+        try:
+            tls_transport = await loop.start_tls(transport, protocol, ctx, server_side=True)
+        except (TimeoutError, ssl.SSLError, OSError) as exc:
+            logger.debug("TLS interception handshake failed for %s: %s", host, exc)
+            return
+        writer._transport = tls_transport  # noqa: SLF001 - rebind writes onto the TLS transport
+
+        base = f"https://{host}" + ("" if port == 443 else f":{port}")
+        async with httpx.AsyncClient(
+            timeout=self.timeout, follow_redirects=False, verify=self.verify_upstream,
+        ) as client:
+            while True:
+                try:
+                    head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=self.timeout)
+                except (TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError):
+                    break
+                try:
+                    req = parse_request_head(head[:-4])
+                except ValueError:
+                    break
+                length = int(req.header("content-length") or 0)
+                body = await reader.readexactly(min(length, _MAX_BODY)) if length else b""
+                path = req.target if req.target.startswith("/") else "/" + req.target
+                url = base + path
+                decision = self.validator.check(url)
+                if not decision.allowed and not self.allow_out_of_scope:
+                    await self._deny(writer, url, decision.reason)
+                    continue
+                try:
+                    upstream = await client.request(
+                        req.method, url, headers=req.forward_headers(), content=body)
+                except httpx.HTTPError as exc:
+                    logger.debug("intercept upstream error for %s: %s", url, exc)
+                    break
+                content = upstream.content[:_MAX_BODY]
+                resp_headers = [(k, v) for k, v in upstream.headers.items()
+                                if k.lower() not in _RESPONSE_STRIP]
+                resp_headers.append(("Content-Length", str(len(content))))
+                writer.write(build_response_head(
+                    upstream.status_code, upstream.reason_phrase or "OK", resp_headers))
+                writer.write(content)
+                await writer.drain()
+                if decision.allowed and not decision.third_party:
+                    await self._capture(extract_endpoint(
+                        req.method, url, content_type=req.header("content-type"),
+                        body=body, response_status=upstream.status_code))
+                if (req.header("connection") or "").lower() == "close":
+                    break
 
     async def _capture(self, endpoint: Endpoint) -> None:
         self.captured += 1

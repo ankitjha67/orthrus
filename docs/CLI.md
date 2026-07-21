@@ -951,8 +951,9 @@ Usage: orthrus proxy [OPTIONS]
   authorized target; every in-scope request's endpoint + parameters are
   captured (into a scan with --scan-id). Deny-by-default: out-of-scope
   requests are blocked unless --allow-out-of-scope is set (pass-through
-  traffic is never captured). HTTPS is tunneled opaquely (no TLS
-  interception).
+  traffic is never captured). With --intercept-tls, HTTPS for in-scope hosts
+  is MITM'd (TLS terminated, bodies captured) using ORTHRUS's own CA; without
+  it, HTTPS is tunneled opaquely.
 
 Options:
   --port INTEGER        Local port to listen on.
@@ -963,6 +964,11 @@ Options:
   --allow-out-of-scope  Pass through (don't block) out-of-scope requests; they
                         are never captured.
   --exclude-paths TEXT  Comma-separated regex paths to never forward.
+  --intercept-tls       MITM HTTPS for in-scope hosts (terminate TLS + capture
+                        bodies). Install the CA first: `orthrus proxy
+                        --export-ca orthrus-ca.crt`.
+  --export-ca PATH      Write the interception CA certificate to PATH (to
+                        install in your browser) and exit.
   -v, --verbose TEXT    Log level.
   --help                Show this message and exit.
 ```
