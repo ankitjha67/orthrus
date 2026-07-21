@@ -38,6 +38,7 @@ Commands:
   graph             Collapse a scan's findings into the few reachable...
   hosts             Gather and list the host footprint for a TARGET (or a...
   iac               Audit Infrastructure-as-Code for misconfigurations...
+  import-findings   Import findings from Caido / Burp / SARIF /...
   import-traffic    Import a Burp / Caido / HAR proxy history into a...
   intruder          Fuzz a request's marked §positions§ with payload...
   mcp               Run the ORTHRUS MCP server (stdio) - expose...
@@ -76,7 +77,7 @@ Commands:
   update            Refresh threat-intel feeds (CISA KEV + EPSS) used to...
 ```
 
-**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-traffic`](#orthrus-import-traffic) · [`intruder`](#orthrus-intruder) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
+**Commands:** [`agent`](#orthrus-agent) · [`ai-report`](#orthrus-ai-report) · [`audit`](#orthrus-audit) · [`benchmark`](#orthrus-benchmark) · [`bounty`](#orthrus-bounty) · [`bounty-assets`](#orthrus-bounty-assets) · [`bounty-report`](#orthrus-bounty-report) · [`bounty-status`](#orthrus-bounty-status) · [`chains`](#orthrus-chains) · [`cloud`](#orthrus-cloud) · [`completion`](#orthrus-completion) · [`copilot`](#orthrus-copilot) · [`cost`](#orthrus-cost) · [`diff`](#orthrus-diff) · [`doctor`](#orthrus-doctor) · [`exploit`](#orthrus-exploit) · [`finding`](#orthrus-finding) · [`findings`](#orthrus-findings) · [`graph`](#orthrus-graph) · [`hosts`](#orthrus-hosts) · [`iac`](#orthrus-iac) · [`import-findings`](#orthrus-import-findings) · [`import-traffic`](#orthrus-import-traffic) · [`intruder`](#orthrus-intruder) · [`mcp`](#orthrus-mcp) · [`migrate`](#orthrus-migrate) · [`modules`](#orthrus-modules) · [`monitor`](#orthrus-monitor) · [`note`](#orthrus-note) · [`notes`](#orthrus-notes) · [`notify`](#orthrus-notify) · [`panic`](#orthrus-panic) · [`patch`](#orthrus-patch) · [`plan`](#orthrus-plan) · [`program-chains`](#orthrus-program-chains) · [`program-findings`](#orthrus-program-findings) · [`program-policy`](#orthrus-program-policy) · [`program-scan`](#orthrus-program-scan) · [`programs`](#orthrus-programs) · [`proxy`](#orthrus-proxy) · [`recon`](#orthrus-recon) · [`recon-run`](#orthrus-recon-run) · [`recon-watch`](#orthrus-recon-watch) · [`replay`](#orthrus-replay) · [`report`](#orthrus-report) · [`runbook`](#orthrus-runbook) · [`scan`](#orthrus-scan) · [`scans`](#orthrus-scans) · [`scope-report`](#orthrus-scope-report) · [`serve`](#orthrus-serve) · [`submission`](#orthrus-submission) · [`submissions`](#orthrus-submissions) · [`suppress`](#orthrus-suppress) · [`suppressions`](#orthrus-suppressions) · [`surface`](#orthrus-surface) · [`team`](#orthrus-team) · [`triage`](#orthrus-triage) · [`update`](#orthrus-update)
 
 ## `orthrus agent`
 
@@ -570,6 +571,34 @@ Options:
                                   Exit non-zero if a finding at/above this
                                   severity is found (for CI).
   -v, --verbose TEXT              Log level.
+  --help                          Show this message and exit.
+```
+
+## `orthrus import-findings`
+
+```text
+Usage: orthrus import-findings [OPTIONS] FINDINGS_FILE
+
+  Import findings from Caido / Burp / SARIF / ORTHRUS-JSON / generic into a
+  program (PRD §7.12).
+
+  Folds a tool's flagged findings (not just traffic) into the program's
+  deduped, priority-ranked ProgramFinding queue - so a manual Caido/Burp
+  session, a semgrep SARIF, or any findings JSON lands where the cockpit and
+  triage see it.
+
+Options:
+  --program TEXT                  Operator-graph program to import into.
+                                  [required]
+  --format [auto|sarif|burp|caido|orthrus|generic|csv]
+                                  Findings export format.  [default: auto]
+  --in-scope TEXT                 In-scope domain(s); creates the program if
+                                  new, else adds to its scope.
+  --authorization TEXT            Authorization source (required to create a
+                                  new program).
+  --no-scope-filter               Import findings for every host, even out-of-
+                                  scope (default: refuse out-of-scope).
+  --json                          Emit the import result as JSON.
   --help                          Show this message and exit.
 ```
 
