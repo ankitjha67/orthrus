@@ -8,6 +8,7 @@ noise, and reports what's *new* since the last run. This is what turns a one-sho
 scan into a program that watches its scope continuously.
 """
 
+from orthrus.recon_engine import sources as _sources  # noqa: F401  (registers built-in sources)
 from orthrus.recon_engine.base import (
     RECON_REGISTRY,
     DiscoveredAsset,
