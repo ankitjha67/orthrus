@@ -80,6 +80,11 @@ class NoteCreate(BaseModel):
     asset_id: str | None = None
 
 
+class CopilotQuery(BaseModel):
+    query: str
+    k: int = 5
+
+
 # --------------------------------------------------------------- serialization
 def _dt(value) -> str | None:
     return value.isoformat() if value else None
@@ -327,6 +332,20 @@ async def delete_note(request: Request, program_id: str, note_id: str) -> dict[s
     if not await _graph(request).delete_note(note_id):
         raise HTTPException(status_code=404, detail=f"note '{note_id}' not found")
     return {"deleted": note_id}
+
+
+# -------------------------------------------------------------------- copilot
+@router.post("/programs/{program_id}/copilot")
+async def copilot(request: Request, program_id: str, body: CopilotQuery) -> dict[str, Any]:
+    """Grounded retrieval over the program's OWN findings + notes (cites, never invents)."""
+    await _require_program(request, program_id)
+    from orthrus.model.copilot import retrieve
+    hits = await retrieve(_graph(request), program_id, body.query, k=body.k)
+    return {
+        "query": body.query,
+        "hits": [{"source": h.source, "title": h.title, "snippet": h.snippet, "score": h.score}
+                 for h in hits],
+    }
 
 
 # --------------------------------------------------------------------- audit

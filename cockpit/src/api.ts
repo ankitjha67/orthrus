@@ -115,7 +115,19 @@ export const api = {
   updateFinding: (id: string, fid: string, body: { status?: string; assigned_to?: string }) =>
     req<Finding>(`/api/programs/${id}/findings/${fid}`, { method: "PATCH", body: JSON.stringify(body) }),
   cost: (id: string) => req<CostSummary>(`/api/programs/${id}/cost`),
+  copilot: (id: string, query: string) =>
+    req<{ query: string; hits: CopilotHit[] }>(`/api/programs/${id}/copilot`, {
+      method: "POST",
+      body: JSON.stringify({ query }),
+    }),
 };
+
+export interface CopilotHit {
+  source: string;
+  title: string;
+  snippet: string;
+  score: number;
+}
 
 export const FINDING_STATUSES = [
   "new", "triaging", "confirmed", "duplicate", "not_reproducible", "filed",
