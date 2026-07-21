@@ -1227,6 +1227,41 @@ def suppressions(program_name: str, remove: int | None) -> None:
                       + f"  [orthrus.muted]({r.get('added', '?')})[/]")
 
 
+@cli.command(name="scope-report")
+@click.argument("scope_csv", type=click.Path(exists=True, dir_okay=False))
+@click.option("--program", "program_name", default=None,
+              help="Program name for the briefing title (default: primary in-scope host).")
+@click.option("-o", "--output", "output", default=None,
+              help="Write the Markdown briefing here (default: stdout).")
+def scope_report(scope_csv: str, program_name: str | None, output: str | None) -> None:
+    """Write a personalised pre-engagement briefing from a program's scope export.
+
+    Parses a HackerOne scope CSV (identifier/asset_type/instruction/eligibility/CIA/
+    max-severity) and renders a Markdown briefing: in/out-of-scope assets, the
+    components to test, availability, the severity + CIA bar, and a suggested
+    ORTHRUS testing focus mapped from the scope's own language. Reads the scope
+    only - no requests are sent to any target.
+    """
+    _ensure_utf8_output()
+    from pathlib import Path
+
+    from orthrus.bounty.scope_report import parse_h1_scope_csv, render_scope_report
+
+    src = Path(scope_csv)
+    assets = parse_h1_scope_csv(src.read_text(encoding="utf-8", errors="replace"))
+    if not assets:
+        raise click.ClickException(f"no scope entries parsed from {scope_csv} "
+                                   "(expected a HackerOne scope CSV export).")
+    md = render_scope_report(assets, program_name=program_name, source_name=src.name)
+    if output:
+        Path(output).write_text(md, encoding="utf-8")
+        section(console, "SCOPE REPORT")
+        console.print(f"wrote briefing for [bold]{len(assets)}[/] scope ent"
+                      f"{'ries' if len(assets) != 1 else 'ry'} -> {output}")
+    else:
+        click.echo(md)
+
+
 @cli.command(name="bounty-report")
 @click.option("--program", "program_name", required=True, help="Saved program to re-render.")
 @click.option("--platform", type=click.Choice(
