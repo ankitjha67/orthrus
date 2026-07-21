@@ -969,6 +969,8 @@ Options:
                         --export-ca orthrus-ca.crt`.
   --export-ca PATH      Write the interception CA certificate to PATH (to
                         install in your browser) and exit.
+  --rewrite RULES.json  Match & Replace rules (JSON) applied to in-scope
+                        traffic.
   -v, --verbose TEXT    Log level.
   --help                Show this message and exit.
 ```
