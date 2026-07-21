@@ -15,7 +15,7 @@
 | Status | Living document - describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 59 scanners · 19 confirmation modules · 18 recon modules · 1259 passing tests · `ruff` clean |
+| Verified snapshot | 59 scanners · 28 confirmation modules · 18 recon modules · 1313 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1-4 are product framing. Sections 5-18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 18 mods  │   │ 59 scan  │   │ 19 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 59 scan  │   │ 28 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -334,10 +334,20 @@ Each confirmer subclasses `BaseExploit`, declares a `handles` tuple of `vuln_typ
 | `prototype-pollution-confirm` | prototype-pollution | Server-side differential with **fresh sentinel** |
 | `graphql-dos-confirm` | graphql-dos | Re-issue batching array / 100-alias probe and re-observe amplification |
 | `graphql-injection-confirm` | graphql-injection | Re-inject a **fresh** canary / operands / quote into the GraphQL argument → the sink re-evaluates (SQL error / echoed canary / computed product) |
+| `ldap-confirm` | ldap-injection | Replay → re-prove LDAP/directory-server error |
+| `xpath-confirm` | xpath-injection | Replay → re-prove XPath/XQuery evaluation error |
+| `csrf-confirm` | csrf | Structural re-verification: the state-changing form still exposes no anti-CSRF token (no forged request is ever sent) |
+| `default-creds-confirm` | default-creds | Re-submit the recorded credentials against a wrong baseline → login differential reproduced (the credential is never emitted) |
+| `oauth-confirm` | oauth-misconfig | Re-send authorize with a **fresh** attacker `redirect_uri` → server 302s to the attacker host (static PKCE/state findings stay honestly unconfirmed) |
+| `file-upload-confirm` | file-upload | Upload a **benign uniquely-named canary** (never an executable), then fetch the disclosed location → the canary is served back from the web root |
+| `web-cache-deception-confirm` | web-cache-deception | Re-fetch base + static-suffixed URL → the dynamic page is served verbatim **and** the response is cacheable |
+| `prompt-injection-confirm` | prompt-injection | Re-inject a **fresh unseen canary** → the model obeys and echoes only the token (reflection is rejected) |
+| `websocket-confirm` | websocket | Re-open the handshake with a **fresh attacker Origin** through the scope-enforced WS workbench → the cross-origin connection completes (CSWSH) |
 
 ### 8.1 The confirmation doctrine (why exactly these)
-- **Actively-confirmable (18 above):** a safe, generic active proof exists.
-- **Confirmed-by-detection:** observation *is* the proof and ships `firm`/`confirmed` - security-headers, TLS, banner, known-CVE product, SCA, subdomain-takeover, web-cache-deception, framework-debug, GraphQL introspection; plus classes already actively proven at detection time (default-creds login, request-smuggling desync timing, native service-exposure protocol probe, stored/DOM-XSS browser execution).
+- **Actively-confirmable (27 above):** a safe, generic active proof exists.
+- **Confirmed-by-detection:** observation *is* the proof and ships `firm`/`confirmed` - security-headers, TLS, banner, known-CVE product, SCA, subdomain-takeover, framework-debug, GraphQL introspection; plus classes already actively proven at detection time (request-smuggling desync timing, native service-exposure protocol probe, stored/DOM-XSS browser execution).
+- **Not safely auto-confirmable (honest gap):** request-smuggling (raw-socket desync re-proof is not safely reproducible through the scope-enforced client), single-packet race conditions (re-running the burst can have real side effects), SAML signature-stripping (re-proof means attempting an authentication bypass), and cross-identity privilege-escalation (needs a second authenticated identity the confirmer harness does not carry). ORTHRUS reports these rather than inventing a misleading confirmation.
 - **Detection-only by design:** **insecure deserialization** - a passive serialized-blob signature; proving RCE needs a target-specific gadget chain, so ORTHRUS reports it rather than inventing a misleading confirmation.
 
 ---
@@ -402,7 +412,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **1259 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1313 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -431,7 +441,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 30 |
-| Automated tests | **1259** (ruff clean) |
+| Automated tests | **1313** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -571,7 +581,7 @@ orthrus/
   utils/       scope (deny-by-default), encoding, logger, crypto, palette (red/white/black tokens)
   recon/       18 modules + spec_parsers + registry
   scanners/    59 scanners + base + registry + _injection + _evasion
-  exploits/    19 confirmation modules + base + registry + _replay
+  exploits/    28 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
   iac/         Dockerfile/compose/Terraform analyzer
@@ -585,7 +595,7 @@ orthrus/
   __main__.py  `python -m orthrus` entry (also the PyInstaller entry point)
   main.py      Click CLI (30 commands)
 docs/          README, PROOF.md, this PRD, screenshot + dashboard/surface images
-tests/         unit + integration (1259 tests)
+tests/         unit + integration (1313 tests)
 .github/       CI matrix + reusable scan action + release workflow (binaries + GHCR)
 docker/        Dockerfile (all extras + Chromium) + Dockerfile.slim (lean)
 packaging/     PyInstaller spec - standalone Linux/macOS/Windows binaries

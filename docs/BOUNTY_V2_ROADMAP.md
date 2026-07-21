@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1259 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1313 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
@@ -48,7 +48,7 @@ the native Rust core (the cockpit ships as Tauri + FastAPI, per the hybrid decis
 | Program record + scope_entries (§6) | 🟡→🛠 | Authorization is captured; a persisted `programs` store (pause, jurisdiction, expiry, history) is next. |
 | Recon engine - continuous / diff / CT-log (§7.2) | 🟡→🛠 | Have subdomain enum + recon modules. Next: **expand `*.wildcard` → live in-scope subdomains before scanning**; then diffing + a per-program scheduler; then external adapters (subfinder/amass/dnsx/httpx). CT-log + cloud workers are heavier. |
 | Scan engine (§7.3) | ✅ + 🛠 | 59 scanners today; `--tools nuclei` exists. **dalfox** (XSS) + **testssl** (TLS) adapters added; sqlmap/ffuf still to come. |
-| Confirm engine (§7.4) | ✅ + 🛠 | 19 confirmers, incl. XXE-OOB and deserialization-OOB (shipped). Next: SSRF→cloud-metadata chain, single-packet race. |
+| Confirm engine (§7.4) | ✅ + 🛠 | 28 confirmers, incl. XXE-OOB, deserialization-OOB, and the LDAP/XPath/CSRF/default-creds/OAuth/file-upload/cache-deception/prompt-injection/CSWSH batch (shipped). Honest gaps (not safely auto-confirmable): request-smuggling desync, single-packet race, SAML sig-strip, cross-identity privesc. |
 | Triage engine (§7.5) | ✅ + 🛠 | Composite **priority scoring** (`bounty/triage.py`), cross-run history recall (`bounty/history.py`), LLM FP-judge (`orthrus triage --llm`), and per-program **mute rules** (`bounty/suppress.py` + `orthrus suppress`/`suppressions`): known-noise findings are kept out of the queue (counted, never silently hidden). Next: cross-program near-dup clustering. |
 | Reporting engine (§7.6) | ✅ + 🛠 | Submission-ready per-bug reports, **platform-native templates** (H1/BC/Intigriti/YWH/Immunefi via `--platform`), cross-run duplicate flagging (♻), and a machine-readable **`findings.json`** (ranked queue + counts + `prior_seen`, for automation/diffing) written alongside the Markdown. Live submission APIs are 🔑 (your platform tokens). |
 | AI copilot / RAG (§7.7) | 🟡→🛠 | AI report is grounded in evidence. A RAG copilot over your own findings/notes + vendored corpora (HackTricks/PayloadsAllTheThings) is build-now (LanceDB or sqlite-vec). |
