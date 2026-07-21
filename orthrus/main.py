@@ -1771,6 +1771,35 @@ async def _run_exploit(scan_id: str) -> None:
         await store.close()
 
 
+@cli.command(name="submission-gate")
+@click.option("--scan-id", required=True, help="Scan identifier to triage.")
+@click.option("--verbose", "-v", default="info", help="Log level.")
+def submission_gate(scan_id: str, verbose: str) -> None:
+    """Predict how a mature bug-bounty program will triage each finding.
+
+    Sorts a scan's findings into submit / prove-impact-first / hold so you lead
+    with what pays and skip the informational noise (headers, non-credentialed
+    CORS, tracking-cookie flags). It labels and orders; it never deletes.
+    """
+    configure_logging(verbose)
+    asyncio.run(_run_submission_gate(scan_id))
+
+
+async def _run_submission_gate(scan_id: str) -> None:
+    from orthrus.bounty.submission_gate import render_overview
+
+    store = Store(get_settings().db_url)
+    try:
+        scan = await store.get_scan(scan_id)
+        if scan is None:
+            logger.error("no such scan: %s", scan_id)
+            return
+        findings = [f for _id, f in await store.get_findings_with_ids(scan_id)]
+        console.print(render_overview(findings))
+    finally:
+        await store.close()
+
+
 @cli.command()
 @click.option("--scan-id", required=True, help="Scan identifier to report on.")
 @click.option(
