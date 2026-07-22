@@ -246,7 +246,7 @@ def _appendices(ctx: dict) -> str:
         "## 9. Appendices\n\n"
         "### Appendix A - Assessment Platform\n"
         "Findings were produced by the ORTHRUS automated assessment platform: a scope-enforced, "
-        "async DAST engine with 58 vulnerability scanners, 16 reconnaissance modules, and 17 "
+        "async DAST engine with 64 vulnerability scanners, 18 reconnaissance modules, and 28 "
         "exploitation-confirmation modules, with CVSS v3.1/v4.0 scoring and multi-framework "
         "compliance mapping.\n\n"
         "### Appendix B - Severity & Confidence Definitions\n"
