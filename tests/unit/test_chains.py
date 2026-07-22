@@ -15,6 +15,60 @@ def _names(chains):
     return {c.name for c in chains}
 
 
+def _chain(chains, name):
+    return next((c for c in chains if c.name == name), None)
+
+
+# --------------------------------------------- new compositions (this session's scanners)
+def test_otp_brute_plus_account_targeting_is_critical():
+    c = _chain(correlate_findings([
+        F("otp-security", "https://app.test/verify-otp"),
+        F("account-enumeration", "https://app.test/login"),
+    ]), "OTP brute-force → 2FA bypass (account takeover)")
+    assert c is not None and c.severity == "critical"
+    assert {s.vuln_type for s in c.steps} == {"otp-security", "account-enumeration"}
+
+
+def test_account_enum_plus_no_ratelimit_is_stuffing():
+    c = _chain(correlate_findings([
+        F("account-enumeration", "https://app.test/login"),
+        F("missing-rate-limit", "https://app.test/login"),
+    ]), "Account enumeration → credential stuffing")
+    assert c is not None and c.severity == "high"
+
+
+def test_internal_host_plus_ssrf_chains_cross_host():
+    # internal-ip-disclosure and ssrf live on different assets -> cross-host rule.
+    c = _chain(correlate_findings([
+        F("internal-ip-disclosure", "https://internal.app.test/"),
+        F("ssrf", "https://app.test/fetch"),
+    ]), "Named internal host → SSRF pivot")
+    assert c is not None and c.severity == "critical" and c.host == "(cross-host)"
+
+
+def test_monetary_tampering_plus_no_throttle_is_high():
+    c = _chain(correlate_findings([
+        F("parameter-tampering", "https://app.test/pay"),
+        F("race-condition", "https://app.test/pay"),
+    ]), "Monetary tampering → automated financial abuse")
+    assert c is not None and c.severity == "high"
+
+
+def test_second_order_plus_weak_session_is_console_takeover():
+    c = _chain(correlate_findings([
+        F("second-order-injection", "https://app.test/profile"),
+        F("security-headers", "https://app.test/"),
+    ]), "Second-order payload → staff-console takeover")
+    assert c is not None and c.severity == "critical"
+
+
+def test_new_chains_need_both_links():
+    # otp-security alone (no account-targeting link) yields no OTP chain.
+    assert "OTP brute-force → 2FA bypass (account takeover)" not in _names(
+        correlate_findings([F("otp-security", "https://app.test/verify-otp")])
+    )
+
+
 def test_ssrf_plus_exposed_service_chains_to_critical():
     chains = correlate_findings([
         F("ssrf", "https://app.test/fetch"),
