@@ -131,6 +131,59 @@ No scanner finds these alone. Test them by hand, logged in, with A and B:
 - **Stored / second-order XSS** in profile name, support chat, bet notes - anything an
   operator or another user later renders.
 
+### 6.1 Financial-flow sequence attacks (deposit -> KYC -> withdraw)
+
+Payload tampering never models *order*. These are state-machine bugs - tested by hand
+because they need the real multi-step flow, two accounts, and a ledger you can read.
+ORTHRUS's `business-logic`/`race-condition` scanners find the mechanical precursors; the
+sequence itself you drive:
+
+1. **Map the states.** From your logged-in HAR, list the ordered steps and the token/flag
+   each produces (e.g. `deposit_id`, `kyc_status`, `withdraw_authz`). Note which step is
+   supposed to gate the next.
+2. **Step-skip.** Send the *later* step's request from a session that never completed the
+   earlier one - e.g. POST `/withdraw` before KYC, or before a deposit clears. If it is
+   accepted, the server trusts client-side ordering.
+3. **Step-replay.** Replay a one-time step (a deposit-confirm, a bonus-credit, a
+   withdrawal-authz) twice with the same token. A second success is a double-credit
+   precursor.
+4. **Cross-session ordering.** Start the flow as account A, then complete a step as A
+   using an identifier minted in account B's session (or vice versa). Mixed ownership that
+   the server accepts is a tenancy break in the money flow.
+5. **Deferred ledger assertion (the key discipline).** The bug often does not show at
+   request time. Note the balance/ledger before, run the sequence, then re-read the
+   balance **minutes to hours later** (pending windows settle asynchronously). The
+   invariant "money out == money debited, exactly once" is what you assert.
+
+Safety: your own funded accounts only, the minimum amount that proves the invariant, and
+stop at proof - never repeat for effect. Get the program's explicit nod before any
+state-changing cashier test.
+
+### 6.2 Account pre-hijacking & identity collision (zero-interaction ATO)
+
+High-value on a Telegram/Google-login-heavy platform, and entirely manual (it needs the
+real OAuth/social-link flow). Use email addresses and social accounts **you control** as
+both "attacker" and "victim".
+
+1. **Classic pre-hijack.** Register `victim@yourdomain` on the site *without* verifying it,
+   set your own password, and stop. Now perform the victim's first-time **social login**
+   (Google/Telegram) for that same email. If the provider-login *links into* your
+   pre-created account instead of creating a fresh one, you retain access after they take
+   over - full ATO with zero victim interaction.
+2. **Unverified-email linking.** In your account settings, link a social identity whose
+   email you do **not** own. If the app binds it without proving ownership, the inverse
+   hijack is possible.
+3. **Email-identity collision.** Register variants the app may fold to one identity:
+   case (`Victim@` vs `victim@`), plus-tagging (`victim+x@`), a trailing dot, or a unicode
+   homoglyph/normalization (`vïctim@`). If two "different" registrations collide onto one
+   account, that is an authn boundary break.
+4. **Change-without-reconfirmation.** Change your account's email (or phone) to a new
+   address and check whether the app re-verifies before the change takes effect. A silent
+   change is an account-takeover primitive when chained with the collisions above.
+
+Safety: only addresses/social accounts you own on both sides; never target a real user's
+identity. Prove the linking/collision on your own pair and report the mechanism.
+
 ## 7. Rules of engagement (non-negotiable)
 
 - **Scope:** `1win.com`, `/betting`, `/casino`, `1w.cash`, `1w.run` only. External payment
