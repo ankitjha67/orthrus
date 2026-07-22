@@ -31,7 +31,7 @@ _HIGH_VALUE_TYPES = frozenset({
     "file-upload", "account-takeover", "payment-tampering", "graphql-injection",
     "ldap-injection", "xpath-injection", "prototype-pollution", "race-condition",
     "business-logic", "mass-assignment", "privilege-escalation", "prompt-injection",
-    "second-order-injection", "broken-authorization", "otp-security", "internal-ip-disclosure",
+    "second-order-injection", "otp-security", "internal-ip-disclosure",
 })
 
 # Classes a mature program routinely closes as informational unless chained.
