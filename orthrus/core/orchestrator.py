@@ -125,6 +125,9 @@ class Orchestrator:
 
         if not self.config.no_exploit:
             self.ctx.callback = await self._build_callback()
+            from orthrus.core.second_order import SecondOrderRegistry
+
+            self.ctx.second_order = SecondOrderRegistry(callback=self.ctx.callback)
 
         if self.config.use_browser and BrowserManager.is_available():
             browser = BrowserManager(
@@ -579,6 +582,11 @@ class Orchestrator:
             return confirmed
         await self.event_bus.emit(EventType.PHASE_STARTED, phase="exploit")
 
+        # Second-order: plant canaries in writable forms and harvest any that detonated
+        # out-of-band or reflected on another page - stored/blind bugs a request-oriented
+        # confirmer can't see (e.g. a payload that fires in a staff console).
+        so_confirmed = await self._run_second_order()
+
         # Confirmed findings (DOM/stored XSS proved by execution) and findings with
         # no matching confirmer are skipped; pre-filtering keeps the progress total honest.
         candidates = [
@@ -643,12 +651,32 @@ class Orchestrator:
             results = await asyncio.gather(
                 *(_confirm_finding(finding, modules) for finding, modules in candidates)
             )
-        confirmed = sum(results)
+        confirmed = sum(results) + so_confirmed
 
         await self.event_bus.emit(EventType.PHASE_COMPLETED, phase="exploit")
         await self.store.set_scan_phase(self.scan_id, "exploit")  # checkpoint for --resume
         logger.info("exploitation complete: %d finding(s) confirmed", confirmed)
         return confirmed
+
+    async def _run_second_order(self) -> int:
+        """Plant second-order canaries and harvest detonations. Best-effort, isolated."""
+        registry = self.ctx.second_order if self.ctx is not None else None
+        if registry is None:
+            return 0
+        try:
+            if await registry.plant_writable_forms(self.ctx) == 0:
+                return 0
+            findings = await registry.harvest(self.ctx)
+        except Exception:  # isolate: a second-order failure never aborts the phase
+            logger.exception("second-order phase failed; continuing")
+            return 0
+        for finding in findings:
+            db_id = await self.store.add_finding(self.scan_id, finding)
+            self.ctx.findings.append(finding)
+            self.ctx.finding_ids[finding.id] = db_id
+        if findings:
+            logger.info("second-order: %d stored/blind finding(s) confirmed", len(findings))
+        return len(findings)
 
     # ---------------------------------------------------------- phase: report
     async def run_integrations(self) -> int:

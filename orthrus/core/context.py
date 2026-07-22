@@ -8,6 +8,7 @@ operate against the same state without global singletons.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from orthrus.core import schemas
 from orthrus.core.baseline import BaselineProfile
@@ -18,6 +19,9 @@ from orthrus.core.event_bus import EventBus
 from orthrus.core.http_client import HttpClient
 from orthrus.db.store import Store
 from orthrus.utils.scope import ScopeValidator
+
+if TYPE_CHECKING:
+    from orthrus.core.second_order import SecondOrderRegistry
 
 
 @dataclass
@@ -30,6 +34,7 @@ class ScanContext:
     event_bus: EventBus
     callback: CallbackClient | None = None
     browser: BrowserManager | None = None
+    second_order: SecondOrderRegistry | None = None
     baseline: BaselineProfile | None = None
     assets: list[schemas.Asset] = field(default_factory=list)
     endpoints: list[schemas.Endpoint] = field(default_factory=list)

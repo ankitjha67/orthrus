@@ -40,7 +40,7 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1371-test / lint-clean quality gates.
+1378-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
@@ -130,7 +130,7 @@ roadmap for advanced scanners & methods.
 | Category | Scanners |
 |---|---|
 | Injection | SQLi (error / boolean / time-based, WAF-evasion), command injection, SSTI, LFI, XXE, NoSQL, **LDAP**, **XPath / XQuery**, CRLF / response splitting, HTTP request smuggling (CL.TE/TE.CL + **CL.0 desync**), CSV / formula injection |
-| XSS | Reflected (content-type aware), DOM-based, stored (browser-verified), **browser taint engine** (instrumented source→sink: URL data reaching eval/innerHTML/document.write = DOM XSS, location.assign/window.open = client-side redirect) |
+| XSS | Reflected (content-type aware), DOM-based, stored (browser-verified), **second-order / planted-payload registry** (plant a canary in a writable field, correlate its later OOB detonation in a staff console or its reflection on another page back to the plant site - no browser needed), **browser taint engine** (instrumented source→sink: URL data reaching eval/innerHTML/document.write = DOM XSS, location.assign/window.open = client-side redirect) |
 | Access / logic | IDOR, **multi-identity authorization matrix (BOLA/BFLA, Autorize-style `--identities`)**, **privilege-escalation forced-browse (unlinked admin routes via the identity lattice)**, CSRF, open redirect, race conditions, business-logic (parameter tampering / HPP), host-header injection (password-reset poisoning) |
 | API (OWASP API Top 10) | Mass assignment / object-property injection |
 | Auth / session | Auth-session analysis, default credentials, **OTP/2FA (brute-force / rate-limit absence, client-trusted result tamper)**, **rate-limit / abuse (missing throttling on login / reset / voucher / bonus via measured micro-bursts)**, **account enumeration (login/register/reset existence oracles)**, JWT (alg:none, weak secret, jku/x5u/kid header attacks, **RS->HS algorithm confusion** via published JWKS), **OAuth/OIDC flow misconfig (missing state/PKCE, implicit flow, redirect_uri takeover)**, **SAML response inspection (unsigned assertion, signature-wrapping, NameID comment-truncation)** |

@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1371 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1378 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
@@ -55,6 +55,7 @@ the native Rust core (the cockpit ships as Tauri + FastAPI, per the hybrid decis
 | **Money-flow tampering severity** | ✅ | `business-logic` parameter tampering now escalates a **monetary** field to evidence-backed **HIGH/firm** when the tampered amount is reflected back as a money value in the response (reuses `utils/sensitivity.py`), plus a scientific-notation bypass vector - so a negative/zero amount that is actually carried downstream outranks a bare missing-validation MEDIUM. |
 | **Recon depth (altdns + internal-IP)** | ✅ | Mined from m0chan's methodology: `recon/permutation.py` adds altdns-style subdomain mutations of CT-discovered labels (api -> api-dev/staging-api/api2), and the `internal-exposure` scanner (`utils/ip_classify.py`) flags any in-scope hostname resolving to RFC1918 / loopback / link-local / CGNAT / IPv6-ULA / cloud-metadata space - internal-topology disclosure and an SSRF-pivot lead (his `FindInternalIPSubdomains.sh`, as a first-class finding). |
 | **Auth-flow abuse (OTP / rate-limit / enum)** | ✅ | `otp-2fa` (brute-force / rate-limit absence + client-trusted `success:false` tamper), `rate-limit` (missing throttling on login/reset/voucher/bonus via bounded, `AGGRESSIVE`-gated micro-bursts - not DoS), and `account-enumeration` (login/register/reset existence oracles, generic-error safe). Shared `_authflow.py` classifier. The OTP + throttling gap on 1win's login/withdrawal flows was the #1 program-relevant miss. Next tiers: payment-callback tampering, password-reset token analysis, session lifecycle, JS-chunk mining. |
+| **Second-order / planted-payload registry** | ✅ | `core/second_order.py` + orchestrator exploit phase: plants a canary (OOB beacon + in-band marker) into writable forms, then correlates any detonation - an out-of-band callback fired in a staff/admin console the scanner never visits, or the marker reflected on another page - back to the plant site. Turns blind/stored bugs into evidenced `second-order-injection` findings (CWE-79), no browser required. The non-destructive answer to "plant in the profile, fire in the staff console". |
 | Reporting engine (§7.6) | ✅ + 🛠 | Submission-ready per-bug reports, **platform-native templates** (H1/BC/Intigriti/YWH/Immunefi via `--platform`), cross-run duplicate flagging (♻), and a machine-readable **`findings.json`** (ranked queue + counts + `prior_seen`, for automation/diffing) written alongside the Markdown. Live submission APIs are 🔑 (your platform tokens). |
 | AI copilot / RAG (§7.7) | 🟡→🛠 | AI report is grounded in evidence. A RAG copilot over your own findings/notes + vendored corpora (HackTricks/PayloadsAllTheThings) is build-now (LanceDB or sqlite-vec). |
 | Attack graph (§7.8) | ✅ + 🛠 | `chains`/`graph` exist. Next: wire the SSRF→metadata and JWT→BOLA chains as first-class. |
