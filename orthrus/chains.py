@@ -116,6 +116,45 @@ CHAIN_RULES: tuple[ChainRule, ...] = (
         (_link("File read / traversal", "lfi", "xxe"),
          _link("Secret / credential exposed", "exposed-secret")),
     ),
+    ChainRule(
+        "OTP brute-force → 2FA bypass (account takeover)", "critical",
+        "An OTP verification step with no brute-force protection, plus a way to target valid "
+        "accounts, lets an attacker walk the code space and defeat the second factor - full "
+        "account and, on a cashier, funds takeover.",
+        (_link("OTP without brute-force protection", "otp-security"),
+         _link("Account targeting", "account-enumeration", "default-creds", "missing-rate-limit")),
+    ),
+    ChainRule(
+        "Account enumeration → credential stuffing", "high",
+        "An enumeration oracle yields a list of valid accounts; missing rate limiting on login "
+        "then lets that list be credential-stuffed at scale.",
+        (_link("Account enumeration oracle", "account-enumeration"),
+         _link("No login throttling", "missing-rate-limit")),
+    ),
+    ChainRule(
+        "Named internal host → SSRF pivot", "critical",
+        "A public DNS record exposes an internal host by name/address; an SSRF primitive can "
+        "then reach that named internal service directly - request forgery becomes a confirmed "
+        "internal pivot.",
+        (_link("Internal host disclosed", "internal-ip-disclosure"),
+         _link("Server-side request forgery", "ssrf")),
+        same_host=False,  # the internal host and the SSRF sink are different assets
+    ),
+    ChainRule(
+        "Monetary tampering → automated financial abuse", "high",
+        "A monetary field that accepts out-of-band values, combined with missing throttling or "
+        "a non-atomic money operation, lets an attacker automate or amplify financial "
+        "manipulation (discounted/negative charges, balance overruns).",
+        (_link("Monetary parameter tampering", "parameter-tampering", "business-logic"),
+         _link("No throttle / non-atomic op", "missing-rate-limit", "race-condition")),
+    ),
+    ChainRule(
+        "Second-order payload → staff-console takeover", "critical",
+        "A stored payload that detonates in a staff/admin console, with weak session or "
+        "anti-CSRF protection there, escalates to takeover of a privileged operator account.",
+        (_link("Second-order / stored injection", "second-order-injection"),
+         _link("Weak session protection", "csrf", "cors", "security-headers", "csp")),
+    ),
 )
 
 
