@@ -29,7 +29,8 @@ tampering (CWE-472).
 
 **Authentication / session** - JWT signature (CWE-347), client-side auth / OTP-result trust
 (CWE-603), no brute-force protection (CWE-307), user enumeration (CWE-204), default creds
-(CWE-1392), hard-coded creds (CWE-798), weak entropy (CWE-331).
+(CWE-1392), hard-coded creds (CWE-798), weak entropy (CWE-331), email spoofing via missing
+or monitor-only SPF/DMARC (CWE-290).
 
 **Business logic / abuse** - race condition (CWE-362), no rate limiting (CWE-799),
 resource exhaustion / GraphQL DoS (CWE-770, CWE-674).
@@ -41,7 +42,7 @@ resource exhaustion / GraphQL DoS (CWE-770, CWE-674).
 externally-accessible sensitive file (CWE-538), directory listing (CWE-548), cacheable
 sensitive response / web-cache deception (CWE-525), resource-to-wrong-sphere incl.
 internal-IP & origin exposure (CWE-668), reverse-DNS trust (CWE-350), untrusted script
-inclusion / SRI (CWE-829).
+inclusion (CWE-829), missing subresource integrity / SRI (CWE-353).
 
 **Configuration / transport** - CORS misconfig (CWE-942), WebSocket origin (CWE-1385),
 missing security headers / protection-mechanism failure (CWE-693), active debug code
