@@ -26,7 +26,7 @@ def test_every_platform_renders_core_facts():
     for platform in PLATFORMS:
         md = render(g, platform=platform, program_name="Acme")
         assert "SQL injection" in md
-        assert "CWE-89" in md
+        assert "cwe-89" in md.lower()   # HackerOne uses the dropdown label "... (cwe-89)"
         assert "9.8" in md
         assert "curl -sk" in md            # reproduction snippet embedded everywhere
         assert md.strip().startswith("#")  # a real report

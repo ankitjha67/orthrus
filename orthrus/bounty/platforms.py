@@ -19,6 +19,7 @@ category - it never fabricates one.
 from __future__ import annotations
 
 from orthrus.bounty.report import BugGroup, _conf, _norm_title, _sev
+from orthrus.bounty.weakness import weakness_label
 from orthrus.reporting.reproduce import build_snippets
 
 PLATFORMS = ("generic", "hackerone", "bugcrowd", "intigriti", "yeswehack", "immunefi")
@@ -109,7 +110,7 @@ def render(group: BugGroup, *, platform: str = "generic", program_name: str = ""
 
     if platform == "hackerone":
         body += [
-            prog + f"**Weakness:** {f.cwe or 'n/a'}",
+            prog + f"**Weakness:** {weakness_label(f.cwe)}",
             f"**Severity:** {sev.capitalize()} - CVSS {_cvss(f)}",
             f"**Asset:** {f.url}{_proof_note(f)}",
             "", "## Summary", f.description or f"A {f.vuln_type} issue on the affected asset.",
