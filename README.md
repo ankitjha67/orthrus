@@ -40,7 +40,7 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1391-test / lint-clean quality gates.
+1396-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
