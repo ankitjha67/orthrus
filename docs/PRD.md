@@ -15,7 +15,7 @@
 | Status | Living document - describes what is **built and shipping** today, plus the roadmap for advanced capabilities |
 | Source of truth | The public repository (`github.com/ankitjha67/orthrus`). Every requirement below is reflected in code + tests. |
 | Relationship to code | This is the *engineering* PRD authored from the implemented codebase. It is **not** the original private design brief (which is excluded from the repo). Nothing proprietary is reproduced here. |
-| Verified snapshot | 64 scanners · 28 confirmation modules · 18 recon modules · 1396 passing tests · `ruff` clean |
+| Verified snapshot | 66 scanners · 28 confirmation modules · 18 recon modules · 1419 passing tests · `ruff` clean |
 
 **How to read this:** Sections 1-4 are product framing. Sections 5-18 are the granular requirements/spec of every shipping subsystem. Section 19 is the current metrics snapshot. Section 20 is the roadmap for *more advanced scanners and methods*. Appendices give master lookup tables and the file tree.
 
@@ -81,7 +81,7 @@ orthrus scan -t https://app.example.com --scope example.com \
 ```
         ┌──────────┐   ┌──────────┐   ┌────────────────────┐   ┌──────────┐
 TARGET →│  RECON   │ → │   SCAN   │ → │ EXPLOIT / CONFIRM  │ → │  REPORT  │→ artifacts
-        │ 18 mods  │   │ 64 scan  │   │ 28 confirmers      │   │ 6 fmts   │
+        │ 18 mods  │   │ 66 scan  │   │ 28 confirmers      │   │ 6 fmts   │
         └──────────┘   └──────────┘   └────────────────────┘   └──────────┘
              │              │                   │                    │
         assets/        findings            confidence            JSON/CSV/HTML/
@@ -217,7 +217,7 @@ Run in this order; each enriches `ScanContext`. Soft-404 baseline (`build_baseli
 
 ---
 
-## 7. Vulnerability scanning subsystem (64 scanners)
+## 7. Vulnerability scanning subsystem (66 scanners)
 
 Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncIterator[Finding]`, declares `min_aggressiveness`, and self-registers. The shared injection layer (`_injection.py`) yields `InjectionPoint`s across `QUERY`, `BODY`, `JSON`, and `PATH` locations for `GET/POST/PUT/PATCH/DELETE`.
 
@@ -275,8 +275,10 @@ Each scanner subclasses `BaseScanner`, implements `async scan(ctx) -> AsyncItera
 | `exposed_files` | exposed-file | CWE-538 | Consumes `source="sensitive"` endpoints (.env/.git/backup/config) - no extra requests |
 | `framework_debug` | framework-debug | CWE-200/489 | Debug-mode stack-trace probe + 9 content-fingerprinted mgmt endpoints (Actuator/phpinfo/server-status/metrics/Telescope/Rails) |
 | `sca` | vulnerable-component | CWE-79/1321/1104 | JS lib version fingerprint vs vuln DB (jQuery/lodash/Handlebars/AngularJS) |
+| `sri` | sri | CWE-353 | PASSIVE; third-party `<script>`/`<link>` (different registrable domain) served over https without an `integrity=` hash → CDN-compromise / Magecart exposure; first-party assets and `http:` refs are left to the mixed-content scanner |
 | `service_exposure` | exposed-service | CWE-306 | AGGRESSIVE; **raw-socket** native Redis `PING`/Memcached `stats` unauth probe (skips web ports) → CRITICAL/HIGH |
 | `subdomain_takeover` | subdomain-takeover | CWE-350 | 15 provider-specific dangling-CNAME fingerprints (no generic-404) |
+| `email_auth` | email-auth | CWE-290/16 | PASSIVE; passive DNS - parses SPF (missing / `+all` / `?all` / multi-record permerror) and DMARC (missing / `p=none` monitor-only / `sp=none` / `pct<100`, walked up to the organizational policy) → spoofable domain, the phishing / BEC enabler; best-effort DKIM common-selector probe |
 
 ### 7.7 Protocol, advanced & API
 | Scanner | vuln_type | CWE | Method |
@@ -412,7 +414,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 ---
 
 ## 17. Quality engineering
-- **1396 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
+- **1419 tests**, `ruff` clean (E,F,I,UP,B,ASYNC). Pure detector unit tests + duck-typed fakes + real-socket / real-process / real-browser integration checks (raw-socket desync, live JWKS forge, Chromium DOM taint, real gRPC reflection, OOB collaborator).
 - **Detection-accuracy benchmark harness** for precision/recall tracking.
 - **Low-FP doctrine** enforced by living verification: live testing has caught and fixed real FPs in the project's own new code (subdomain-takeover generic-404, LLM canary reflection) before release.
 - **Definition of done** per increment: full pytest + ruff green, a live verification against real sockets/processes/targets, and a local commit.
@@ -441,7 +443,7 @@ Nuclei-style YAML/JSON engine. **Matchers**: `word`/`regex`/`status`/`size` over
 | Compliance frameworks mapped | 4 (OWASP/PCI-DSS/NIST-CSF/MITRE) + CVSS v3.1/v4.0 |
 | CISA KEV / EPSS seed | 46 / 21 |
 | CLI commands | 30 |
-| Automated tests | **1396** (ruff clean) |
+| Automated tests | **1419** (ruff clean) |
 | Confirmation phase | parallelized (bounded by `concurrency`) |
 
 ---
@@ -580,7 +582,7 @@ orthrus/
                browser, baseline, events, http client
   utils/       scope (deny-by-default), encoding, logger, crypto, palette (red/white/black tokens)
   recon/       18 modules + spec_parsers + registry
-  scanners/    64 scanners + base + registry + _injection + _evasion
+  scanners/    66 scanners + base + registry + _injection + _evasion
   exploits/    28 confirmation modules + base + registry + _replay
   intel/       cve_intel + CISA-KEV/EPSS seeds
   templates/   declarative engine (schema/matchers/loader/scanner) + builtin
@@ -595,7 +597,7 @@ orthrus/
   __main__.py  `python -m orthrus` entry (also the PyInstaller entry point)
   main.py      Click CLI (30 commands)
 docs/          README, PROOF.md, this PRD, screenshot + dashboard/surface images
-tests/         unit + integration (1396 tests)
+tests/         unit + integration (1419 tests)
 .github/       CI matrix + reusable scan action + release workflow (binaries + GHCR)
 docker/        Dockerfile (all extras + Chromium) + Dockerfile.slim (lean)
 packaging/     PyInstaller spec - standalone Linux/macOS/Windows binaries
