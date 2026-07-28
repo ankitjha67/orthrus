@@ -57,6 +57,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     sca,
     secret_scanner,
     service_exposure,
+    session_fixation,
     shadow_api,
     sqli,
     sri,

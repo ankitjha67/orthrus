@@ -1,7 +1,7 @@
 # Bug-bounty mode (`orthrus bounty`)
 
 `orthrus bounty` runs a whole bug-bounty engagement in one command: it takes a
-program's **authorized scope**, scans every in-scope asset with all 66 scanners,
+program's **authorized scope**, scans every in-scope asset with all 67 scanners,
 **confirms** what it can with the exploitation-confirmation phase, and writes
 **submission-ready per-bug reports** you can paste into HackerOne / Bugcrowd /
 Intigriti.
