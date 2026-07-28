@@ -29,8 +29,8 @@ tampering (CWE-472).
 
 **Authentication / session** - JWT signature (CWE-347), client-side auth / OTP-result trust
 (CWE-603), no brute-force protection (CWE-307), user enumeration (CWE-204), default creds
-(CWE-1392), hard-coded creds (CWE-798), weak entropy (CWE-331), email spoofing via missing
-or monitor-only SPF/DMARC (CWE-290).
+(CWE-1392), hard-coded creds (CWE-798), weak entropy (CWE-331), session fixation (CWE-384),
+email spoofing via missing or monitor-only SPF/DMARC (CWE-290).
 
 **Business logic / abuse** - race condition (CWE-362), no rate limiting (CWE-799),
 resource exhaustion / GraphQL DoS (CWE-770, CWE-674).

@@ -42,6 +42,7 @@ WEAKNESS_LABELS: dict[str, str] = {
     "CWE-285": "Improper Authorization",
     "CWE-290": "Authentication Bypass by Spoofing",
     "CWE-347": "Improper Verification of Cryptographic Signature (JWT)",
+    "CWE-384": "Session Fixation",
     "CWE-603": "Use of Client-Side Authentication",
     "CWE-307": "Improper Restriction of Excessive Authentication Attempts",
     "CWE-799": "Improper Control of Interaction Frequency (No Rate Limiting)",
