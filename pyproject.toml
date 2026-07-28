@@ -35,7 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 browser = ["playwright>=1.44"]
 api = ["fastapi>=0.110", "uvicorn>=0.29"]  # REST API server (orthrus serve)
-mcp = ["mcp>=1.2"]  # Model Context Protocol server (orthrus mcp)
+mcp = ["mcp>=1.2,<2"]  # Model Context Protocol server (orthrus mcp); <2 pending the FastMCP relocation in mcp 2.0
 perf = ["uvloop>=0.19; sys_platform != 'win32'"]  # faster event loop (POSIX only)
 scanners = ["pyjwt>=2.8", "cryptography>=42.0", "sslyze>=6.0", "paramiko>=3.4", "websockets>=12.0"]
 recon = ["python-nmap>=0.7"]
