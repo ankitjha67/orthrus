@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from orthrus.bounty.ontology import is_destructive
-from orthrus.bounty.triage import priority_score
+from orthrus.bounty.triage import priority_band, priority_score
 from orthrus.core.schemas import Finding
 from orthrus.reporting.reproduce import build_snippets
 
@@ -250,6 +250,7 @@ def campaign_summary(report: CampaignReport, program_name: str = "", *,
         bugs.append({
             "rank": i,
             "priority": priority_score(f),
+            "priority_band": priority_band(f),
             "severity": s,
             "confidence": _conf(f.confidence),
             "vuln_type": f.vuln_type,
@@ -284,7 +285,7 @@ def render_index(report: CampaignReport, program_name: str = "", *,
         cvss = f.cvss_score if f.cvss_score is not None else "-"
         mark = " ♻" if prior_seen.get(id(f)) else ""
         any_seen = any_seen or bool(mark)
-        rows.append(f"| {i} | {priority_score(f):.0f} | {_sev(f.severity).upper()} | "
+        rows.append(f"| {i} | {priority_band(f)} | {priority_score(f):.0f} | {_sev(f.severity).upper()} | "
                     f"{_norm_title(f.title)}{mark} | {cvss} | {_conf(f.confidence)} | `{_host(f.url)}` |")
     body = "\n".join(rows) or "| - | - | - | - | - | - | - |"
     sev_counts: dict[str, int] = {}
@@ -303,8 +304,8 @@ def render_index(report: CampaignReport, program_name: str = "", *,
         f"# Bug-bounty findings{f' - {program_name}' if program_name else ''}\n\n"
         f"**{report.reportable} reportable bug(s)** - {dist}.  \n"
         + considered_line
-        + "| # | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
-        "|---|---|---|---|---|---|---|\n" + body + "\n\n"
+        + "| # | Band | Priority | Severity | Bug | CVSS | Confidence | Asset |\n"
+        "|---|---|---|---|---|---|---|---|\n" + body + "\n\n"
         + seen_note
         + "Each bug has its own submission-ready report in this folder. Always confirm the target is "
         "in the program's current scope and follow its disclosure rules before submitting.\n"
