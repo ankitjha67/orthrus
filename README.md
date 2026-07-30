@@ -40,7 +40,7 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1428-test / lint-clean quality gates.
+1438-test / lint-clean quality gates.
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
@@ -50,6 +50,11 @@ reproducible in one command via [`demo.sh`](demo.sh).
 implemented-system PRD: every subsystem (67 scanners, 28 confirmers, 18 recon
 modules), the data/config/scope/store models, the confirmation doctrine, and the
 roadmap for advanced scanners & methods.
+
+🛡 **Frontier-AI alignment:** [`docs/GLASSWING_ALIGNMENT.md`](docs/GLASSWING_ALIGNMENT.md) -
+how ORTHRUS maps to Anthropic's Project Glasswing and Visa's open-source agentic
+harness (VVAH): the S1-S11 coverage ledger, the 12 non-negotiable architectural
+practices, deterministic **P1-P4** exploitability prioritisation, and the MTTA roadmap.
 
 > **Status & positioning.** ORTHRUS is an early (v0.1.0), actively-developed
 > project built as a deep, hands-on exploration of how a modern DAST pipeline

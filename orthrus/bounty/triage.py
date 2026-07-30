@@ -29,4 +29,15 @@ def priority_score(finding) -> float:
     return round(min(100.0, base * mult + cvss), 1)
 
 
-__all__ = ["priority_score"]
+def priority_band(finding, context=None) -> str:
+    """Contextual P1-P4 band (Glasswing/VVAH S7): CVSS + KEV/EPSS + exposure +
+    asset criticality + confirmed-exploitability, deterministic and auditable.
+
+    See ``orthrus.risk.priority`` for the scoring and its rationale.
+    """
+    from orthrus.risk import assess_priority
+
+    return assess_priority(finding, context).band
+
+
+__all__ = ["priority_band", "priority_score"]
