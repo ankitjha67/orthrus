@@ -40,7 +40,13 @@ docker run --rm ghcr.io/ankitjha67/orthrus scan -t http://127.0.0.1:8791 --scope
 📊 **Proof it works on real targets:** [`docs/PROOF.md`](docs/PROOF.md) records
 reproducible live findings against an authorized range (DVGA GraphQL, an Oracle
 WebLogic console matched to 7 CISA-KEV CVEs, unauthenticated Redis) plus the
-1438-test / lint-clean quality gates.
+1446-test / lint-clean quality gates.
+
+🎯 **Accuracy & methodology:** [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) - how ORTHRUS
+measures **precision** (not just recall): a CI-gated corpus of vulnerable *and*
+known-clean inputs (currently **0 false positives / 0 misses** on 39 hard cases), the
+confirmation-efficacy metric, and exactly where AI is and isn't in the loop (deterministic
+code finds and proves; AI only explains and plans).
 
 🎬 **See it run:** [`docs/DEMO.md`](docs/DEMO.md) - a 6-step walkthrough (scan →
 attack-graph → runbook → patches → cloud posture → agent) with real output,
