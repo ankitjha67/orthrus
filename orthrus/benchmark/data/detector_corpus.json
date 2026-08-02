@@ -1,0 +1,47 @@
+[
+  {"detector": "headers", "should_fire": true, "note": "no security headers at all", "input": {"url": "https://t/", "headers": {}}},
+  {"detector": "headers", "should_fire": true, "note": "missing HSTS only", "input": {"url": "https://t/", "headers": {"Content-Security-Policy": "default-src 'self'", "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}}},
+  {"detector": "headers", "should_fire": true, "note": "weak HSTS max-age", "input": {"url": "https://t/", "headers": {"Content-Security-Policy": "default-src 'self'", "X-Frame-Options": "DENY", "Strict-Transport-Security": "max-age=3600", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}}},
+  {"detector": "headers", "should_fire": true, "note": "version disclosure via Server", "input": {"url": "https://t/", "headers": {"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'", "Strict-Transport-Security": "max-age=31536000", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Server": "nginx/1.18.0"}}},
+  {"detector": "headers", "should_fire": false, "note": "CLEAN https: full header set, no version leak", "input": {"url": "https://t/", "headers": {"Content-Security-Policy": "default-src 'self'; object-src 'none'; frame-ancestors 'none'", "X-Frame-Options": "DENY", "Strict-Transport-Security": "max-age=31536000; includeSubDomains", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer", "Server": "nginx"}}},
+  {"detector": "headers", "should_fire": false, "note": "CLEAN https via CSP frame-ancestors (no XFO needed)", "input": {"url": "https://t/", "headers": {"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'", "Strict-Transport-Security": "max-age=63072000", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "strict-origin-when-cross-origin"}}},
+  {"detector": "headers", "should_fire": false, "note": "CLEAN http: no HSTS required, all other headers set", "input": {"url": "http://t/", "headers": {"Content-Security-Policy": "default-src 'self'", "X-Frame-Options": "SAMEORIGIN", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer"}}},
+
+  {"detector": "tls", "should_fire": true, "note": "SSLv3 (POODLE)", "input": {"facts": {"sslv3": true}}},
+  {"detector": "tls", "should_fire": true, "note": "TLS1.0 + weak cipher", "input": {"facts": {"tls1_0": true, "weak_ciphers": ["TLS_RSA_WITH_RC4_128_SHA"]}}},
+  {"detector": "tls", "should_fire": true, "note": "expired cert", "input": {"facts": {"expired": true}}},
+  {"detector": "tls", "should_fire": true, "note": "self-signed", "input": {"facts": {"self_signed": true}}},
+  {"detector": "tls", "should_fire": false, "note": "CLEAN modern config", "input": {"facts": {"sslv2": false, "sslv3": false, "tls1_0": false, "tls1_1": false, "self_signed": false, "hostname_mismatch": false, "expired": false, "weak_ciphers": []}}},
+  {"detector": "tls", "should_fire": false, "note": "CLEAN: empty facts (nothing weak observed)", "input": {"facts": {}}},
+
+  {"detector": "sri", "should_fire": true, "note": "third-party script, no integrity", "input": {"html": "<script src='https://cdn.jsdelivr.net/npm/p@1/p.js'></script>", "page_url": "https://shop.example.com/checkout"}},
+  {"detector": "sri", "should_fire": true, "note": "third-party stylesheet, no integrity", "input": {"html": "<link rel='stylesheet' href='https://fonts.other.com/x.css'>", "page_url": "https://shop.example.com/checkout"}},
+  {"detector": "sri", "should_fire": false, "note": "CLEAN: third-party script WITH integrity", "input": {"html": "<script src='https://cdn.jsdelivr.net/p.js' integrity='sha384-abc' crossorigin></script>", "page_url": "https://shop.example.com/checkout"}},
+  {"detector": "sri", "should_fire": false, "note": "CLEAN: first-party (same registrable domain)", "input": {"html": "<script src='https://static.example.com/app.js'></script>", "page_url": "https://shop.example.com/checkout"}},
+  {"detector": "sri", "should_fire": false, "note": "CLEAN: relative same-origin", "input": {"html": "<script src='/js/app.js'></script>", "page_url": "https://shop.example.com/checkout"}},
+  {"detector": "sri", "should_fire": false, "note": "CLEAN: http ref is mixed-content's job, not SRI", "input": {"html": "<script src='http://cdn.other.com/x.js'></script>", "page_url": "https://shop.example.com/checkout"}},
+
+  {"detector": "session-url", "should_fire": true, "note": "jsessionid matrix param", "input": {"url": "https://x.example/app;jsessionid=ABCD1234EFGH5678/home"}},
+  {"detector": "session-url", "should_fire": true, "note": "PHPSESSID in query", "input": {"url": "https://x.example/login?PHPSESSID=abcdef12345678"}},
+  {"detector": "session-url", "should_fire": false, "note": "CLEAN: csrf token is not a session id", "input": {"url": "https://x.example/p?csrf=abcdefgh12345678"}},
+  {"detector": "session-url", "should_fire": false, "note": "CLEAN: short value, not a token", "input": {"url": "https://x.example/p?session=abc"}},
+  {"detector": "session-url", "should_fire": false, "note": "CLEAN: ordinary search param", "input": {"url": "https://x.example/search?q=hello+world"}},
+  {"detector": "session-url", "should_fire": false, "note": "CLEAN: numeric id in path is not a session", "input": {"url": "https://x.example/users/12345678"}},
+
+  {"detector": "cookie", "should_fire": true, "note": "session cookie, no flags", "input": {"set_cookie": "sid=abc123; Path=/", "is_https": true}},
+  {"detector": "cookie", "should_fire": true, "note": "missing SameSite", "input": {"set_cookie": "sid=abc; Secure; HttpOnly", "is_https": true}},
+  {"detector": "cookie", "should_fire": false, "note": "CLEAN https: Secure+HttpOnly+SameSite", "input": {"set_cookie": "sid=abc; Secure; HttpOnly; SameSite=Lax", "is_https": true}},
+  {"detector": "cookie", "should_fire": false, "note": "CLEAN http: HttpOnly+SameSite (Secure not required off-TLS)", "input": {"set_cookie": "sid=abc; HttpOnly; SameSite=Strict", "is_https": false}},
+
+  {"detector": "email-auth", "should_fire": true, "note": "no DMARC (spoofable)", "input": {"records": {}}},
+  {"detector": "email-auth", "should_fire": true, "note": "SPF +all (permissive)", "input": {"records": {"spf": "v=spf1 +all", "dmarc": "v=DMARC1; p=reject"}}},
+  {"detector": "email-auth", "should_fire": true, "note": "DMARC p=none (monitor-only)", "input": {"records": {"spf": "v=spf1 -all", "dmarc": "v=DMARC1; p=none"}}},
+  {"detector": "email-auth", "should_fire": false, "note": "CLEAN: SPF -all + DMARC reject", "input": {"records": {"spf": "v=spf1 include:_spf.google.com -all", "dmarc": "v=DMARC1; p=reject; pct=100"}}},
+  {"detector": "email-auth", "should_fire": false, "note": "CLEAN: SPF softfail + DMARC quarantine (acceptable)", "input": {"records": {"spf": "v=spf1 ~all", "dmarc": "v=DMARC1; p=quarantine"}}},
+
+  {"detector": "mixed-content", "should_fire": true, "note": "http script on https page", "input": {"html": "<script src='http://cdn.evil/x.js'></script>", "page_url": "https://shop.example/checkout"}},
+  {"detector": "mixed-content", "should_fire": true, "note": "http form action on https page", "input": {"html": "<form action='http://x/login' method='post'></form>", "page_url": "https://shop.example/checkout"}},
+  {"detector": "mixed-content", "should_fire": false, "note": "CLEAN: https resource on https page", "input": {"html": "<script src='https://cdn.ok/x.js'></script>", "page_url": "https://shop.example/checkout"}},
+  {"detector": "mixed-content", "should_fire": false, "note": "CLEAN: protocol-relative ref (inherits https)", "input": {"html": "<script src='//cdn.ok/x.js'></script>", "page_url": "https://shop.example/checkout"}},
+  {"detector": "mixed-content", "should_fire": false, "note": "CLEAN: http page is not mixed content", "input": {"html": "<script src='http://cdn.ok/x.js'></script>", "page_url": "http://shop.example/checkout"}}
+]
