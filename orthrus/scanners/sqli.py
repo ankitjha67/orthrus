@@ -97,8 +97,33 @@ def _similar(a: str, b: str, tolerance: float = 0.05) -> bool:
 
 
 def boolean_injectable(baseline: str, true_resp: str, false_resp: str) -> bool:
-    """TRUE response should resemble baseline; FALSE response should diverge."""
-    return _similar(baseline, true_resp) and not _similar(true_resp, false_resp)
+    """Boolean-based blind signal.
+
+    The TRUE and FALSE payloads differ only in a SQL truth value (``1=1`` vs
+    ``1=2``), so a *divergence* between their responses can only come from the
+    database evaluating that condition. We additionally require that at least one
+    side still resembles the un-injected baseline - a cheap guard against random
+    page-to-page variation. Crucially we do **not** require the TRUE side
+    specifically to match the baseline: ``OR 1=1`` returns *more* rows than the
+    baseline, and a ``-- -`` comment that truncates a second parameter also makes
+    TRUE diverge - both real injections the old "TRUE must equal baseline" rule
+    silently missed.
+    """
+    if _similar(true_resp, false_resp):
+        return False
+    return _similar(baseline, true_resp) or _similar(baseline, false_resp)
+
+
+def error_status_signal(baseline_status: int, odd_quote_status: int, even_quote_status: int) -> bool:
+    """Broken/fixed-quote error signal.
+
+    A single (odd) quote breaks the SQL string and errors the request (5xx),
+    while a balanced (even) quote parses cleanly and does not - a strong
+    error-based-blind SQLi signal even when the error page leaks no DBMS text.
+    The even-quote control is what keeps this low-false-positive: an app that
+    500s on *any* quote fails the control and is not flagged.
+    """
+    return baseline_status < 500 <= odd_quote_status and even_quote_status < 500
 
 
 def _param_value(point: InjectionPoint) -> str:
@@ -162,7 +187,7 @@ class SqlInjectionScanner(BaseScanner):
             if detect_sql_error(baseline_text):
                 continue  # error already present unprovoked -> skip to avoid false positives
 
-            finding = await self._error_based(ctx, point, value)
+            finding = await self._error_based(ctx, point, value, baseline.status_code)
             if finding is None:
                 finding = await self._boolean_based(ctx, point, value, baseline_text, aggressive)
             if finding is None and aggressive:
@@ -172,8 +197,29 @@ class SqlInjectionScanner(BaseScanner):
                 yield finding
 
     async def _error_based(
-        self, ctx: ScanContext, point: InjectionPoint, value: str
+        self, ctx: ScanContext, point: InjectionPoint, value: str, baseline_status: int = 200
     ) -> Finding | None:
+        # (1) Broken/fixed-quote status differential: a single quote breaks the SQL
+        # string (5xx) while a balanced quote parses cleanly - catches error-based
+        # SQLi whose error page leaks no DBMS text (e.g. a generic 500).
+        odd = await send(ctx, point, value + "'")
+        if odd is not None and baseline_status < 500 <= odd.status_code:
+            even = await send(ctx, point, value + "''")
+            if even is not None and error_status_signal(
+                baseline_status, odd.status_code, even.status_code
+            ):
+                return _finding(
+                    point,
+                    f"SQL injection (error-based, broken/fixed quote) in parameter '{point.param}'",
+                    "error-based injection (quote-break status differential)",
+                    Confidence.FIRM,
+                    value + "'",
+                    f"a single quote returned HTTP {odd.status_code} while a balanced quote "
+                    f"returned HTTP {even.status_code} (baseline HTTP {baseline_status}) - the "
+                    "quote breaks the SQL string",
+                )
+
+        # (2) DBMS error text signatures.
         for payload in ERROR_PAYLOADS:
             resp = await send(ctx, point, value + payload)
             if resp is None:
@@ -255,4 +301,4 @@ class SqlInjectionScanner(BaseScanner):
         return None
 
 
-__all__ = ["SqlInjectionScanner", "detect_sql_error", "boolean_injectable"]
+__all__ = ["SqlInjectionScanner", "detect_sql_error", "boolean_injectable", "error_status_signal"]
