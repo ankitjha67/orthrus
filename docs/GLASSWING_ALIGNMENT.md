@@ -30,7 +30,7 @@ pipeline.
 | S10 Remediation playbooks | ✅ | automated remediation patch generation |
 | S11 Fix-validation gate ladder | ⬜ → **building** | patches are generated but not validated through a gate ladder |
 | run manifest / reproducibility | ✅ **added** | `orthrus.risk.manifest` - `run_manifest.json` beside every report; `manifest_hash` reproduces across identical re-runs (timestamps excluded) |
-| Living SBOM (inventory freshness) | ⬜ → **building** | SCA detects components; no CycloneDX/SPDX emission |
+| Living SBOM (inventory freshness) | ✅ **added** | `orthrus.risk.sbom` - deterministic CycloneDX 1.5 from fingerprinted tech/SCA, detected CVEs linked to components |
 | MTTA metric | ✅ **added** | `orthrus.risk.mtta` - inventory freshness, exploitable-paths-open, and time-to-confirm from the finding lifecycle (the production-fix leg needs a deploy timestamp - flagged, not faked) |
 
 ## Glasswing lessons -> ORTHRUS posture
@@ -85,7 +85,8 @@ not source, so some are partial):
    timestamp ORTHRUS doesn't own; that gap is flagged, not faked.
 4. ✅ **Deterministic finding-policy engine** (`orthrus.risk.policy`) - named,
    declarative keep/suppress/escalate policies, each decision traceable to a policy + reason.
-5. ⬜ **CycloneDX SBOM** - machine-readable component inventory.
+5. ✅ **CycloneDX SBOM** (`orthrus.risk.sbom`) - deterministic CycloneDX 1.5 component
+   inventory with detected CVEs linked to their components.
 6. ⬜ **Fix-validation gate ladder** - prove generated patches in isolation.
 
 _This document is ORTHRUS's own analysis and summary; it quotes the Visa whitepaper only

@@ -22,8 +22,10 @@ from orthrus.risk.priority import (
     assess_priority,
     priority_band,
 )
+from orthrus.risk.sbom import Component, Vulnerability, build_sbom, write_sbom
 
 __all__ = [
+    "Component",
     "FindingRecord",
     "MttaReport",
     "Policy",
@@ -31,12 +33,15 @@ __all__ = [
     "PriorityAssessment",
     "RiskContext",
     "ScanManifest",
+    "Vulnerability",
     "apply_policies",
     "assess_priority",
     "build_manifest",
+    "build_sbom",
     "compute_mtta",
     "default_policies",
     "evaluate",
     "priority_band",
     "write_manifest",
+    "write_sbom",
 ]
