@@ -28,7 +28,7 @@ pipeline.
 | S8 Exploit chaining | ✅ | attack-graph chain synthesis + reachability |
 | S9 SARIF + report bundles | ✅ | SARIF 2.1.0 + JSON/CSV/HTML/PDF/MD |
 | S10 Remediation playbooks | ✅ | automated remediation patch generation |
-| S11 Fix-validation gate ladder | ⬜ → **building** | patches are generated but not validated through a gate ladder |
+| S11 Fix-validation gate ladder | ✅ **added** | `orthrus.risk.fix_validation` - deterministic gates (applies/syntax/scope/rescan/regression); build + full-tests + adversarial-LLM flagged as target-toolchain, not faked |
 | run manifest / reproducibility | ✅ **added** | `orthrus.risk.manifest` - `run_manifest.json` beside every report; `manifest_hash` reproduces across identical re-runs (timestamps excluded) |
 | Living SBOM (inventory freshness) | ✅ **added** | `orthrus.risk.sbom` - deterministic CycloneDX 1.5 from fingerprinted tech/SCA, detected CVEs linked to components |
 | MTTA metric | ✅ **added** | `orthrus.risk.mtta` - inventory freshness, exploitable-paths-open, and time-to-confirm from the finding lifecycle (the production-fix leg needs a deploy timestamp - flagged, not faked) |
@@ -87,7 +87,15 @@ not source, so some are partial):
    declarative keep/suppress/escalate policies, each decision traceable to a policy + reason.
 5. ✅ **CycloneDX SBOM** (`orthrus.risk.sbom`) - deterministic CycloneDX 1.5 component
    inventory with detected CVEs linked to their components.
-6. ⬜ **Fix-validation gate ladder** - prove generated patches in isolation.
+6. ✅ **Fix-validation gate ladder** (`orthrus.risk.fix_validation`) - deterministic gates
+   (applies / syntax / minimal-scope / rescan / regression) with validated/rejected/
+   inconclusive verdicts; build + full-tests + adversarial-LLM are flagged as needing the
+   target's toolchain, not faked.
+
+**The governance layer is complete** - all six deterministic pieces shipped (PRs #63-#68 +
+this). Everything is pure and unit-tested; nothing that could not be measured honestly was
+faked (MTTA's production-fix leg, S11's build/test gates, and LLM n-vote were all flagged,
+not stubbed).
 
 _This document is ORTHRUS's own analysis and summary; it quotes the Visa whitepaper only
 minimally. Project Glasswing, VVAH, Mythos, and Visa are the property of their owners._

@@ -7,6 +7,7 @@ evidence -> same decision"). Pure and dependency-free so every decision is
 reproducible and testable.
 """
 
+from orthrus.risk.fix_validation import GateResult, ValidationResult, run_ladder
 from orthrus.risk.manifest import ScanManifest, build_manifest, write_manifest
 from orthrus.risk.mtta import FindingRecord, MttaReport, compute_mtta
 from orthrus.risk.policy import (
@@ -27,6 +28,8 @@ from orthrus.risk.sbom import Component, Vulnerability, build_sbom, write_sbom
 __all__ = [
     "Component",
     "FindingRecord",
+    "GateResult",
+    "ValidationResult",
     "MttaReport",
     "Policy",
     "PolicyDecision",
@@ -42,6 +45,7 @@ __all__ = [
     "default_policies",
     "evaluate",
     "priority_band",
+    "run_ladder",
     "write_manifest",
     "write_sbom",
 ]
