@@ -146,3 +146,29 @@ async def test_send_path_encodes_special_chars_keeping_slash():
     await send(ctx, point, "a/b' c")  # slash kept; quote + space percent-encoded
     _, url, _ = http.calls[0]
     assert url == "http://h/files/a/b%27%20c"
+
+
+class _RaisingHttp:
+    """Simulates httpx raising a bare ValueError for a malformed header, etc."""
+
+    def __init__(self, exc: Exception) -> None:
+        self._exc = exc
+
+    async def request(self, method: str, url: str, **kwargs: object) -> object:
+        raise self._exc
+
+
+async def test_send_swallows_valueerror_and_unicodeerror_no_crash():
+    # Regression: a probe that httpx refuses to build/send (e.g. "Header field name
+    # contains invalid characters") must return None, never crash the scanner.
+    # Surfaced live against ginandjuice.shop.
+    ep = Endpoint(
+        url="http://h/s?q=x",
+        method=HttpMethod.GET,
+        params=[Param(name="q", location=ParamLocation.QUERY, value="x")],
+    )
+    for exc in (ValueError("Header field name contains invalid characters"),
+                UnicodeError("bad encode")):
+        ctx = _ctx([ep], _RaisingHttp(exc))
+        point = next(iter(injection_points(ctx)))
+        assert await send(ctx, point, "PAY;curl x") is None

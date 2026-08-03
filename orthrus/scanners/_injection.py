@@ -138,7 +138,10 @@ async def send(
         # form-urlencoded body
         data = _body_with(ep, point.param, value, ParamLocation.BODY)
         return await ctx.http.request(method, ep.url, data=data, follow_redirects=follow_redirects)
-    except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL):
+    except (ScopeViolation, httpx.HTTPError, httpx.InvalidURL, ValueError, UnicodeError):
+        # ValueError/UnicodeError cover a probe that can't be built or sent - e.g. a
+        # payload that would form an invalid header name/value (httpx raises a bare
+        # ValueError). A malformed probe is a skipped probe, never a crashed scanner.
         return None
 
 
