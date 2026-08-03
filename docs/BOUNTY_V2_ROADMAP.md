@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1473 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1482 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
