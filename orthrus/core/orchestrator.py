@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from datetime import UTC, datetime
 from time import perf_counter
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -84,6 +85,7 @@ class Orchestrator:
         self.store = Store(settings.db_url, encryption_key=settings.encryption_key)
         self.ctx: ScanContext | None = None
         self.scanner_metrics: list[ScannerMetric] = []
+        self._started_at = datetime.now(UTC).isoformat(timespec="seconds")
 
     def _phase_complete(self, phase: str) -> bool:
         """True when a resumed scan already finished ``phase`` in a prior run."""
@@ -757,6 +759,8 @@ class Orchestrator:
                 config=salient,
                 modules=getattr(cfg, "modules", None) or ["all"],
                 findings=findings,
+                started_at=getattr(self, "_started_at", ""),
+                finished_at=datetime.now(UTC).isoformat(timespec="seconds"),
             )
             out = Path(report_path).parent / "run_manifest.json"
             write_manifest(str(out), manifest)
