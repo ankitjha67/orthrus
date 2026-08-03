@@ -22,7 +22,7 @@ pipeline.
 | S3 Hunt strategy (taint, API boundaries, authz) | ✅ | shared injection taint layer, `shadow-api`, `authz-matrix` identity lattice |
 | S4 Multi-lens research | ✅ | 67 DAST scanners + SAST adapters (slither/checkov/semgrep) |
 | S4 n-vote convergence | ⬜ skip | LLM-provider-dependent + non-deterministic; see "not reimplementing" |
-| S5 Policy gate (scope/severity floors/PCI) | ◑ → **building** | scope engine + `min_severity`; a deterministic finding-**policy engine** is a gap |
+| S5 Policy gate (scope/severity floors/PCI) | ✅ **added** | `orthrus.risk.policy` - named, declarative policies; every keep/suppress/escalate decision is traceable to a specific policy + reason |
 | S6 Adversarial verification | ✅ | 18-confirmer exploitation-confirmation (fresh-nonce re-proof) |
 | S7 Dedup + business-context risk (P1-P4) | ✅ **added** | dedup/grouping + **`orthrus.risk.priority`** contextual P1-P4 bands |
 | S8 Exploit chaining | ✅ | attack-graph chain synthesis + reachability |
@@ -83,7 +83,8 @@ not source, so some are partial):
 3. ✅ **MTTA metric** (`orthrus.risk.mtta`) - inventory freshness, exploitable-paths-open,
    and validation cycle time (time-to-confirm). The production-fix leg needs a deploy
    timestamp ORTHRUS doesn't own; that gap is flagged, not faked.
-4. ⬜ **Deterministic finding-policy engine** - named, traceable promote/suppress.
+4. ✅ **Deterministic finding-policy engine** (`orthrus.risk.policy`) - named,
+   declarative keep/suppress/escalate policies, each decision traceable to a policy + reason.
 5. ⬜ **CycloneDX SBOM** - machine-readable component inventory.
 6. ⬜ **Fix-validation gate ladder** - prove generated patches in isolation.
 
