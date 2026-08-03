@@ -8,6 +8,7 @@ reproducible and testable.
 """
 
 from orthrus.risk.manifest import ScanManifest, build_manifest, write_manifest
+from orthrus.risk.mtta import FindingRecord, MttaReport, compute_mtta
 from orthrus.risk.priority import (
     PriorityAssessment,
     RiskContext,
@@ -16,11 +17,14 @@ from orthrus.risk.priority import (
 )
 
 __all__ = [
+    "FindingRecord",
+    "MttaReport",
     "PriorityAssessment",
     "RiskContext",
     "ScanManifest",
     "assess_priority",
     "build_manifest",
+    "compute_mtta",
     "priority_band",
     "write_manifest",
 ]

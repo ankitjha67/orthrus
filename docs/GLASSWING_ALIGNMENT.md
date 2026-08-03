@@ -31,7 +31,7 @@ pipeline.
 | S11 Fix-validation gate ladder | ⬜ → **building** | patches are generated but not validated through a gate ladder |
 | run manifest / reproducibility | ✅ **added** | `orthrus.risk.manifest` - `run_manifest.json` beside every report; `manifest_hash` reproduces across identical re-runs (timestamps excluded) |
 | Living SBOM (inventory freshness) | ⬜ → **building** | SCA detects components; no CycloneDX/SPDX emission |
-| MTTA metric | ⬜ → **building** | finding lifecycle exists; Mean-Time-to-Adapt is not yet computed |
+| MTTA metric | ✅ **added** | `orthrus.risk.mtta` - inventory freshness, exploitable-paths-open, and time-to-confirm from the finding lifecycle (the production-fix leg needs a deploy timestamp - flagged, not faked) |
 
 ## Glasswing lessons -> ORTHRUS posture
 
@@ -80,8 +80,9 @@ not source, so some are partial):
 1. ✅ **Contextual P1-P4 prioritisation** (`orthrus.risk.priority`) - done.
 2. ✅ **run_manifest** (`orthrus.risk.manifest`) - per-scan reproducibility record; the
    deterministic per-scan artifact honest MTTA diffs.
-3. ⬜ **MTTA metric** - discovery -> validated-fix, with inventory freshness / exploitable
-   paths per release / validation cycle time.
+3. ✅ **MTTA metric** (`orthrus.risk.mtta`) - inventory freshness, exploitable-paths-open,
+   and validation cycle time (time-to-confirm). The production-fix leg needs a deploy
+   timestamp ORTHRUS doesn't own; that gap is flagged, not faked.
 4. ⬜ **Deterministic finding-policy engine** - named, traceable promote/suppress.
 5. ⬜ **CycloneDX SBOM** - machine-readable component inventory.
 6. ⬜ **Fix-validation gate ladder** - prove generated patches in isolation.
