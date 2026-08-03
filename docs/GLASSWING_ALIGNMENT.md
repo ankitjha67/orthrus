@@ -29,7 +29,7 @@ pipeline.
 | S9 SARIF + report bundles | ✅ | SARIF 2.1.0 + JSON/CSV/HTML/PDF/MD |
 | S10 Remediation playbooks | ✅ | automated remediation patch generation |
 | S11 Fix-validation gate ladder | ⬜ → **building** | patches are generated but not validated through a gate ladder |
-| run manifest / reproducibility | ⬜ → **building** | hash-chained audit log + cost ledger exist; no per-scan reproducibility manifest |
+| run manifest / reproducibility | ✅ **added** | `orthrus.risk.manifest` - `run_manifest.json` beside every report; `manifest_hash` reproduces across identical re-runs (timestamps excluded) |
 | Living SBOM (inventory freshness) | ⬜ → **building** | SCA detects components; no CycloneDX/SPDX emission |
 | MTTA metric | ⬜ → **building** | finding lifecycle exists; Mean-Time-to-Adapt is not yet computed |
 
@@ -78,10 +78,11 @@ not source, so some are partial):
 ## Build roadmap (this initiative)
 
 1. ✅ **Contextual P1-P4 prioritisation** (`orthrus.risk.priority`) - done.
-2. ⬜ **MTTA metric** - discovery -> validated-fix, with inventory freshness / exploitable
+2. ✅ **run_manifest** (`orthrus.risk.manifest`) - per-scan reproducibility record; the
+   deterministic per-scan artifact honest MTTA diffs.
+3. ⬜ **MTTA metric** - discovery -> validated-fix, with inventory freshness / exploitable
    paths per release / validation cycle time.
-3. ⬜ **Deterministic finding-policy engine** - named, traceable promote/suppress.
-4. ⬜ **run_manifest** - per-scan reproducibility record.
+4. ⬜ **Deterministic finding-policy engine** - named, traceable promote/suppress.
 5. ⬜ **CycloneDX SBOM** - machine-readable component inventory.
 6. ⬜ **Fix-validation gate ladder** - prove generated patches in isolation.
 

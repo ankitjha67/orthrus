@@ -721,7 +721,48 @@ class Orchestrator:
             min_severity=self.config.min_severity,
         )
         logger.info("report written to %s", path)
+        self._emit_manifest(path)
         return path
+
+    def _emit_manifest(self, report_path: str) -> None:
+        """Write a per-scan reproducibility manifest beside the report (best-effort).
+
+        Records tool version, target, a scope/config hash, the module set and a
+        finding digest, plus a ``manifest_hash`` that reproduces across identical
+        re-runs (timestamps excluded). Never breaks a scan - crash-isolated.
+        """
+        try:
+            from pathlib import Path
+
+            from orthrus import __version__
+            from orthrus.risk.manifest import build_manifest, write_manifest
+
+            cfg = self.config
+            scope = getattr(cfg, "scope", None)
+            scope_rules = (
+                list(getattr(scope, "host_patterns", []) or [])
+                + list(getattr(scope, "ip_ranges", []) or [])
+            ) if scope is not None else []
+            aggr = getattr(cfg, "aggressiveness", "")
+            salient = {
+                "aggressiveness": getattr(aggr, "value", str(aggr)),
+                "min_severity": getattr(cfg, "min_severity", None) or "",
+                "no_exploit": bool(getattr(cfg, "no_exploit", False)),
+            }
+            findings = list(self.ctx.findings) if self.ctx is not None else []
+            manifest = build_manifest(
+                tool_version=__version__,
+                target=getattr(cfg, "target", ""),
+                scope_rules=scope_rules,
+                config=salient,
+                modules=getattr(cfg, "modules", None) or ["all"],
+                findings=findings,
+            )
+            out = Path(report_path).parent / "run_manifest.json"
+            write_manifest(str(out), manifest)
+            logger.info("run manifest written to %s (hash %s...)", out, manifest.manifest_hash[:12])
+        except Exception as exc:
+            logger.debug("run manifest emission skipped: %s", exc)
 
     async def run_full(self) -> None:
         await self.run_recon()
