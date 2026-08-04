@@ -10,13 +10,13 @@ from __future__ import annotations
 
 import re
 from collections.abc import AsyncIterator
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import parse_qsl, urljoin, urlsplit
 
 import httpx
 
 from orthrus.core import schemas
 from orthrus.core.context import ScanContext
-from orthrus.core.schemas import Endpoint, HttpMethod
+from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
 from orthrus.recon.base import BaseRecon
 from orthrus.utils.logger import get_logger
 from orthrus.utils.scope import ScopeViolation
@@ -30,7 +30,11 @@ _ENDPOINT_PATTERNS = [
     re.compile(r"""\baxios\.(?:get|post|put|delete|patch)\(\s*['"]([^'"]+)['"]""", re.I),
     re.compile(r"""\.open\(\s*['"][A-Z]+['"]\s*,\s*['"]([^'"]+)['"]""", re.I),
     re.compile(r"""['"]((?:https?:)?//[^'"\s]+)['"]"""),
-    re.compile(r"""['"](/[A-Za-z0-9_][A-Za-z0-9_./\-]*)['"]"""),
+    # Root-relative path, optionally carrying a ?query string. The trailing
+    # ``(?:\?[^'"\s]*)?`` is what lets a JS-embedded filter link such as
+    # ``"/catalog?category=Gin"`` survive with its query intact - without it the
+    # char class stops at ``?`` and the injectable param is silently dropped.
+    re.compile(r"""['"](/[A-Za-z0-9_][A-Za-z0-9_./\-]*(?:\?[^'"\s]*)?)['"]"""),
     re.compile(r"""\burl\s*:\s*['"]([^'"]+)['"]""", re.I),
 ]
 
@@ -53,6 +57,20 @@ _SECRET_PATTERNS = [
 _IGNORE_SUFFIX = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".css", ".woff", ".woff2", ".ico", ".map")
 
 
+def params_from_query(url: str) -> list[Param]:
+    """Parse a URL's query string into QUERY-location injection parameters.
+
+    Shared by the crawler and JS analyzer so that a discovered ``?a=b`` link
+    (from an anchor, an inline script, or an external JS file) is surfaced as an
+    endpoint that actually carries its injectable parameters - otherwise a
+    scanner has no injection point to test.
+    """
+    return [
+        Param(name=name, location=ParamLocation.QUERY, value=value)
+        for name, value in parse_qsl(urlsplit(url).query, keep_blank_values=True)
+    ]
+
+
 def extract_endpoints(js: str, base_url: str) -> set[str]:
     found: set[str] = set()
     for pattern in _ENDPOINT_PATTERNS:
@@ -61,7 +79,11 @@ def extract_endpoints(js: str, base_url: str) -> set[str]:
             value = value.strip()
             if not value or value.startswith(("data:", "mailto:", "javascript:", "#")):
                 continue
-            if value.lower().endswith(_IGNORE_SUFFIX):
+            # Test the suffix against the path only - a query string such as
+            # ``/app.js?v=2`` must not defeat the static-asset filter, and a
+            # legit endpoint like ``/catalog?x=1.css`` must not be dropped.
+            path_only = value.split("?", 1)[0].split("#", 1)[0]
+            if path_only.lower().endswith(_IGNORE_SUFFIX):
                 continue
             resolved = urljoin(base_url, value)
             if urlsplit(resolved).scheme in ("http", "https"):
@@ -118,7 +140,12 @@ class JsAnalyzer(BaseRecon):
                 if url in emitted or not ctx.scope.is_allowed(url):
                     continue
                 emitted.add(url)
-                yield Endpoint(url=url, method=HttpMethod.GET, source="js")
+                yield Endpoint(
+                    url=url,
+                    method=HttpMethod.GET,
+                    params=params_from_query(url),
+                    source="js",
+                )
 
             for ws in extract_websockets(body, ep.url):
                 if ws not in seen_ws:
@@ -138,4 +165,5 @@ __all__ = [
     "extract_endpoints",
     "extract_websockets",
     "extract_secrets",
+    "params_from_query",
 ]

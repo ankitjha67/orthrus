@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from orthrus.recon.js_analyzer import extract_endpoints, extract_secrets, extract_websockets
+from orthrus.core.schemas import ParamLocation
+from orthrus.recon.js_analyzer import (
+    extract_endpoints,
+    extract_secrets,
+    extract_websockets,
+    params_from_query,
+)
 
 BASE = "http://target.com/app/page"
 
@@ -52,3 +58,30 @@ def test_extract_secrets():
 def test_no_endpoints_or_secrets():
     assert extract_endpoints("var x = 1 + 2;", BASE) == set()
     assert extract_secrets("var x = 1;") == []
+
+
+def test_extract_endpoints_preserves_query_string():
+    # ginandjuice regression: a React filter map embeds the injectable link in an
+    # inline script. The old path regex stopped at "?" and dropped the parameter,
+    # so the SQLi scanner had no injection point to test.
+    js = 'const categories = {"All":"/catalog","Gin":"/catalog?category=Gin"};'
+    eps = extract_endpoints(js, "http://target.com/catalog")
+    assert "http://target.com/catalog?category=Gin" in eps  # query survives
+    assert "http://target.com/catalog" in eps               # bare route still found
+
+
+def test_extract_endpoints_ignore_suffix_matches_path_only():
+    # A "?query" must not defeat the static-asset filter, and a real endpoint
+    # whose query merely ends in an asset-looking token must not be dropped.
+    js = 'var a = "/assets/app.css?v=2"; var keep = "/search?q=1.css";'
+    eps = extract_endpoints(js, "http://target.com/")
+    assert not any("app.css" in e for e in eps)          # asset filtered despite ?v=2
+    assert "http://target.com/search?q=1.css" in eps     # query ending in .css kept
+
+
+def test_params_from_query_parses_query_params():
+    params = params_from_query("http://t/catalog?category=Gin&sort=asc")
+    got = {p.name: p.value for p in params}
+    assert got == {"category": "Gin", "sort": "asc"}
+    assert all(p.location is ParamLocation.QUERY for p in params)
+    assert params_from_query("http://t/catalog") == []

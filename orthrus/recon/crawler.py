@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 from collections import deque
 from collections.abc import AsyncIterator
-from urllib.parse import parse_qsl, urljoin, urlsplit, urlunsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import httpx
 from bs4 import BeautifulSoup
@@ -20,7 +20,7 @@ from orthrus.core import schemas
 from orthrus.core.context import ScanContext
 from orthrus.core.schemas import Endpoint, HttpMethod, Param, ParamLocation
 from orthrus.recon.base import BaseRecon
-from orthrus.recon.js_analyzer import extract_endpoints, extract_websockets
+from orthrus.recon.js_analyzer import extract_endpoints, extract_websockets, params_from_query
 from orthrus.utils.logger import get_logger
 from orthrus.utils.scope import ScopeViolation
 
@@ -35,14 +35,6 @@ def _normalize(url: str) -> str | None:
     if parts.scheme not in ("http", "https"):
         return None
     return urlunsplit((parts.scheme, parts.netloc, parts.path or "/", parts.query, ""))
-
-
-def _params_from_query(url: str) -> list[Param]:
-    query = urlsplit(url).query
-    return [
-        Param(name=name, location=ParamLocation.QUERY, value=value)
-        for name, value in parse_qsl(query, keep_blank_values=True)
-    ]
 
 
 def _content_hash(body: str) -> str:
@@ -76,6 +68,10 @@ class Crawler(BaseRecon):
 
         seen_urls: set[str] = set()
         seen_hashes: set[str] = set()
+        # (path, sorted-param-names) already surfaced as a query-bearing endpoint,
+        # so five `/catalog?category=<X>` links collapse to one injection point
+        # instead of five near-duplicate endpoints.
+        seen_param_eps: set[tuple[str, tuple[str, ...]]] = set()
         queue: deque[tuple[str, int]] = deque([(start, 0)])
         pages = 0
 
@@ -103,7 +99,7 @@ class Crawler(BaseRecon):
             yield Endpoint(
                 url=url,
                 method=HttpMethod.GET,
-                params=_params_from_query(url),
+                params=params_from_query(url),
                 response_status=resp.status_code,
                 response_headers=dict(resp.headers),
                 set_cookies=resp.headers.get_list("set-cookie"),
@@ -134,27 +130,53 @@ class Crawler(BaseRecon):
                     yield Endpoint(url=src, method=HttpMethod.GET, source="script")
 
             # Inline scripts -> mine endpoints / websockets directly (body in hand).
+            # SPA filter links (e.g. a React `{"Gin":"/catalog?category=Gin"}`
+            # map) live here, not in <a href> anchors, so this is often the only
+            # place their injectable query params can be recovered.
             for script in soup.find_all("script", src=False):
                 code = script.string or script.get_text() or ""
                 if not code.strip():
                     continue
                 for ep_url in extract_endpoints(code, url):
-                    if ctx.scope.is_allowed(ep_url):
-                        yield Endpoint(url=ep_url, method=HttpMethod.GET, source="js-inline")
+                    if not ctx.scope.is_allowed(ep_url):
+                        continue
+                    ep_params = params_from_query(ep_url)
+                    if ep_params:
+                        key = (urlsplit(ep_url).path, tuple(sorted(p.name for p in ep_params)))
+                        if key in seen_param_eps:
+                            continue
+                        seen_param_eps.add(key)
+                    yield Endpoint(
+                        url=ep_url, method=HttpMethod.GET, params=ep_params, source="js-inline"
+                    )
                 for ws in extract_websockets(code, url):
                     if ws not in ctx.websockets:
                         ctx.websockets.append(ws)
 
-            if depth >= max_depth:
-                continue
             for anchor in soup.find_all("a", href=True):
                 href = anchor["href"].strip()
-                scheme = urlsplit(href).scheme.lower()
-                if scheme in _SKIP_SCHEMES:
+                if urlsplit(href).scheme.lower() in _SKIP_SCHEMES:
                     continue
                 child = _normalize(urljoin(url, href))
-                if child and child not in seen_urls and ctx.scope.is_allowed(child):
-                    queue.append((child, depth + 1))
+                if not child or not ctx.scope.is_allowed(child):
+                    continue
+                if depth < max_depth:
+                    if child not in seen_urls:
+                        queue.append((child, depth + 1))
+                    continue
+                # At the depth frontier we stop crawling, but a link that still
+                # carries a `?a=b` query is an injection point in its own right -
+                # harvest it (deduped by path + param-set) rather than dropping the
+                # parameter on the floor.
+                child_params = params_from_query(child)
+                if not child_params:
+                    continue
+                key = (urlsplit(child).path, tuple(sorted(p.name for p in child_params)))
+                if key not in seen_param_eps:
+                    seen_param_eps.add(key)
+                    yield Endpoint(
+                        url=child, method=HttpMethod.GET, params=child_params, source="crawler-link"
+                    )
 
 
 __all__ = ["Crawler"]
