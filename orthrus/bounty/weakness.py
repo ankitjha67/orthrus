@@ -39,6 +39,7 @@ WEAKNESS_LABELS: dict[str, str] = {
     "CWE-915": "Mass Assignment",
     "CWE-472": "External Control of Assumed-Immutable Web Parameter",
     "CWE-639": "Insecure Direct Object Reference (IDOR)",
+    "CWE-640": "Weak Password Recovery Mechanism",
     "CWE-285": "Improper Authorization",
     "CWE-290": "Authentication Bypass by Spoofing",
     "CWE-347": "Improper Verification of Cryptographic Signature (JWT)",
