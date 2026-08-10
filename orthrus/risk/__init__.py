@@ -24,6 +24,15 @@ from orthrus.risk.priority import (
     priority_band,
 )
 from orthrus.risk.sbom import Component, Vulnerability, build_sbom, write_sbom
+from orthrus.risk.sla import (
+    SLAPolicy,
+    SLAReport,
+    SLAStatus,
+    default_sla_policy,
+    evaluate_slas,
+    sla_alert_lines,
+    sla_status,
+)
 
 __all__ = [
     "Component",
@@ -36,6 +45,9 @@ __all__ = [
     "PriorityAssessment",
     "RiskContext",
     "ScanManifest",
+    "SLAPolicy",
+    "SLAReport",
+    "SLAStatus",
     "Vulnerability",
     "apply_policies",
     "assess_priority",
@@ -43,9 +55,13 @@ __all__ = [
     "build_sbom",
     "compute_mtta",
     "default_policies",
+    "default_sla_policy",
     "evaluate",
+    "evaluate_slas",
     "priority_band",
     "run_ladder",
+    "sla_alert_lines",
+    "sla_status",
     "write_manifest",
     "write_sbom",
 ]
