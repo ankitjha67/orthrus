@@ -48,6 +48,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     open_redirect,
     origin_exposure,
     otp_2fa,
+    password_reset,
     privilege_escalation,
     product_cve,
     prototype_pollution,
