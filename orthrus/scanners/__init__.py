@@ -11,6 +11,7 @@ from orthrus.scanners import (  # noqa: F401  (registration side-effects)
     auth,
     authz_matrix,
     business_logic,
+    bypass_403,
     cache_poisoning,
     cmd_injection,
     cors,
