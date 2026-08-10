@@ -1,11 +1,15 @@
 """Framework debug / management-endpoint exposure scanner.
 
 Production apps routinely ship with framework debug features or management
-endpoints left reachable: Spring Boot Actuator (``/actuator/env`` leaks config
-and secrets), ``phpinfo()``, Apache ``server-status``, Prometheus ``/metrics``,
-Laravel Telescope, Rails info pages - and, worst of all, **debug mode** that
-renders full stack traces (Flask/Werkzeug, Django, Laravel Ignition, Rails) and
-leaks source, file paths, and sometimes an interactive console.
+endpoints left reachable: the full Spring Boot Actuator surface (``/actuator/env``
+leaks config/secrets; ``mappings``/``beans``/``httpexchanges``; and Spring Cloud
+Gateway ``/actuator/gateway/routes``, the CVE-2022-22947 RCE vector), the Symfony
+profiler, Laravel Telescope/Ignition (CVE-2021-3129), Adobe AEM's Apache Felix
+console and CRXDE, ASP.NET ELMAH/``trace.axd``, ``phpinfo()``, Apache
+``server-status``/``server-info``, Prometheus ``/metrics``, Yii/Solr consoles -
+and, worst of all, **debug mode** that renders full stack traces (Flask/Werkzeug,
+Django, Laravel Ignition, Symfony, Rails) and leaks source, file paths, and
+sometimes an interactive console.
 
 Two probes, both non-mutating GETs through the scope-enforced HttpClient:
 
@@ -33,22 +37,51 @@ logger = get_logger("scanner.framework-debug")
 
 SCANNER_NAME = "framework-debug-exposure"
 MAX_ORIGINS = 3
-MAX_REQUESTS = 40
+MAX_REQUESTS = 70
 
 # A path unlikely to exist, used to trigger a framework error page.
 _ERROR_PROBE_PATH = "/orthrus-debug-probe-7f3a"
 
 # (path, framework label, content signatures (any match), severity)
+# Each entry is confirmed by a *content* fingerprint (never a bare 200) so a
+# catch-all page can't false-positive. Signatures are matched case-insensitively.
 DEBUG_PROBES: tuple[tuple[str, str, tuple[str, ...], Severity], ...] = (
-    ("/actuator/env", "Spring Boot Actuator (env)", ("propertySources",), Severity.HIGH),
+    # --- Spring Boot Actuator (JSON management surface) ---------------------
+    ("/actuator/env", "Spring Boot Actuator (env - leaks config/secrets)", ("propertySources",), Severity.HIGH),
     ("/actuator", "Spring Boot Actuator", ('"_links"', "actuator"), Severity.MEDIUM),
     ("/actuator/health", "Spring Boot Actuator (health)", ('"status":"up"',), Severity.LOW),
+    ("/actuator/mappings", "Spring Boot Actuator (mappings - internal routes)", ('"dispatcherServlet"', '"handler"'), Severity.MEDIUM),
+    ("/actuator/beans", "Spring Boot Actuator (beans)", ('"beans"', '"scope"'), Severity.MEDIUM),
+    ("/actuator/configprops", "Spring Boot Actuator (configprops)", ('"contexts"', '"properties"'), Severity.MEDIUM),
+    ("/actuator/threaddump", "Spring Boot Actuator (threaddump)", ('"threads"', '"threadName"'), Severity.MEDIUM),
+    ("/actuator/httpexchanges", "Spring Boot Actuator (httpexchanges - request history)", ('"exchanges"', '"timeTaken"'), Severity.MEDIUM),
+    ("/actuator/httptrace", "Spring Boot Actuator (httptrace - request history)", ('"traces"', '"timeTaken"'), Severity.MEDIUM),
+    ("/actuator/loggers", "Spring Boot Actuator (loggers)", ('"configuredlevel"', '"levels"'), Severity.LOW),
+    ("/actuator/gateway/routes", "Spring Cloud Gateway routes (CVE-2022-22947 RCE vector)", ('"route_id"', '"predicate"'), Severity.HIGH),
+    # --- PHP / Apache -------------------------------------------------------
     ("/phpinfo.php", "phpinfo()", ("phpinfo()", "PHP Version"), Severity.MEDIUM),
     ("/info.php", "phpinfo()", ("phpinfo()", "PHP Version"), Severity.MEDIUM),
     ("/server-status", "Apache server-status", ("Apache Server Status", "Server uptime"), Severity.MEDIUM),
+    ("/server-info", "Apache server-info", ("Apache Server Information", "Server Settings"), Severity.MEDIUM),
     ("/metrics", "Prometheus metrics", ("# HELP", "# TYPE"), Severity.LOW),
+    # --- Laravel / Symfony --------------------------------------------------
     ("/telescope/requests", "Laravel Telescope", ("Telescope", "laravel"), Severity.MEDIUM),
+    ("/_ignition/health-check", "Laravel Ignition (CVE-2021-3129 RCE vector)", ("can_execute_commands", '"can_execute"'), Severity.HIGH),
+    ("/_profiler", "Symfony Profiler (dev debug surface)", ("symfony profiler", "sf-toolbar", "profiler-header"), Severity.HIGH),
+    ("/_profiler/phpinfo", "Symfony Profiler (phpinfo)", ("phpinfo()", "PHP Version"), Severity.HIGH),
+    # --- Rails --------------------------------------------------------------
     ("/rails/info/routes", "Rails info", ("URI Pattern", "Routing Error"), Severity.MEDIUM),
+    # --- Adobe AEM / Apache Felix (OSGi) ------------------------------------
+    ("/system/console", "Apache Felix Web Console (AEM/OSGi - RCE surface)", ("web console", "apache felix"), Severity.HIGH),
+    ("/system/console/bundles", "Apache Felix Console (bundles)", ("apache felix", "symbolic name"), Severity.HIGH),
+    ("/crx/de/index.jsp", "Adobe AEM CRXDE Lite", ("crxde", "crx de"), Severity.HIGH),
+    ("/bin/querybuilder.json", "Adobe AEM QueryBuilder (unauthenticated)", ('"success":true', '"hits"'), Severity.MEDIUM),
+    # --- ASP.NET ------------------------------------------------------------
+    ("/elmah.axd", "ASP.NET ELMAH error log", ("Error Log for", "elmah"), Severity.MEDIUM),
+    ("/trace.axd", "ASP.NET trace viewer", ("Application Trace", "Trace Information"), Severity.MEDIUM),
+    # --- Other frameworks ---------------------------------------------------
+    ("/debug/default/view", "Yii Debugger", ("Yii Debugger", "yii-debug"), Severity.MEDIUM),
+    ("/solr/", "Apache Solr admin", ("Solr Admin", "solr-admin"), Severity.MEDIUM),
 )
 
 # Markers that prove framework debug mode (stack traces / debuggers) is enabled.
@@ -57,8 +90,12 @@ _DEBUG_MODE_MARKERS: tuple[tuple[str, str], ...] = (
     ("Traceback (most recent call last)", "Python stack trace (debug mode)"),
     ("DEBUG = True", "Django debug mode"),
     ("You're seeing this error because you have", "Django debug mode"),
+    ("django.core.handlers", "Django stack trace (debug mode)"),
     ("Whoops, looks like something went wrong", "Laravel/Symfony debug page"),
     ("Ignition", "Laravel Ignition debug page"),
+    ("sf-dump", "Symfony VarDumper debug output"),
+    ("Symfony\\Component\\", "Symfony debug stack trace"),
+    ("phpdebugbar", "PHP Debug Bar"),
     ("ActionController::RoutingError", "Rails debug mode"),
     ("Rack::", "Rack stack trace (debug mode)"),
 )

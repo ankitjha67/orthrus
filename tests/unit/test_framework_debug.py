@@ -63,6 +63,21 @@ class ExposedHttp:
         return FakeResp(404, "<html>not found</html>")
 
 
+class HighValueHttp:
+    """Serves the newly-added high-severity probes (RCE-adjacent surfaces)."""
+
+    async def get(self, url: str, **kw: object) -> FakeResp:
+        if url.endswith("/actuator/gateway/routes"):
+            return FakeResp(200, '[{"route_id":"x","predicate":"Path=/**","filters":[]}]')
+        if url.endswith("/system/console"):
+            return FakeResp(200, "<title>Web Console</title> Apache Felix - Bundles")
+        if url.endswith("/_ignition/health-check"):
+            return FakeResp(200, '{"can_execute_commands":true}')
+        if url.endswith("/crx/de/index.jsp"):
+            return FakeResp(200, "<title>CRXDE Lite</title>")
+        return FakeResp(404, "not found")
+
+
 class DebugModeHttp:
     """Returns a Werkzeug stack trace on the bogus error-probe path."""
 
@@ -79,10 +94,28 @@ async def test_scanner_flags_exposed_endpoints() -> None:
     findings = [f async for f in FrameworkDebugScanner().scan(_ctx(ExposedHttp()))]
     fw = [f for f in findings if f.vuln_type == "framework-debug"]
     titles = " ".join(f.title for f in fw)
-    assert "Actuator (env)" in titles
+    assert "Actuator (env" in titles
     assert "server-status" in titles
     # the env endpoint is rated HIGH
     assert any(f.severity == Severity.HIGH for f in fw if "env" in f.title)
+
+
+async def test_scanner_flags_high_value_probes() -> None:
+    findings = [f async for f in FrameworkDebugScanner().scan(_ctx(HighValueHttp()))]
+    fw = [f for f in findings if f.vuln_type == "framework-debug"]
+    titles = " ".join(f.title for f in fw)
+    # Spring Cloud Gateway routes (CVE-2022-22947), Apache Felix console,
+    # Laravel Ignition (CVE-2021-3129), and AEM CRXDE all detected...
+    assert "Gateway routes" in titles
+    assert "Felix" in titles
+    assert "Ignition" in titles
+    assert "CRXDE" in titles
+    # ...and the RCE-adjacent ones are rated HIGH.
+    assert all(
+        f.severity == Severity.HIGH
+        for f in fw
+        if any(k in f.title for k in ("Gateway routes", "Felix", "Ignition"))
+    )
 
 
 async def test_scanner_flags_debug_mode_stack_trace() -> None:
