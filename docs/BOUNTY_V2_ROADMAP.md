@@ -19,7 +19,7 @@ an account/credential/infra · 🏗 major rewrite / separate product bet.
 ## Delivered (v2.0 operator platform, shipped 2026-07)
 
 The plan below has since been **executed**. The full v2.0 operator platform (PRD
-Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1502 tests green.
+Phases 0-7) shipped as the PR chain #28-#37, all merged to `main`, 1534 tests green.
 The tables further down are kept as the historical plan; here is what actually landed:
 
 | Phase | Delivered | Where it lives |
@@ -47,7 +47,7 @@ the native Rust core (the cockpit ships as Tauri + FastAPI, per the hybrid decis
 | **Authorization model + kill-list** (§2.3/§6/§11) | ✅ | Shipped: `bounty/authorization.py` (program URL / signed / direct / self-lab; public scope refused without it) + `bounty/killlist.py` (gov/mil/edu/health/sanctioned refused unless attested). |
 | Program record + scope_entries (§6) | 🟡→🛠 | Authorization is captured; a persisted `programs` store (pause, jurisdiction, expiry, history) is next. |
 | Recon engine - continuous / diff / CT-log (§7.2) | 🟡→🛠 | Have subdomain enum + recon modules. Next: **expand `*.wildcard` → live in-scope subdomains before scanning**; then diffing + a per-program scheduler; then external adapters (subfinder/amass/dnsx/httpx). CT-log + cloud workers are heavier. |
-| Scan engine (§7.3) | ✅ + 🛠 | 67 scanners today; `--tools nuclei` exists. **dalfox** (XSS) + **testssl** (TLS) adapters added; sqlmap/ffuf still to come. |
+| Scan engine (§7.3) | ✅ + 🛠 | 70 scanners today; `--tools nuclei` exists. **dalfox** (XSS) + **testssl** (TLS) adapters added; sqlmap/ffuf still to come. |
 | Confirm engine (§7.4) | ✅ + 🛠 | 28 confirmers, incl. XXE-OOB, deserialization-OOB, and the LDAP/XPath/CSRF/default-creds/OAuth/file-upload/cache-deception/prompt-injection/CSWSH batch (shipped). Honest gaps (not safely auto-confirmable): request-smuggling desync, single-packet race, SAML sig-strip, cross-identity privesc. |
 | Triage engine (§7.5) | ✅ + 🛠 | Composite **priority scoring** (`bounty/triage.py`), a **submission gate** (`bounty/submission_gate.py` + `orthrus submission-gate`) that predicts submit / prove-impact-first / hold so reports lead with payable findings and drop header/CORS-no-cred/cookie-flag noise, cross-run history recall (`bounty/history.py`), LLM FP-judge (`orthrus triage --llm`), and per-program **mute rules** (`bounty/suppress.py` + `orthrus suppress`/`suppressions`). Next: cross-program near-dup clustering. |
 | **Authenticated critical pipeline** | ✅ | `authz-matrix` escalates cross-identity access to **CRITICAL** with redacted PII/payment evidence (`utils/sensitivity.py`), an anonymous control kills public-page false positives, and unauthenticated sensitive exposure is flagged CWE-306. Run it via [docs/BOUNTY_AUTHENTICATED_RUNBOOK.md](BOUNTY_AUTHENTICATED_RUNBOOK.md) - two identities against the real authenticated API, where the criticals live. |
