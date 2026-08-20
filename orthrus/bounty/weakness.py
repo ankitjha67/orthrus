@@ -69,6 +69,7 @@ WEAKNESS_LABELS: dict[str, str] = {
     "CWE-16": "Configuration",
     "CWE-489": "Active Debug Code",
     "CWE-693": "Protection Mechanism Failure (Missing Security Header)",
+    "CWE-1021": "Improper Restriction of Rendered UI Layers or Frames (Clickjacking)",
     "CWE-319": "Cleartext Transmission of Sensitive Information",
     "CWE-326": "Inadequate Encryption Strength",
     "CWE-331": "Insufficient Entropy",
