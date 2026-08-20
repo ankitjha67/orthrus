@@ -60,6 +60,7 @@ WEAKNESS_LABELS: dict[str, str] = {
     "CWE-200": "Exposure of Sensitive Information",
     "CWE-209": "Generation of Error Message Containing Sensitive Information",
     "CWE-538": "Insertion of Sensitive Information into Externally-Accessible File",
+    "CWE-540": "Inclusion of Sensitive Information in Source Code (Source Map / Source Leak)",
     "CWE-548": "Exposure of Information Through Directory Listing",
     "CWE-525": "Use of Web Browser Cache Containing Sensitive Information",
     "CWE-668": "Exposure of Resource to Wrong Sphere",
