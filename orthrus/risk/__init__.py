@@ -7,6 +7,13 @@ evidence -> same decision"). Pure and dependency-free so every decision is
 reproducible and testable.
 """
 
+from orthrus.risk.dedup import (
+    DedupeResult,
+    ReconcileResult,
+    dedupe_findings,
+    finding_hash,
+    reconcile,
+)
 from orthrus.risk.fix_validation import GateResult, ValidationResult, run_ladder
 from orthrus.risk.manifest import ScanManifest, build_manifest, write_manifest
 from orthrus.risk.memory_ledger import (
@@ -50,10 +57,12 @@ from orthrus.risk.sla import (
 __all__ = [
     "Component",
     "DEAD_CLASS_THRESHOLD",
+    "DedupeResult",
     "FindingRecord",
     "GateResult",
     "LedgerFindingRecord",
     "MemoryLedger",
+    "ReconcileResult",
     "SkipDecision",
     "ValidationResult",
     "MttaReport",
@@ -71,7 +80,10 @@ __all__ = [
     "build_manifest",
     "build_sbom",
     "compute_mtta",
+    "dedupe_findings",
     "default_policies",
+    "finding_hash",
+    "reconcile",
     "default_sla_policy",
     "evaluate",
     "evaluate_slas",
