@@ -30,6 +30,13 @@ from orthrus.risk.memory_ledger import (
     FindingRecord as LedgerFindingRecord,
 )
 from orthrus.risk.mtta import FindingRecord, MttaReport, compute_mtta
+from orthrus.risk.novelty import (
+    KNOWN_PATTERNS,
+    KnownPattern,
+    NoveltyVerdict,
+    assess_novelty,
+    partition_by_novelty,
+)
 from orthrus.risk.policy import (
     Policy,
     PolicyDecision,
@@ -61,7 +68,10 @@ __all__ = [
     "FindingRecord",
     "GateResult",
     "LedgerFindingRecord",
+    "KNOWN_PATTERNS",
+    "KnownPattern",
     "MemoryLedger",
+    "NoveltyVerdict",
     "ReconcileResult",
     "SkipDecision",
     "ValidationResult",
@@ -76,7 +86,9 @@ __all__ = [
     "SLAStatus",
     "Vulnerability",
     "apply_policies",
+    "assess_novelty",
     "assess_priority",
+    "partition_by_novelty",
     "build_manifest",
     "build_sbom",
     "compute_mtta",
